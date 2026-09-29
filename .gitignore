@@ -1,0 +1,2 @@
+# Lokale Zugangsdaten gehören nicht ins Repo (Vorlage: env.beispiel)
+/.env

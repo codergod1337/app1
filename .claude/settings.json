@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "autoMemoryEnabled": false,
+  "claudeMdExcludes": [
+    "**/Users/*/.claude/CLAUDE.md",
+    "**/Users/*/.claude/rules/**"
+  ]
+}

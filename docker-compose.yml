@@ -1,0 +1,24 @@
+# Docker-Logs: zusammen maximal 500 MB. Docker kann nur pro Container begrenzen,
+# daher bei jedem neuen Container max-size so anpassen, dass die Summe 500 MB bleibt.
+# Aktuell 1 Container: 5 x 100 MB = 500 MB.
+# Gilt erst für neu angelegte Container: "docker compose up -d", nicht "docker restart".
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "100m"
+    max-file: "5"
+
+services:
+  app1_postgres:
+    image: postgres:18.6
+    container_name: app1_postgres
+    environment:
+      POSTGRES_DB: ${postgres_db_name}
+      POSTGRES_USER: ${postgres_user}
+      POSTGRES_PASSWORD: ${postgres_pw}
+    ports:
+      - "${postgres_port}:5432"
+    # Daten liegen außerhalb von Git: app1/docker_mounts/postgres
+    volumes:
+      - ../docker_mounts/postgres:/var/lib/postgresql
+    logging: *logging

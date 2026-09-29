@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: gebieter
+
+  # Lokale Werte aus der .env im Repo-Root (nicht in Git, Vorlage: env.beispiel).
+  # Zwei Pfade, damit es aus dem Repo-Root und aus spring/ heraus funktioniert.
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
+
+  datasource:
+    url: jdbc:postgresql://${postgres_url}:${postgres_port}/${postgres_db_name}
+    username: ${postgres_user}
+    password: ${postgres_pw}
+
+  # Hibernate legt die Tabellen aus den Entities an und erweitert sie (löscht aber nichts).
+  # Wegen loser Kopplung gibt es keine Beziehungen zwischen Entities, daher entstehen keine FK-Constraints.
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
