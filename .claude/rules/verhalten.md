@@ -6,3 +6,4 @@
 - Nur Fragen stellen, die für den aktuellen Schritt nötig sind. Themen für später erst ansprechen, wenn sie dran sind. Ausnahme: Wenn ich nach allgemeiner Architektur oder gängiger Praxis frage, auch weiterführende Punkte ansprechen.
 - Sämtliche Versionen ausschließlich von der offiziellen Seite aus dem Netz nehmen, und zwar immer die neueste stabile Version. Keine Betas, Release Candidates, Meilensteine oder Snapshots.
 - Ausnahme Java: vorerst die neueste LTS-Version.
+- Das Backend startest du nie selbst. Du sagst mir, was ich im Terminal eingeben soll.

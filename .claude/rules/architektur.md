@@ -9,6 +9,10 @@
 - Jedes Paket ist immer aufgeteilt in `controller/`, `model/`, `repository/` und `service/`.
 - Pakete können Unterpakete haben. Die sind genauso aufgeteilt (z. B. `feature_a/teil_x/controller/`).
 
+## Frontend
+
+- React mit TypeScript, gebaut mit Vite, im Ordner `frontend-ts/`.
+
 ## Entities
 
 - Hibernate lädt immer nur eine einzelne Entity aus der DB.

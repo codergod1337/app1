@@ -9,6 +9,7 @@ Für dieses Projekt gelten ausschließlich die Regeln in diesem Ordner:
 - `rules/verhalten.md`: wie Claude arbeitet
 - `rules/naming.md`: Namenskonventionen
 - `rules/architektur.md`: lose Kopplung, Umgang mit Entities und FKs, Konfiguration
+- `rules/ziele.md`: Pläne und nächste Schritte
 
 Andere Memories werden nicht verwendet (siehe `settings.json`).
 
