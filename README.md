@@ -17,7 +17,7 @@ app1/
     spring/          Backend
     frontend-ts/     Frontend
     docs/            diese Doku
-  docker_mounts/     Daten der Container, nicht in Git (Postgres, SFTP-Dateien, SFTP-Host-Key)
+  docker_mounts/     ein Ordner pro Container (postgres, sftp), nicht in Git
 ```
 
 Die Compose erwartet `docker_mounts` neben `gitfiles`. Das Repo wird deshalb in einen Ordner namens `gitfiles` geklont. Der Name des Ordners darüber ist egal.
@@ -49,7 +49,7 @@ Auf dem Server, im Ordner `gitfiles`:
 docker compose up -d
 ```
 
-`app1-deploy.sh` macht dasselbe, baut vorher aber alle eigenen Images ohne Cache neu und räumt danach alte Images weg. Solange die Compose nur fertige Images nutzt, reicht `docker compose up -d`.
+Beim ersten Mal baut `up` das SFTP-Image selbst, siehe [SFTP](docs/backend/sftp.md#container). `app1-deploy.sh` macht dasselbe, baut vorher aber alle eigenen Images ohne Cache neu, holt die Basis-Images frisch und räumt danach alte Images weg. Für den Alltag reicht `docker compose up -d`.
 
 ### 3. PC: Backend und Frontend
 

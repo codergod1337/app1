@@ -6,9 +6,16 @@ Alle Dateien der App (Uploads, später Revisionen und Exporte) liegen nicht in d
 
 ### Container
 
-`app1_sftp` ist ein `atmoz/sftp`. Die Compose legt darin einen User an (`sftp_user` und `sftp_pw` aus der `.env`), sperrt ihn in sein Home (chroot) und bindet den Ordner `docker_mounts/sftp` des Servers als `/sftproot` darin ein. Aus Sicht des Users gibt es nur `/sftproot`, das ist der `root-dir` in der `application.yml`.
+`app1_sftp` ist ein `atmoz/sftp`: Alpine plus OpenSSH, mehr nicht. Auf Docker Hub gibt es das Image nur für amd64, der Pi ist arm64. Deshalb baut die Compose es aus dem Git-Repo des Projekts selbst, mit festem Commit. Die Compose legt darin einen User an (`sftp_user` und `sftp_pw` aus der `.env`), sperrt ihn in sein Home (chroot) und bindet den Ordner `docker_mounts/sftp/sftproot` des Servers als `/sftproot` darin ein. Aus Sicht des Users gibt es nur `/sftproot`, das ist der `root-dir` in der `application.yml`.
 
-Der Container benutzt einen festen Host-Key aus `docker_mounts/sftp_hostkey/`. Ohne den würde er bei jedem Neuanlegen einen neuen erzeugen, und das Backend würde den Server nicht mehr erkennen.
+Der Container benutzt einen festen Host-Key, `docker_mounts/sftp/ssh_host_ed25519_key`. Ohne den würde er bei jedem Neuanlegen einen neuen erzeugen, und das Backend würde den Server nicht mehr erkennen. Der Key liegt neben `sftproot`, nicht darin, sonst sähe ihn der SFTP-User.
+
+```
+docker_mounts/sftp/
+  ssh_host_ed25519_key       privater Host-Key, chmod 600
+  ssh_host_ed25519_key.pub   öffentlicher Teil, steht in jeder .env als sftp_host_key
+  sftproot/                  die Dateien, gehört uid 1001
+```
 
 ### Backend (`system/sftp`)
 
@@ -39,17 +46,17 @@ In der `.env` nur `sftp_host` und `sftp_host_key` ändern. Das NAS muss dem User
 
 ## Installation
 
-Host-Key und Dateien liegen in `docker_mounts/` neben `gitfiles/`, nicht in Git. Nach einem frischen Clone einmal anlegen. Alle Befehle auf dem Server im Ordner `gitfiles/`.
+Alles zum Container liegt in `docker_mounts/sftp/` neben `gitfiles/`, nicht in Git. Nach einem frischen Clone einmal anlegen. Alle Befehle auf dem Server im Ordner `gitfiles/`.
 
 ### 1. Host-Key und Ordner
 
 Einmalig. Das Schlüsselpaar bleibt für immer dasselbe, ein neues hieße: Jede `.env` braucht den neuen öffentlichen Key.
 
 ```
-mkdir -p ../docker_mounts/sftp_hostkey ../docker_mounts/sftp
-ssh-keygen -t ed25519 -N "" -C "app1_sftp host key" -f ../docker_mounts/sftp_hostkey/ssh_host_ed25519_key
-chmod 600 ../docker_mounts/sftp_hostkey/ssh_host_ed25519_key
-sudo chown 1001:100 ../docker_mounts/sftp
+mkdir -p ../docker_mounts/sftp/sftproot
+ssh-keygen -t ed25519 -N "" -C "app1_sftp host key" -f ../docker_mounts/sftp/ssh_host_ed25519_key
+chmod 600 ../docker_mounts/sftp/ssh_host_ed25519_key
+sudo chown 1001:100 ../docker_mounts/sftp/sftproot
 ```
 
 Das `chown` gilt dem User im Container (uid 1001 laut Compose). Sonst kann er nichts schreiben, jeder Upload scheitert mit 503.
@@ -59,7 +66,7 @@ Das `chown` gilt dem User im Container (uid 1001 laut Compose). Sonst kann er ni
 Den SFTP-Block aus `env.beispiel` ausfüllen. Den Wert für `sftp_host_key` liefert:
 
 ```
-cut -d " " -f 1,2 ../docker_mounts/sftp_hostkey/ssh_host_ed25519_key.pub
+cut -d " " -f 1,2 ../docker_mounts/sftp/ssh_host_ed25519_key.pub
 ```
 
 `sftp_user`, `sftp_pw` und `sftp_host_key` gehören zeichengleich in jede `.env`, aus der ein Backend diesen Container anspricht, auch in die auf dem Entwickler-PC. `sftp_host` ist dort die LAN-Adresse des Servers.
@@ -72,7 +79,7 @@ docker logs app1_sftp
 ssh-keyscan -p <sftp_port> localhost
 ```
 
-Im Log darf kein Fehler stehen, am Ende `Executing sshd`. `ssh-keyscan` muss genau den Schlüssel aus der `.env` zeigen.
+Beim ersten Mal baut `up` das Image, das dauert auf dem Pi ein bis zwei Minuten. Im Log darf kein Fehler stehen, am Ende `Executing sshd`. `ssh-keyscan` muss genau den Schlüssel aus der `.env` zeigen.
 
 ### 4. Backend
 

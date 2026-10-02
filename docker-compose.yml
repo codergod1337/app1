@@ -26,9 +26,14 @@ services:
 
   # Dateispeicher. Das Backend spricht ihn über system/sftp an, mit User und Passwort aus derselben .env.
   # Später kann ein NAS an seine Stelle treten: dann ändern sich in der .env nur sftp_host und sftp_host_key.
-  # Das Image hat keine Versions-Tags, "alpine" wird laufend neu gebaut, "latest" seit 2024 nicht mehr.
+  # atmoz/sftp gibt es auf Docker Hub nur für amd64, der Pi ist arm64. Deshalb wird das Image aus dem Git-Repo des
+  # Projekts gebaut: Alpine plus OpenSSH, fester Commit (der letzte, 2024-09-14; Versions-Tags gibt es keine).
+  # "docker compose up -d" baut es beim ersten Mal, app1-deploy.sh bei jedem Deploy ohne Cache neu.
   app1_sftp:
-    image: atmoz/sftp:alpine
+    build:
+      context: https://github.com/atmoz/sftp.git#46a8b3db48a99257249a79fcbdf1cd9f666e161b
+      dockerfile: Dockerfile-alpine
+    image: app1_sftp
     container_name: app1_sftp
     restart: unless-stopped
     environment:
@@ -37,9 +42,10 @@ services:
       SFTP_USERS: "${sftp_user}:${sftp_pw}:1001:100:sftproot"
     ports:
       - "${sftp_port}:22"
+    # Alles zum Container liegt außerhalb von Git in app1/docker_mounts/sftp: der Host-Key direkt darin, die Dateien
+    # im Unterordner sftproot. Der Key liegt bewusst nicht im gemounteten Ordner, sonst sähe ihn der SFTP-User.
     volumes:
-      # Die Dateien liegen außerhalb von Git: app1/docker_mounts/sftp
-      - ../docker_mounts/sftp:/home/${sftp_user}/sftproot
+      - ../docker_mounts/sftp/sftproot:/home/${sftp_user}/sftproot
       # Fester Host-Key (chmod 600), damit er jedes "up" überlebt: Das Backend akzeptiert nur genau diesen Server.
-      - ../docker_mounts/sftp_hostkey/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key:ro
+      - ../docker_mounts/sftp/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key:ro
     logging: *logging
