@@ -1,0 +1,1889 @@
+/*
+ * basic.css: wird immer geladen. Maße und Aufbau, die immer gleich bleiben.
+ *
+ * Priorität: Bootstrap < basic.css < Theme.
+ * Bootstrap und basic liegen in CSS-Layern, das Theme (public/themes/<name>.css) liegt außerhalb
+ * und gewinnt damit immer. Ein Theme setzt nur die Variablen aus dem ersten Block unten.
+ */
+@layer bootstrap, icons, basic;
+
+@import 'bootstrap/dist/css/bootstrap.min.css' layer(bootstrap);
+
+/* Symbol-Schriften (alle MIT oder ISC). Tabler nur Umriss: die gefüllten nutzen dieselben Klassennamen. */
+@import 'bootstrap-icons/font/bootstrap-icons.min.css' layer(icons);
+@import '@tabler/icons-webfont/dist/tabler-icons.min.css' layer(icons);
+@import 'lucide-static/font/lucide.css' layer(icons);
+/* Flaggen für die Sprachwahl (MIT) */
+@import 'flag-icons/css/flag-icons.min.css' layer(icons);
+
+@layer basic {
+  /* ===== Variablen, die ein Theme setzen darf ===== */
+  :root {
+    /* Maße */
+    --header-height: 3.5rem;
+    --subheader-height: 2.75rem;
+    --main-max-width: 80rem;
+    --main-padding: 1.5rem;
+    --contentbox-radius: 0.5rem;
+
+    /* Farben, immer als Paar aus Fläche (-bg) und Schrift (-text) */
+    --page-bg: #f3f4f6;
+    --page-text: #111827;
+    --header-bg: #1f2937;
+    --header-text: #f9fafb;
+    --subheader-bg: #374151;
+    --subheader-text: #f9fafb;
+    --footer-bg: #1f2937;
+    --footer-text: #d1d5db;
+    --contentbox-border: #d1d5db;
+    --contentbox-bg: #ffffff;
+    --contentbox-text: #111827;
+    --contentbox-header-bg: #e5e7eb;
+    --contentbox-header-text: #111827;
+    --contentbox-footer-bg: #f9fafb;
+    --contentbox-footer-text: #4b5563;
+    --table-header-bg: #e5e7eb;
+    --table-header-text: #111827;
+    --table-row-a-bg: #ffffff;
+    --table-row-a-text: #111827;
+    --table-row-b-bg: #f3f4f6;
+    --table-row-b-text: #111827;
+    --tile-bg: #ffffff;
+    --tile-text: #111827;
+    --tile-hover-bg: #e5e7eb;
+    --tile-hover-text: #111827;
+    --popup-backdrop: rgb(15 23 42 / 0.55);
+    --danger-bg: #fef2f2;
+    --danger-border: #fecaca;
+    --danger-text: #7f1d1d;
+    /* Stammdaten-Import: Status einer Zeile als Pille, helle Schrift auf allen Flächen */
+    --import-status-text: #ffffff;
+    --import-new-bg: #15803d;
+    --import-existing-bg: #6b7280;
+    --import-skipped-bg: #9ca3af;
+    --import-problem-bg: #b91c1c;
+
+    /* Benutzermenü im header */
+    --user-menu-bg: #ffffff;
+    --user-menu-text: #111827;
+    --user-menu-head-bg: #1f2937;
+    --user-menu-head-text: #f9fafb;
+    --user-menu-item-hover-bg: #e5e7eb;
+    --user-menu-item-hover-text: #111827;
+
+    /* Profil: Titelbild (nur Hex, das Muster wird daraus gezeichnet) und der Ring für „online“ */
+    --profile-cover-from: #1f2937;
+    --profile-cover-to: #4b5563;
+    --profile-cover-glow: #9ca3af;
+    --profile-online: #2563eb;
+
+    /* Matrix: steht ohne ContentBox auf dem Seitengrund. head-bg muss deckend sein, darunter scrollen die Zeilen. */
+    --matrix-text: #111827;
+    --matrix-head-bg: #f3f4f6;
+    --matrix-line: #d1d5db;
+    --matrix-active: #2563eb;
+    /* Gruppenzeilen, z. B. die Gruppen der Endungen in der FileMatrix. Deckend, wie head-bg. */
+    --matrix-group-bg: #e5e7eb;
+    /* nur lesen (R) in der FSC-ACL-Matrix, schreiben (W) hat --matrix-active */
+    --matrix-read: #0d9488;
+    /* Schraffur einer Zelle, die das Backend noch nicht bestätigt hat */
+    --matrix-pending: #6b7280;
+  }
+
+  /*
+   * ===== Grundgerüst: header, main, footer. Nur main scrollt. =====
+   * In main rendert das Modul optional seinen subheader (mit Bootstrap sticky-top bleibt er stehen),
+   * dann main-content mit dem eigentlichen Inhalt.
+   */
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  #root {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .header {
+    flex: none;
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    background: var(--header-bg);
+    color: var(--header-text);
+  }
+
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: inherit;
+    text-decoration: none;
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  /* „zurück zu <Tab>“, nur solange ein origin mitgegeben ist. Aussehen über button-cancel im Theme. */
+  .header-back {
+    margin-left: 1.5rem;
+  }
+
+  /* Rechts im header: Anmelden, oder die eigene ARC und das Benutzermenü */
+  .header-session {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .subheader {
+    flex: none;
+    height: var(--subheader-height);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0 1rem;
+    background: var(--subheader-bg);
+    color: var(--subheader-text);
+  }
+
+  .subheader-status {
+    flex: none;
+    margin-right: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /*
+   * Die Statuszelle bleibt stehen, die Tabs wischt man nach links und rechts, wenn nicht alle hinpassen.
+   * Hier nur, was das Wischen braucht. Das Aussehen der Tabs (Abstände, Trennstriche, aktiver Tab) gestaltet das Theme.
+   */
+  .subheader-tabs {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    overflow-x: auto;
+    /* am Ende der Leiste blättert das Wischen nicht die Seite zurück */
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .subheader-tab {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  /* Ohne eigenen Abstand, damit der subheader über die volle Breite reicht */
+  .main {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  /* Der Inhalt steht mittig mit höchstens --main-max-width Breite, ohne die Kinder anzufassen */
+  .main-content {
+    padding-block: var(--main-padding);
+    padding-inline: max(var(--main-padding), calc((100% - var(--main-max-width)) / 2));
+  }
+
+  .footer {
+    flex: none;
+    padding: 0.5rem 1rem;
+    text-align: center;
+    font-size: 0.8125rem;
+    background: var(--footer-bg);
+    color: var(--footer-text);
+  }
+
+  /* ===== ContentBox: header, main und footer sind immer da ===== */
+  .contentbox {
+    overflow: hidden;
+    border: 1px solid var(--contentbox-border);
+    border-radius: var(--contentbox-radius);
+    background: var(--contentbox-bg);
+    color: var(--contentbox-text);
+  }
+
+  .contentbox + .contentbox {
+    margin-top: 1.5rem;
+  }
+
+  .contentbox-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--contentbox-border);
+    background: var(--contentbox-header-bg);
+    color: var(--contentbox-header-text);
+  }
+
+  .contentbox-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .contentbox-main {
+    padding: 1rem;
+  }
+
+  .contentbox-footer {
+    min-height: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.375rem 1rem;
+    border-top: 1px solid var(--contentbox-border);
+    font-size: 0.875rem;
+    background: var(--contentbox-footer-bg);
+    color: var(--contentbox-footer-text);
+  }
+
+  /* ===== Kachel ===== */
+  .tile {
+    min-height: 8rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: var(--contentbox-radius);
+    background: var(--tile-bg);
+    color: var(--tile-text);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .tile .bi {
+    font-size: 2rem;
+  }
+
+  .tile:hover {
+    background: var(--tile-hover-bg);
+    color: var(--tile-hover-text);
+  }
+
+  /* ===== Hoverlay: nur Lage und Ebene, das Aussehen bestimmt das Theme ===== */
+  .hoverlay-anchor {
+    display: inline-flex;
+  }
+
+  .hoverlay {
+    position: fixed;
+    z-index: 2000;
+    max-width: 20rem;
+    pointer-events: none;
+  }
+
+  /* ===== Toasts: nur die Leiste unten rechts über dem footer, das Aussehen bestimmt das Theme ===== */
+  .app-toast-container {
+    position: fixed;
+    right: 1rem;
+    bottom: 3rem;
+    z-index: 1900;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.625rem;
+    max-width: calc(100vw - 2rem);
+    /* die leere Leiste schluckt keine Klicks, nur die Toasts selbst */
+    pointer-events: none;
+  }
+
+  .app-toast-container > * {
+    pointer-events: auto;
+  }
+
+  /* ===== Sprachwahl: Flaggen oben rechts in contentbox-main ===== */
+  .language-flags {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.375rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .language-flag {
+    display: inline-flex;
+    padding: 0.125rem;
+    border: 2px solid transparent;
+    border-radius: 0.25rem;
+    background: none;
+    opacity: 0.45;
+    cursor: pointer;
+  }
+
+  .language-flag .fi {
+    width: 1.5rem;
+    line-height: 1.125rem;
+  }
+
+  .language-flag:hover,
+  .language-flag.active {
+    opacity: 1;
+  }
+
+  .language-flag.active {
+    border-color: var(--contentbox-border);
+  }
+
+  /*
+   * ===== Tabelle mit festen Spaltenbreiten (TableColumn.width) =====
+   * Die Breiten kommen aus dem colgroup, nicht aus dem Inhalt: Mehrere Tabellen untereinander haben so genau
+   * übereinanderstehende Spalten. Was nicht passt, bricht in der Zelle um.
+   */
+  .data-table-fixed {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .data-table-fixed th,
+  .data-table-fixed td {
+    overflow-wrap: anywhere;
+  }
+
+  /* ===== Aktionsspalte ganz rechts in Tabellen (Bearbeiten, Löschen) ===== */
+  .actions-cell {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  .actions-cell .hoverlay-anchor + .hoverlay-anchor {
+    margin-left: 0.25rem;
+  }
+
+  /* ===== SortableList: Elemente untereinander, nebeneinander oder als Raster ===== */
+  .sortable-list {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .sortable-list-vertical {
+    flex-direction: column;
+  }
+
+  .sortable-list-horizontal,
+  .sortable-list-grid {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  /* ===== Tabelle: Griff zum Verschieben, in der ersten Spalte links, deren Inhalt rechts, so schmal wie möglich ===== */
+  .drag-cell {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  .drag-cell-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.25rem;
+  }
+
+  .drag-handle {
+    padding: 0 0.25rem;
+    border: none;
+    background: none;
+    color: inherit;
+    opacity: 0.55;
+    cursor: grab;
+    /* auf dem Handy zieht der Finger die Zeile, statt die Seite zu scrollen */
+    touch-action: none;
+  }
+
+  .drag-handle:hover {
+    opacity: 1;
+  }
+
+  .dragging .drag-handle {
+    cursor: grabbing;
+  }
+
+  /* ===== Tabelle mobil: Zeile antippen zeigt alle Spalten im Popup ===== */
+  .details-trigger {
+    cursor: pointer;
+  }
+
+  .details-list {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0;
+  }
+
+  .details-list dt {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  .details-list dd {
+    margin: 0;
+  }
+
+  /* ===== Farbwähler (ColorField) ===== */
+  .color-field-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.375rem;
+  }
+
+  .color-field-swatch {
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0;
+    border: 1px solid var(--contentbox-border);
+    border-radius: 0.25rem;
+    cursor: pointer;
+  }
+
+  .color-field-swatch.active {
+    outline: 2px solid var(--page-text);
+    outline-offset: 1px;
+  }
+
+  /* ===== Symbolauswahl (SymbolPicker) ===== */
+  .symbol-picker-current {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: 0.375rem;
+    font-size: 1.25rem;
+  }
+
+  /* ===== Popup: eine ContentBox in einem modalen dialog, gescrollt wird nur in contentbox-main ===== */
+  .popup {
+    width: min(64rem, 92vw);
+    max-width: none;
+    max-height: 88vh;
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+
+  .popup::backdrop {
+    background: var(--popup-backdrop);
+  }
+
+  .popup .contentbox {
+    display: flex;
+    flex-direction: column;
+    max-height: 88vh;
+  }
+
+  .popup .contentbox-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  /* ===== Symbol-Popup: Suche klebt oben, darunter alle Symbole ===== */
+  .symbol-popup-search {
+    position: sticky;
+    top: -1rem;
+    z-index: 1;
+    display: flex;
+    gap: 0.5rem;
+    margin: -1rem -1rem 0.75rem;
+    padding: 1rem 1rem 0.75rem;
+    background: var(--contentbox-bg);
+  }
+
+  .symbol-popup-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
+    gap: 0.25rem;
+  }
+
+  .symbol-popup-grid .hoverlay-anchor {
+    display: block;
+  }
+
+  .symbol-popup-item {
+    width: 100%;
+    height: 2.75rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: 0.375rem;
+    background: var(--contentbox-bg);
+    color: var(--contentbox-text);
+    font-size: 1.35rem;
+    cursor: pointer;
+    /* tausende Symbole: nur zeichnen, was gerade sichtbar ist */
+    content-visibility: auto;
+    contain-intrinsic-size: 2.75rem;
+  }
+
+  .symbol-popup-item:hover,
+  .symbol-popup-item.active {
+    background: var(--tile-hover-bg);
+    color: var(--tile-hover-text);
+  }
+
+  /* ===== Mehrere Badges nebeneinander, z. B. die AR einer ARC ===== */
+  .badge-list {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  /* Badges zum Anklicken: gewählte voll sichtbar, die anderen blass */
+  .badge-toggle {
+    padding: 0.125rem;
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: none;
+    opacity: 0.4;
+    cursor: pointer;
+  }
+
+  .badge-toggle:hover {
+    opacity: 0.75;
+  }
+
+  .badge-toggle.active {
+    border-color: var(--contentbox-border);
+    opacity: 1;
+  }
+
+  /* ===== Live-Vorschau einer Badge, auf hellem und dunklem Grund ===== */
+  .badge-preview {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px dashed var(--contentbox-border);
+    border-radius: 0.375rem;
+    background: linear-gradient(90deg, #ffffff 50%, #1e293b 50%);
+  }
+
+  /* Die Badges von AccessRole und AccessRoleCollection sehen in jedem Theme gleich aus (theme-invariant), deshalb hier und nicht im Theme. */
+  /*
+   * ===== AccessRoleBadge =====
+   * Die Farben kommen als CSS-Variablen an die Badge (--badge-text, --badge-text-shadow, --badge-gradient-start,
+   * --badge-gradient-end, --badge-border, --badge-shadow). Fehlt eine, gilt der Standard hier.
+   * Ohne Verlaufsart gilt LINEAR.
+   * Abgerundetes Rechteck, die Ecken bleiben erkennbar. Die Pillenform ist der Badge der AccessRoleCollection vorbehalten.
+   */
+  .access-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid var(--badge-border, transparent);
+    border-radius: 0.375rem;
+    background: linear-gradient(
+      to bottom,
+      var(--badge-gradient-start, #6366f1),
+      var(--badge-gradient-end, var(--badge-gradient-start, #4f46e5))
+    );
+    color: var(--badge-text, #ffffff);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    /* Kontrast: ein weicher Schatten rund um die Schrift, nur wenn eine Farbe gesetzt ist */
+    text-shadow:
+      0 0 2px var(--badge-text-shadow, transparent),
+      0 0 2px var(--badge-text-shadow, transparent),
+      0 1px 3px var(--badge-text-shadow, transparent);
+    box-shadow: 0 1px 3px var(--badge-shadow, rgb(15 23 42 / 0.3));
+    vertical-align: middle;
+  }
+
+  /* Pillenform: die Badge der AccessRoleCollection */
+  .access-role-badge-pill {
+    border-radius: 999px;
+  }
+
+  .access-role-badge-full {
+    padding: 0.3rem 0.65rem;
+  }
+
+  .access-role-badge-compact {
+    justify-content: center;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    padding: 0 0.3rem;
+  }
+
+  .access-role-badge .bi,
+  .access-role-badge .ti,
+  .access-role-badge [class^='icon-'] {
+    font-size: 0.95rem;
+    line-height: 1;
+  }
+
+  /* Badges im Hoverlay, z. B. die AR einer ARC unter ihrer Beschreibung */
+  .hoverlay-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  /* Steht Text darüber, trennt ihn eine Linie in der Schriftfarbe des Hoverlays, so passt sie zu jedem Theme */
+  .hoverlay-badges-separated {
+    margin-top: 0.45rem;
+    padding-top: 0.45rem;
+    border-top: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  }
+
+  .access-role-badge-gradient-flat {
+    background: var(--badge-gradient-start, #6366f1);
+  }
+
+  .access-role-badge-gradient-diagonal {
+    background: linear-gradient(
+      135deg,
+      var(--badge-gradient-start, #6366f1),
+      var(--badge-gradient-end, var(--badge-gradient-start, #4f46e5))
+    );
+  }
+
+  /* 3D gewölbt: oben aufgehellt, Wende knapp über der Mitte, Lichtkante oben, dunkle Kante unten */
+  .access-role-badge-gradient-bevel {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--badge-gradient-start, #6366f1) 70%, #ffffff) 0%,
+      var(--badge-gradient-start, #6366f1) 48%,
+      var(--badge-gradient-end, var(--badge-gradient-start, #4f46e5)) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.45),
+      inset 0 -1px 0 var(--badge-shadow, rgb(15 23 42 / 0.35)),
+      0 1px 2px var(--badge-shadow, rgb(15 23 42 / 0.35));
+  }
+
+  .access-role-badge-gradient-radial {
+    background: radial-gradient(
+      circle at 50% 30%,
+      var(--badge-gradient-start, #818cf8),
+      var(--badge-gradient-end, var(--badge-gradient-start, #4338ca))
+    );
+  }
+
+  /* Metall: mehrere Stufen mit Glanzstreifen, darüber feine senkrechte Bürstung */
+  .access-role-badge-gradient-metal {
+    background:
+      repeating-linear-gradient(90deg, rgb(255 255 255 / 0.07) 0 1px, transparent 1px 3px),
+      linear-gradient(
+        to bottom,
+        var(--badge-gradient-start, #e5e7eb) 0%,
+        var(--badge-gradient-end, #9ca3af) 45%,
+        color-mix(in srgb, var(--badge-gradient-start, #e5e7eb) 40%, #ffffff) 52%,
+        var(--badge-gradient-end, #9ca3af) 60%,
+        var(--badge-gradient-start, #e5e7eb) 100%
+      );
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.6),
+      0 1px 3px var(--badge-shadow, rgb(15 23 42 / 0.35));
+  }
+
+  /* ===== Benutzermenü rechts im header: Symbol und E-Mail öffnen es ===== */
+  .header {
+    position: relative;
+  }
+
+  .user-menu {
+    position: relative;
+  }
+
+  .user-menu-caret {
+    display: inline-flex;
+    font-size: 0.7rem;
+    transition: transform 0.15s ease-in-out;
+  }
+
+  .user-menu-toggle[aria-expanded='true'] .user-menu-caret {
+    transform: rotate(180deg);
+  }
+
+  .user-menu-panel {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    z-index: 1050;
+    width: 18rem;
+    overflow: hidden;
+    border: 1px solid var(--contentbox-border);
+    border-radius: var(--contentbox-radius);
+    background: var(--user-menu-bg);
+    color: var(--user-menu-text);
+    box-shadow: 0 14px 36px rgb(15 23 42 / 0.3);
+  }
+
+  .user-menu-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.85rem 1rem;
+    background: var(--user-menu-head-bg);
+    color: var(--user-menu-head-text);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .user-menu-head-sub {
+    font-size: 0.8125rem;
+    opacity: 0.75;
+  }
+
+  .user-menu-list {
+    display: flex;
+    flex-direction: column;
+    padding: 0.35rem;
+  }
+
+  .user-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    padding: 0.5rem 0.65rem;
+    border: 0;
+    border-radius: 0.375rem;
+    background: none;
+    color: inherit;
+    font-size: 0.9375rem;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .user-menu-item:hover,
+  .user-menu-item:focus-visible {
+    outline: none;
+    background: var(--user-menu-item-hover-bg);
+    color: var(--user-menu-item-hover-text);
+  }
+
+  .user-menu-item.active {
+    font-weight: 600;
+  }
+
+  .user-menu-divider {
+    height: 1px;
+    margin: 0.35rem 0.3rem;
+    background: var(--contentbox-border);
+  }
+
+  /* Handy: das Menü über die ganze Breite unter dem header */
+  @media (max-width: 767.98px) {
+    .user-menu {
+      position: static;
+    }
+
+    .user-menu-panel {
+      top: calc(100% + 0.25rem);
+      right: 0.5rem;
+      left: 0.5rem;
+      width: auto;
+    }
+  }
+
+  /* ===== Eigene Position (ARC) im header: die Badge selbst ist der Knopf ===== */
+  .header-position {
+    display: inline-flex;
+    align-items: center;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .header-position:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  /* ===== Symbol einer Dateiart (FSC) in ihrer Farbe, in jedem Theme gleich ===== */
+  .file-sub-class-symbol {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  /* ===== Form einer Gruppe von Endungen: Umriss in der Schriftfarbe, in jedem Theme gleich ===== */
+  .file-shape {
+    width: 1.25em;
+    height: 1.25em;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    vertical-align: -0.2em;
+  }
+
+  /* ===== Warnung in einer Sicherheitsabfrage, z. B. bevor der User sein Konto löscht ===== */
+  .danger-callout {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    border: 1px solid var(--danger-border);
+    border-radius: 0.5rem;
+    background: var(--danger-bg);
+    color: var(--danger-text);
+  }
+
+  .danger-callout > .bi {
+    margin-top: 0.15rem;
+    font-size: 1.2rem;
+  }
+
+  .danger-callout ul {
+    margin: 0.35rem 0 0;
+    padding-left: 1.1rem;
+  }
+
+  /* ===== Stammdaten: Export und Import mit Vorschau ===== */
+  .masterdata-sections {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    gap: 0.25rem 1.5rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .import-meta {
+    margin-bottom: 0.75rem;
+    font-size: 0.875rem;
+    opacity: 0.8;
+  }
+
+  .import-section {
+    margin-top: 0.5rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: 0.375rem;
+  }
+
+  .import-section > summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+  }
+
+  /* nicht angehakt: blass, nur das Häkchen bleibt kräftig */
+  .import-section.unselected > summary > :not(input) {
+    opacity: 0.55;
+  }
+
+  .import-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-left: auto;
+  }
+
+  .import-status {
+    display: inline-block;
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    background: var(--import-existing-bg);
+    color: var(--import-status-text);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .import-status-new {
+    background: var(--import-new-bg);
+  }
+
+  .import-status-skipped {
+    background: var(--import-skipped-bg);
+  }
+
+  .import-status-problem {
+    background: var(--import-problem-bg);
+  }
+
+  .import-rows {
+    max-height: 24rem;
+    overflow: auto;
+    margin: 0;
+    padding: 0 0.75rem 0.5rem;
+    list-style: none;
+  }
+
+  /* feste erste Spalte: die Status stehen in allen Bereichen genau untereinander */
+  .import-row {
+    display: grid;
+    grid-template-columns: 6rem minmax(0, 1fr);
+    gap: 0.5rem;
+    align-items: start;
+    padding: 0.3rem 0;
+    border-top: 1px solid color-mix(in srgb, var(--contentbox-border) 60%, transparent);
+  }
+
+  .import-row code {
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .import-row-messages {
+    margin: 0.15rem 0 0;
+    padding-left: 1rem;
+    font-size: 0.8125rem;
+    opacity: 0.8;
+  }
+
+  .import-conflict {
+    padding: 0.75rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: 0.375rem;
+  }
+
+  .import-conflict + .import-conflict {
+    margin-top: 0.5rem;
+  }
+
+  .import-conflict-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: 0.35rem 1rem;
+    margin-top: 0.5rem;
+  }
+
+  .import-conflict-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* ===== Profil ===== */
+  .profile {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  /* Profilkopf: das Titelbild reicht bis an den Rand der ContentBox */
+  .profile-hero .contentbox-main {
+    padding: 0;
+  }
+
+  .profile-cover {
+    position: relative;
+    height: 13rem;
+    background: linear-gradient(135deg, var(--profile-cover-from), var(--profile-cover-to));
+  }
+
+  .profile-cover-canvas {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Dienstjahre wie bei Steam, oben rechts im Titelbild */
+  .profile-cover .hoverlay-anchor {
+    position: absolute;
+    top: 0.9rem;
+    right: 0.9rem;
+  }
+
+  .profile-years {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.35rem 0.85rem 0.35rem 0.35rem;
+    border: 1px solid rgb(255 255 255 / 0.18);
+    border-radius: 999px;
+    background: rgb(15 23 42 / 0.5);
+    color: #f8fafc;
+    font-size: 0.8125rem;
+    line-height: 1.2;
+    backdrop-filter: blur(4px);
+  }
+
+  .profile-years-ring {
+    width: 2.4rem;
+    height: 2.4rem;
+    display: grid;
+    place-items: center;
+    border: 3px solid var(--profile-years-ring, #a5b4fc);
+    border-radius: 50%;
+    font-size: 1.05rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .profile-years-label {
+    font-weight: 600;
+  }
+
+  /* Profilbild ragt ins Titelbild, Name und info stehen darunter */
+  .profile-identity {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    margin-top: -4.25rem;
+    padding: 0 1.5rem 1.25rem;
+  }
+
+  .profile-avatar {
+    width: 8.5rem;
+    height: 8.5rem;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border: 4px solid var(--contentbox-bg);
+    border-radius: 1.4rem;
+    background: var(--profile-avatar-bg, var(--profile-cover-to));
+    color: #ffffff;
+    font-size: 2.9rem;
+    font-weight: 700;
+    box-shadow:
+      0 0 0 3px var(--profile-online),
+      0 10px 28px rgb(15 23 42 / 0.28);
+  }
+
+  .profile-identity-text {
+    min-width: 0;
+    padding-top: 4.6rem;
+  }
+
+  .profile-name {
+    margin: 0;
+    font-size: 1.875rem;
+    font-weight: 700;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+
+  .profile-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    margin-top: 0.4rem;
+  }
+
+  .profile-online {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.05rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--profile-online) 14%, transparent);
+    color: var(--profile-online);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .profile-online-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--profile-online);
+  }
+
+  .profile-info {
+    max-width: 60ch;
+    margin: 0.65rem 0 0;
+    font-size: 1.0625rem;
+  }
+
+  /* Kennzahlen im contentbox-footer des Profilkopfs */
+  .profile-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 2rem;
+    padding-block: 0.35rem;
+  }
+
+  .profile-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .profile-stat > .bi {
+    font-size: 1.15rem;
+    color: var(--profile-online);
+  }
+
+  .profile-stat-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
+  }
+
+  .profile-stat-label,
+  .profile-field-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.75;
+  }
+
+  .profile-stat-value {
+    color: var(--contentbox-text);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Darunter zwei Spalten: schmal Kontakt, Konto, Sicherheit, breit Über mich, Rechte, Gästebuch */
+  .profile-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .profile-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-width: 0;
+  }
+
+  .profile-count-chip,
+  .profile-preview-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    padding: 0 0.45rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: 999px;
+    background: var(--contentbox-bg);
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    vertical-align: middle;
+  }
+
+  .profile-private-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0 0.5rem;
+    border-radius: 999px;
+    background: var(--header-bg);
+    color: var(--header-text);
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* Kontakt: Symbol in Markenfarben, in jedem Theme gleich */
+  .profile-contact-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .profile-contact-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .profile-contact-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 0.6rem;
+    background: var(--profile-contact-tint);
+    color: var(--profile-contact-ink);
+    font-size: 1.1rem;
+  }
+
+  .profile-contact-text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .profile-contact-value {
+    overflow-wrap: anywhere;
+  }
+
+  .profile-admin-managed {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: 0.5rem;
+    background: var(--contentbox-footer-bg);
+  }
+
+  .profile-admin-managed-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .profile-fields {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.45rem 1rem;
+    align-items: baseline;
+    margin: 0;
+  }
+
+  .profile-fields dt {
+    font-size: 0.875rem;
+    font-weight: 400;
+    opacity: 0.75;
+  }
+
+  .profile-fields dd {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .profile-guid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  /* Sicherheit: Passwort und darunter abgesetzt das Löschen */
+  .profile-security {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .profile-security-row,
+  .profile-danger-zone {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .profile-security-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .profile-danger-zone {
+    padding: 0.75rem;
+    border: 1px solid var(--danger-border);
+    border-radius: 0.5rem;
+    background: var(--danger-bg);
+    color: var(--danger-text);
+  }
+
+  /* Über mich: einfacher Text, die Zeilenumbrüche bleiben */
+  .profile-text {
+    max-width: 65ch;
+    margin: 0;
+    white-space: pre-line;
+  }
+
+  /* Rechte als Vitrine wie bei Steam */
+  .profile-showcase {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 0.75rem;
+  }
+
+  .profile-showcase-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    min-width: 0;
+    padding: 0.75rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: 0.5rem;
+    background: var(--contentbox-footer-bg);
+  }
+
+  .profile-showcase-item .access-role-badge-compact {
+    min-width: 2.9rem;
+    height: 2.9rem;
+  }
+
+  .profile-showcase-item .access-role-badge .bi,
+  .profile-showcase-item .access-role-badge .ti,
+  .profile-showcase-item .access-role-badge [class^='icon-'] {
+    font-size: 1.4rem;
+  }
+
+  .profile-showcase-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .profile-showcase-name {
+    font-weight: 600;
+  }
+
+  .profile-showcase-key {
+    margin-top: 0.2rem;
+    font-family: var(--bs-font-monospace);
+    font-size: 0.75rem;
+    opacity: 0.6;
+  }
+
+  /* Gästebuch: Einträge wie Kommentare bei Steam, mit Sprechblase */
+  .profile-guestbook-composer {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--contentbox-border);
+  }
+
+  .profile-guestbook-input {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .profile-guestbook-avatar {
+    width: 2.6rem;
+    height: 2.6rem;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 0.65rem;
+    background: var(--profile-avatar-bg, var(--profile-cover-to));
+    color: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .profile-guestbook-avatar-system {
+    background: var(--header-bg);
+    color: var(--header-text);
+  }
+
+  .profile-guestbook-avatar-deleted {
+    background: var(--contentbox-header-bg);
+    color: var(--contentbox-header-text);
+    opacity: 0.7;
+  }
+
+  .profile-guestbook-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .profile-guestbook-entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding-block: 0.9rem;
+  }
+
+  .profile-guestbook-entry + .profile-guestbook-entry {
+    border-top: 1px solid var(--contentbox-border);
+  }
+
+  .profile-guestbook-entry:last-child {
+    padding-bottom: 0;
+  }
+
+  .profile-guestbook-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .profile-guestbook-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.15rem 0.5rem;
+  }
+
+  .profile-guestbook-author {
+    font-weight: 600;
+  }
+
+  .profile-guestbook-author-deleted {
+    font-style: italic;
+    font-weight: 500;
+    opacity: 0.7;
+  }
+
+  .profile-guestbook-time {
+    font-size: 0.8125rem;
+    opacity: 0.7;
+  }
+
+  .profile-guestbook-text {
+    margin: 0.35rem 0 0;
+    padding: 0.55rem 0.8rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: 0.2rem 0.8rem 0.8rem 0.8rem;
+    background: var(--contentbox-footer-bg);
+    overflow-wrap: anywhere;
+  }
+
+  /* Unter 992 px eine Spalte, in der Reihenfolge, die am Handy Sinn ergibt */
+  @media (max-width: 991.98px) {
+    .profile-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .profile-column {
+      display: contents;
+    }
+
+    .profile-box-about {
+      order: 1;
+    }
+
+    .profile-box-contact {
+      order: 2;
+    }
+
+    .profile-box-rights {
+      order: 3;
+    }
+
+    .profile-box-guestbook {
+      order: 4;
+    }
+
+    .profile-box-account {
+      order: 5;
+    }
+
+    .profile-box-security {
+      order: 6;
+    }
+  }
+
+  /* Handy: Profilbild und Name mittig unter dem Titelbild */
+  @media (max-width: 767.98px) {
+    .profile,
+    .profile-grid {
+      gap: 1rem;
+    }
+
+    .profile-cover {
+      height: 9.5rem;
+    }
+
+    .profile-cover .hoverlay-anchor {
+      top: 0.6rem;
+      right: 0.6rem;
+    }
+
+    .profile-identity {
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: -3.6rem;
+      padding: 0 1rem 1rem;
+      text-align: center;
+    }
+
+    .profile-avatar {
+      width: 7.2rem;
+      height: 7.2rem;
+      font-size: 2.4rem;
+    }
+
+    .profile-identity-text {
+      padding-top: 0;
+    }
+
+    .profile-name {
+      font-size: 1.5rem;
+    }
+
+    .profile-meta {
+      justify-content: center;
+    }
+
+    .profile-info {
+      margin-inline: auto;
+      font-size: 1rem;
+    }
+
+    .profile-stats {
+      gap: 0.5rem 1.25rem;
+    }
+  }
+
+  /*
+   * ===== Matrix (components/Matrix) =====
+   * Ohne ContentBox direkt unter dem subheader, bündig an beiden Rändern. Sie füllt den Rest von main und scrollt in
+   * sich, so bleiben subheader und Kopfzeile stehen. Verschoben wird auch mit gedrückter rechter Maustaste.
+   */
+  .main-matrix {
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - var(--subheader-height));
+    color: var(--matrix-text);
+  }
+
+  .matrix-message {
+    flex: none;
+    min-height: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.25rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  /* Ohne gezeichnete Rollbalken: bedient wird mit Mausrad, Finger oder rechter Maustaste */
+  .matrix-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+
+  .matrix-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .matrix-scroll.panning {
+    cursor: grabbing;
+    user-select: none;
+  }
+
+  /* Malen mit gedrückter linker Maustaste */
+  .matrix-scroll.painting,
+  .matrix-scroll.painting * {
+    cursor: crosshair;
+    user-select: none;
+  }
+
+  /* Werkzeuge in der Ecke, z. B. der Pinsel der FSC-ACL-Matrix: oben rechts über der Diagonale, die Beschriftung der
+     Spalten rutscht darunter */
+  .matrix-corner-tools {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.5rem;
+  }
+
+  .matrix-corner-tools ~ .matrix-corner-columns {
+    top: 2.4rem;
+  }
+
+  .matrix-brushes {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .matrix-brush {
+    min-width: 1.75rem;
+    height: 1.75rem;
+    padding: 0 0.35rem;
+    border: 1px solid var(--matrix-line);
+    border-radius: 0.375rem;
+    background: var(--matrix-head-bg);
+    color: var(--matrix-text);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .matrix-brush:hover {
+    border-color: var(--matrix-active);
+  }
+
+  .matrix-brush.active {
+    border-color: var(--matrix-active);
+    background: var(--matrix-active);
+    color: var(--matrix-head-bg);
+  }
+
+  .matrix-brush:focus-visible {
+    outline: 2px solid var(--matrix-active);
+    outline-offset: 2px;
+  }
+
+  /*
+   * Nie overflow: hidden an der Tabelle: Sie würde zum Scroll-Container, und die sticky-Zellen klebten an ihr statt an
+   * .matrix-scroll. clip beschneidet die Streifen des Fadenkreuzes genauso, ohne Scroll-Container zu werden. Aus
+   * demselben Grund darf zwischen .matrix-scroll und den sticky-Zellen kein Element overflow hidden, auto oder scroll
+   * bekommen.
+   */
+  .matrix {
+    border-collapse: collapse;
+    white-space: nowrap;
+    overflow: clip;
+  }
+
+  .matrix th,
+  .matrix td {
+    padding: 0.3rem 0.45rem;
+  }
+
+  /* Die Kopfzeile bleibt stehen. Trennstrich als inset-Schatten, border-collapse verschluckt Ränder an sticky-Zellen. */
+  .matrix thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background-color: var(--matrix-head-bg);
+    box-shadow: inset 0 -2px 0 var(--matrix-line);
+  }
+
+  .matrix-column-head {
+    vertical-align: bottom;
+    text-align: center;
+    border-left: 1px solid color-mix(in srgb, var(--matrix-line) 60%, transparent);
+  }
+
+  /* Senkrecht, von unten nach oben lesbar: So passen alle Spalten nebeneinander */
+  .matrix-column-head-content {
+    display: inline-block;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+
+  .matrix-column-head .access-role-badge-full {
+    padding: 0.65rem 0.3rem;
+  }
+
+  /* Die erste Spalte bleibt stehen, unter der Kopfzeile (2) und der Ecke (4) */
+  .matrix-row-head {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background-color: var(--matrix-head-bg);
+    box-shadow: inset -2px 0 0 var(--matrix-line);
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .matrix-row-head-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .matrix-chip {
+    padding: 0 0.4rem;
+    border: 1px solid var(--matrix-line);
+    border-radius: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  /* Die Ecke, diagonal geteilt: unten links stehen die Zeilen, oben rechts die Spalten. Fest in beide Richtungen. */
+  .matrix thead th.matrix-corner {
+    left: 0;
+    z-index: 4;
+    min-width: 12rem;
+    height: 6rem;
+    /* to top right legt die Linie von links oben nach rechts unten, sie steht senkrecht zur Verlaufsrichtung */
+    background-image: linear-gradient(
+      to top right,
+      transparent calc(50% - 1px),
+      var(--matrix-line) calc(50% - 1px),
+      var(--matrix-line) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    );
+  }
+
+  .matrix-corner-rows,
+  .matrix-corner-columns {
+    position: absolute;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .matrix-corner-rows {
+    left: 0.5rem;
+    bottom: 0.4rem;
+  }
+
+  .matrix-corner-columns {
+    top: 0.4rem;
+    right: 0.5rem;
+  }
+
+  .matrix tbody td,
+  .matrix tbody th {
+    border-bottom: 1px solid color-mix(in srgb, var(--matrix-line) 50%, transparent);
+  }
+
+  /* Die ganze Zelle ist der Knopf: ein kleiner Klickfleck in der Mitte ließe sich nicht erraten */
+  .matrix td.matrix-cell {
+    position: relative;
+    padding: 0;
+    text-align: center;
+    border-left: 1px solid color-mix(in srgb, var(--matrix-line) 60%, transparent);
+  }
+
+  .matrix-cell-button {
+    display: block;
+    width: 100%;
+    min-width: 2.25rem;
+    padding: 0.3rem 0.45rem;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .matrix-cell-button:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--matrix-active) 20%, transparent);
+  }
+
+  .matrix-cell-button:focus-visible {
+    outline: 2px solid var(--matrix-active);
+    outline-offset: -2px;
+  }
+
+  .matrix-cell-button:disabled {
+    cursor: progress;
+  }
+
+  /* Fadenkreuz: Zeile und Spalte der Zelle unter der Maus färben sich leicht mit */
+  .matrix tbody tr:hover td,
+  .matrix tbody tr:hover th {
+    background-color: color-mix(in srgb, var(--matrix-active) 8%, transparent);
+  }
+
+  /* auf der stehenden Spalte deckend, sonst schienen die Zellen darunter durch */
+  .matrix tbody tr:hover .matrix-row-head {
+    background-color: color-mix(in srgb, var(--matrix-active) 8%, var(--matrix-head-bg));
+  }
+
+  /* Die Spalte: ein Streifen nach oben und unten, die Tabelle (overflow: clip) schneidet ihn ab */
+  .matrix td.matrix-cell:hover::after,
+  .matrix thead th.matrix-column-head:hover::after {
+    content: '';
+    position: absolute;
+    top: -10000px;
+    right: 0;
+    bottom: -10000px;
+    left: 0;
+    background-color: color-mix(in srgb, var(--matrix-active) 8%, transparent);
+    pointer-events: none;
+  }
+
+  .matrix-mark {
+    color: var(--matrix-active);
+    font-weight: 700;
+  }
+
+  /* Gruppenzeile, z. B. eine Gruppe von Endungen: abgesetzt, die stehende Spalte deckend */
+  .matrix tbody .matrix-group-row th,
+  .matrix tbody .matrix-group-row td {
+    border-top: 2px solid var(--matrix-line);
+    background-color: var(--matrix-group-bg);
+    font-weight: 700;
+  }
+
+  .matrix-read {
+    color: var(--matrix-read);
+    font-weight: 700;
+  }
+
+  /* noch nicht vom Backend bestätigt: schraffiert, das Zeichen blass. Ist keine Zelle mehr schraffiert, ist alles
+     gespeichert. */
+  .matrix td.matrix-cell-pending {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--matrix-pending) 28%, transparent) 0 3px,
+      transparent 3px 7px
+    );
+  }
+
+  .matrix td.matrix-cell-pending .matrix-cell-button > * {
+    opacity: 0.5;
+  }
+
+  .matrix-count {
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.75;
+  }
+
+  .matrix-count-full {
+    color: var(--matrix-active);
+    opacity: 1;
+  }
+
+  /* Kopf einer Dateiart: Symbol unten, der Name läuft nach oben. Das Symbol dreht sich nicht mit. */
+  .matrix-file-sub-class {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding-block: 0.2rem;
+    font-weight: 600;
+  }
+
+  .matrix-column-head .file-sub-class-symbol {
+    writing-mode: horizontal-tb;
+    transform: rotate(180deg);
+  }
+
+  .matrix-empty {
+    opacity: 0.3;
+  }
+
+  /* ===== Bootstrap-Anpassungen: nur über Bootstrap-Variablen ===== */
+  :root {
+    --bs-body-bg: var(--page-bg);
+    --bs-body-color: var(--page-text);
+  }
+
+  /* Tabelle: Zeile A sind die ungeraden Zeilen (über table-striped), Zeile B die geraden */
+  .table {
+    --bs-table-bg: var(--table-row-b-bg);
+    --bs-table-color: var(--table-row-b-text);
+    --bs-table-striped-bg: var(--table-row-a-bg);
+    --bs-table-striped-color: var(--table-row-a-text);
+  }
+
+  .table > thead {
+    --bs-table-bg: var(--table-header-bg);
+    --bs-table-color: var(--table-header-text);
+  }
+}

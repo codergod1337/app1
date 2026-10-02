@@ -1,11 +1,11 @@
 # Docker-Logs: zusammen maximal 500 MB. Docker kann nur pro Container begrenzen,
 # daher bei jedem neuen Container max-size so anpassen, dass die Summe 500 MB bleibt.
-# Aktuell 1 Container: 5 x 100 MB = 500 MB.
+# Aktuell 2 Container: 2 x 5 x 50 MB = 500 MB.
 # Gilt erst für neu angelegte Container: "docker compose up -d", nicht "docker restart".
 x-logging: &logging
   driver: json-file
   options:
-    max-size: "100m"
+    max-size: "50m"
     max-file: "5"
 
 services:
@@ -22,4 +22,24 @@ services:
     # Daten liegen außerhalb von Git: app1/docker_mounts/postgres
     volumes:
       - ../docker_mounts/postgres:/var/lib/postgresql
+    logging: *logging
+
+  # Dateispeicher. Das Backend spricht ihn über system/sftp an, mit User und Passwort aus derselben .env.
+  # Später kann ein NAS an seine Stelle treten: dann ändern sich in der .env nur sftp_host und sftp_host_key.
+  # Das Image hat keine Versions-Tags, "alpine" wird laufend neu gebaut, "latest" seit 2024 nicht mehr.
+  app1_sftp:
+    image: atmoz/sftp:alpine
+    container_name: app1_sftp
+    restart: unless-stopped
+    environment:
+      # user:passwort:uid:gid:ordner. Der User wird in sein Home gesperrt (chroot), der Ordner darin heißt
+      # sftproot und ist aus seiner Sicht /sftproot: genau der root-dir in der application.yml.
+      SFTP_USERS: "${sftp_user}:${sftp_pw}:1001:100:sftproot"
+    ports:
+      - "${sftp_port}:22"
+    volumes:
+      # Die Dateien liegen außerhalb von Git: app1/docker_mounts/sftp
+      - ../docker_mounts/sftp:/home/${sftp_user}/sftproot
+      # Fester Host-Key (chmod 600), damit er jedes "up" überlebt: Das Backend akzeptiert nur genau diesen Server.
+      - ../docker_mounts/sftp_hostkey/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key:ro
     logging: *logging

@@ -30,6 +30,17 @@ public class UsersSettings {
 	@Column(columnDefinition = "text")
 	private String value;
 
+	/** Für JPA und Jackson. */
+	protected UsersSettings() {
+	}
+
+	/** Neue Einstellung, die id vergibt die Datenbank. */
+	public UsersSettings(UUID usersGuid, String key, String value) {
+		this.usersGuid = usersGuid;
+		this.key = key;
+		this.value = value;
+	}
+
 	public Long getId() {
 		return id;
 	}

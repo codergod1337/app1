@@ -1,0 +1,557 @@
+/*
+ * Standard-Theme. Setzt die Variablen, die basic.css anbietet, und gestaltet die Komponenten,
+ * die zum Design passen müssen, komplett selbst (unten).
+ * Liegt außerhalb der CSS-Layer und gewinnt damit immer gegen basic.css und Bootstrap.
+ */
+:root {
+  --page-bg: #eef1f6;
+  --header-bg: #1e293b;
+  --header-text: #f8fafc;
+  --subheader-bg: #334155;
+  --subheader-text: #e2e8f0;
+  --footer-bg: #1e293b;
+  --footer-text: #94a3b8;
+  --contentbox-border: #cbd5e1;
+  --contentbox-header-bg: #e2e8f0;
+  --contentbox-footer-bg: #f8fafc;
+  --table-header-bg: #e2e8f0;
+  --table-row-b-bg: #f1f5f9;
+  --tile-hover-bg: #e0e7ff;
+  --tile-hover-text: #3730a3;
+  /* Benutzermenü: der Kopf im selben Verlauf wie das Hoverlay */
+  --user-menu-head-bg: linear-gradient(135deg, #1e293b 0%, #312e81 100%);
+  --user-menu-head-text: #f8fafc;
+  --user-menu-item-hover-bg: #e0e7ff;
+  --user-menu-item-hover-text: #3730a3;
+  /* Profil */
+  --profile-cover-from: #1e293b;
+  --profile-cover-to: #312e81;
+  --profile-cover-glow: #6366f1;
+  --profile-online: #4f46e5;
+  /* Matrix */
+  --matrix-text: #0f172a;
+  --matrix-head-bg: #eef1f6;
+  --matrix-line: #cbd5e1;
+  --matrix-active: #4f46e5;
+  --matrix-group-bg: #dfe5ee;
+  --matrix-read: #0891b2;
+  --matrix-pending: #64748b;
+}
+
+/*
+ * ===== Knöpfe nach Art =====
+ * button-save: speichern, anlegen, hochladen, bestätigen
+ * button-cancel: abbrechen, zurück
+ * button-other: alles andere
+ */
+.button-save,
+.button-cancel,
+.button-other {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.5;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.15s ease-in-out,
+    border-color 0.15s ease-in-out,
+    color 0.15s ease-in-out;
+}
+
+.button-save:focus-visible,
+.button-cancel:focus-visible,
+.button-other:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.button-save:disabled,
+.button-cancel:disabled,
+.button-other:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button-save {
+  border-color: #15803d;
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.button-save:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.button-cancel {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.button-cancel:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.button-other {
+  border-color: #94a3b8;
+  background: #ffffff;
+  color: #1e293b;
+}
+
+.button-other:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+/*
+ * ===== Tabs im subheader =====
+ * Hauchdünne Trennstriche zwischen den Tabs (nicht vor dem ersten), der aktive Tab indigo hinterlegt.
+ * Neben dem aktiven und dem überfahrenen Tab verschwindet der Strich, die Fläche trennt dort schon.
+ */
+.subheader-tabs {
+  gap: 0.5rem;
+}
+
+.subheader-tab {
+  position: relative;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    background 0.15s ease-in-out,
+    color 0.15s ease-in-out;
+}
+
+/* der Strich sitzt mittig in der Lücke (halber gap links vom Tab) */
+.subheader-tab + .subheader-tab::before {
+  content: '';
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  left: calc(-0.25rem - 0.5px);
+  width: 1px;
+  background: rgb(226 232 240 / 0.2);
+  transition: opacity 0.15s ease-in-out;
+}
+
+.subheader-tab:hover {
+  background: #475569;
+  color: #ffffff;
+}
+
+.subheader-tab.active {
+  background: #4f46e5;
+  color: #ffffff;
+}
+
+.subheader-tab:hover::before,
+.subheader-tab:hover + .subheader-tab::before,
+.subheader-tab.active::before,
+.subheader-tab.active + .subheader-tab::before {
+  opacity: 0;
+}
+
+.subheader-tab:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: -2px;
+}
+
+/*
+ * ===== Tabellen (components/Table, Klasse data-table) =====
+ * Hauchdünne Striche zwischen den Spalten, deutlichere zwischen den Zeilen, damit sie auch dann unterscheidbar
+ * bleiben, wenn Zeile A und B gleich aussehen.
+ */
+.data-table > :not(caption) > * > * {
+  border-bottom: 1px solid rgb(15 23 42 / 0.2);
+}
+
+.data-table > :not(caption) > * > * + * {
+  border-left: 1px solid rgb(15 23 42 / 0.08);
+}
+
+/* die letzte Zeile braucht keinen Strich, darunter kommt der Rand des contentbox-footer */
+.data-table > tbody > tr:last-child > * {
+  border-bottom: none;
+}
+
+/*
+ * ===== Hoverlay =====
+ * Das aufpoppende Feld für alle Hinweistexte, später auch der Hintergrund der A4-Seiten im Browser.
+ * Immer ein Verlauf, auf dem Text an jeder Stelle lesbar bleibt: hier zwei dunkle Töne mit heller Schrift.
+ * Nie etwa von Weiß nach Schwarz, dann gäbe es eine Stelle ohne Kontrast.
+ */
+.hoverlay {
+  padding: 0.375rem 0.625rem;
+  border: 1px solid #475569;
+  border-radius: 0.375rem;
+  background: linear-gradient(135deg, #1e293b 0%, #312e81 100%);
+  color: #f8fafc;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.35);
+}
+
+/*
+ * ===== Toasts =====
+ * Schwebende Karten unten rechts. Wie beim Hoverlay ein Verlauf aus dunklen Tönen, auf dem die helle Schrift an jeder
+ * Stelle lesbar bleibt, dazu ein weicher Lichtschein links oben und ein Glühen in der Farbe der Art.
+ * Gleitet von rechts herein, das Symbol springt kurz auf, unten läuft ein leuchtender Balken ab: So lange bleibt der
+ * Toast stehen (--app-toast-duration kommt aus der Komponente). Ruht die Maus darauf, hält der Balken an
+ * (app-toast-paused). Das Ausblenden (app-toast-leaving) darf höchstens 300 ms dauern.
+ */
+.app-toast {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 22rem;
+  max-width: 100%;
+  padding: 0.875rem 2.5rem 1.05rem 0.875rem;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 0.875rem;
+  color: #f8fafc;
+  text-align: left;
+  box-shadow:
+    0 18px 40px -14px var(--app-toast-glow),
+    0 6px 16px -6px rgb(15 23 42 / 0.45),
+    inset 0 1px 0 rgb(255 255 255 / 0.2);
+  animation: app-toast-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  transition:
+    opacity 0.28s ease-in,
+    transform 0.28s ease-in;
+}
+
+/* Lichtschein links oben, über dem Symbol. Die Schrift liegt dort, wo er schon fast verblasst ist. */
+.app-toast::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 95% at 0% 0%, rgb(255 255 255 / 0.17) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+/* geschafft: Smaragd über Petrol nach Indigo */
+.app-toast-success {
+  --app-toast-glow: rgb(16 185 129 / 0.55);
+  --app-toast-bar: linear-gradient(90deg, #6ee7b7 0%, #67e8f9 50%, #a5b4fc 100%);
+  background: linear-gradient(135deg, #065f46 0%, #0f766e 45%, #3730a3 100%);
+}
+
+/* schiefgegangen: Weinrot über Rot nach Beere */
+.app-toast-error {
+  --app-toast-glow: rgb(220 38 38 / 0.55);
+  --app-toast-bar: linear-gradient(90deg, #fca5a5 0%, #fdba74 50%, #f9a8d4 100%);
+  background: linear-gradient(135deg, #7f1d1d 0%, #b91c1c 50%, #9d174d 100%);
+}
+
+/* zur Kenntnis: Schiefer über Königsblau nach Indigo, wie das Hoverlay */
+.app-toast-info {
+  --app-toast-glow: rgb(79 70 229 / 0.55);
+  --app-toast-bar: linear-gradient(90deg, #93c5fd 0%, #a5b4fc 50%, #c4b5fd 100%);
+  background: linear-gradient(135deg, #1e293b 0%, #1e40af 50%, #312e81 100%);
+}
+
+.app-toast-icon {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.16);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.3),
+    0 0 18px var(--app-toast-glow);
+  font-size: 1.1rem;
+  line-height: 1;
+  animation: app-toast-icon-pop 0.55s 0.12s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.app-toast-icon i::before,
+.app-toast-close i::before {
+  vertical-align: 0;
+}
+
+.app-toast-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-top: 0.1rem;
+}
+
+.app-toast-title {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+}
+
+.app-toast-text {
+  margin-top: 0.2rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: rgb(248 250 252 / 0.88);
+}
+
+.app-toast-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(255 255 255 / 0.7);
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.15s ease-in-out,
+    color 0.15s ease-in-out;
+}
+
+.app-toast-close:hover {
+  background: rgb(255 255 255 / 0.16);
+  color: #ffffff;
+}
+
+.app-toast-close:focus-visible {
+  outline: 2px solid rgb(255 255 255 / 0.85);
+  outline-offset: 1px;
+}
+
+/* der ablaufende Balken unten */
+.app-toast-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--app-toast-bar);
+  box-shadow: 0 0 8px rgb(255 255 255 / 0.45);
+  transform-origin: left center;
+  animation: app-toast-countdown var(--app-toast-duration) linear forwards;
+}
+
+.app-toast-paused .app-toast-progress {
+  animation-play-state: paused;
+}
+
+.app-toast-leaving {
+  opacity: 0;
+  transform: translateX(2rem) scale(0.96);
+}
+
+@keyframes app-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(2.5rem) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes app-toast-icon-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-25deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes app-toast-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* wer weniger Bewegung will: nur ein- und ausblenden, der Balken bleibt als Anzeige */
+@media (prefers-reduced-motion: reduce) {
+  .app-toast,
+  .app-toast-icon {
+    animation: none;
+  }
+
+  .app-toast {
+    transition: opacity 0.2s linear;
+  }
+
+  .app-toast-leaving {
+    transform: none;
+  }
+}
+
+/*
+ * ===== PasswordButton, EditButton und DeleteButton =====
+ * Bearbeiten immer in Gelb- und Brauntönen, Löschen immer in Rottönen. Wie genau, entscheidet das Theme.
+ * Der Schlüssel zum Passwortsetzen ist hier petrol.
+ */
+.password-button,
+.edit-button,
+.delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.5rem;
+  border: 1px solid;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s ease-in-out,
+    color 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out;
+}
+
+.password-button {
+  border-color: #0891b2;
+  background: #cffafe;
+  color: #155e75;
+}
+
+.password-button:hover:not(:disabled) {
+  background: #a5f3fc;
+  color: #164e63;
+  box-shadow: 0 1px 3px rgb(21 94 117 / 0.35);
+}
+
+.edit-button {
+  border-color: #d97706;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.edit-button:hover:not(:disabled) {
+  background: #fde68a;
+  color: #78350f;
+  box-shadow: 0 1px 3px rgb(146 64 14 / 0.35);
+}
+
+.delete-button {
+  border-color: #ef4444;
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.delete-button:hover:not(:disabled) {
+  background: #dc2626;
+  border-color: #b91c1c;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgb(185 28 28 / 0.4);
+}
+
+.password-button:focus-visible,
+.edit-button:focus-visible,
+.delete-button:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.password-button:disabled,
+.edit-button:disabled,
+.delete-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/*
+ * ===== NewEntityButton =====
+ * Ruhezustand: runder Knopf mit +. Beim Hover wächst der Knopf selbst und zieht „new <Entity>()“ auf,
+ * so bleibt die Maus immer auf ihm und nichts flackert. Animiert wird max-width, weil sich width
+ * von auto aus nicht animieren lässt.
+ */
+.new-entity-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  min-width: 2rem;
+  padding: 0;
+  border: 1px solid #4338ca;
+  border-radius: 999px;
+  /* gewölbt: Licht von oben, die Wende knapp über der Mitte */
+  background: linear-gradient(to bottom, #6366f1 0%, #4f46e5 48%, #4338ca 100%);
+  color: #ffffff;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    0 1px 2px rgb(15 23 42 / 0.35);
+  transition:
+    background 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out,
+    padding 0.2s ease-in-out;
+}
+
+.new-entity-button .bi {
+  font-size: 1.05rem;
+}
+
+.new-entity-button:hover:not(:disabled),
+.new-entity-button:focus-visible:not(:disabled) {
+  padding: 0 0.9rem 0 0.6rem;
+  background: linear-gradient(to bottom, #818cf8 0%, #6366f1 48%, #4f46e5 100%);
+}
+
+/* gedrückt sinkt er ein */
+.new-entity-button:active:not(:disabled) {
+  box-shadow: inset 0 2px 3px rgb(15 23 42 / 0.45);
+}
+
+/* gesperrt: flach, grau, klappt nicht auf */
+.new-entity-button:disabled {
+  border-color: #cbd5e1;
+  background: #cbd5e1;
+  color: #64748b;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.new-entity-button-text {
+  display: inline-block;
+  max-width: 0;
+  margin-left: 0;
+  opacity: 0;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition:
+    max-width 0.24s ease-in-out,
+    margin-left 0.24s ease-in-out,
+    opacity 0.16s ease-in-out;
+}
+
+.new-entity-button:hover:not(:disabled) .new-entity-button-text,
+.new-entity-button:focus-visible:not(:disabled) .new-entity-button-text {
+  max-width: 24rem;
+  margin-left: 0.4rem;
+  opacity: 1;
+}

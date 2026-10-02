@@ -1,2 +1,5 @@
 # Lokale Zugangsdaten gehören nicht ins Repo (Vorlage: env.beispiel)
 /.env
+
+# Testdaten, z. B. alte Exporte: enthalten echte Namen und E-Mails
+/demo_data/

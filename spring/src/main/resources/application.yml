@@ -23,3 +23,57 @@ spring:
     hibernate:
       ddl-auto: update
     open-in-view: false
+
+  # Uploads bis 100 GB. Sie werden gestreamt und liegen nie ganz im Arbeitsspeicher: Spring legt sie als Temp-Datei
+  # auf die Platte (file-size-threshold bleibt 0), der SftpService reicht sie als Strom weiter.
+  servlet:
+    multipart:
+      max-file-size: 100GB
+      max-request-size: 100GB
+
+# Laufzeiten und Grenzen des Logins
+app1:
+  login:
+    # so lange gilt eine 2FA-Wartezeile (Aktivierungslink)
+    two-factor-validity: 10m
+    # so viele Sitzungen (Geräte) darf ein User gleichzeitig haben
+    max-sessions: 3
+  refresh:
+    # so lange gilt ein Refresh-Token, jede Erneuerung beginnt von vorn
+    validity: 14d
+  jwt:
+    # so lange gilt ein JWT, danach holt das Frontend per Refresh ein neues
+    validity: 30m
+  cookie:
+    # Secure-Flag der Cookies. Chrome erlaubt Secure-Cookies auch auf http://localhost
+    secure: true
+
+  # Dateispeicher per SFTP (system/sftp). Alles, was den Server betrifft, kommt aus der .env: Für den Wechsel auf ein
+  # NAS ändern sich nur sftp_host und sftp_host_key. Der Server muss dem User denselben root-dir zeigen.
+  sftp:
+    host: ${sftp_host}
+    port: ${sftp_port}
+    user: ${sftp_user}
+    pw: ${sftp_pw}
+    # öffentlicher Host-Key des Servers, Typ und Schlüssel: nur genau dieser Server wird akzeptiert
+    host-key: ${sftp_host_key}
+    # gesetzt: Anmeldung mit diesem privaten Schlüssel statt mit dem Passwort
+    private-key-path: ${sftp_private_key_path:}
+    # Wurzel aus Sicht des SFTP-Users. Im Container ist das sein chroot-Ordner (Compose: sftproot).
+    root-dir: /sftproot
+    # so viele Verbindungen dürfen insgesamt gleichzeitig ausgeliehen sein
+    max-connections: 12
+    # so viele davon ein einzelner User: Wer zwanzig Dateien auf einmal hochlädt, blockiert nicht alle anderen
+    max-connections-per-user: 2
+    # so viele Verbindungen hält der Pool offen, damit die erste Übertragung nicht auf den Handschlag wartet
+    min-idle-connections: 1
+    # Verbindungsaufbau und Anmeldung
+    connect-timeout: 15s
+    # so lange darf eine einzelne Antwort des Servers ausbleiben
+    socket-timeout: 10m
+    # so lange wartet ein Aufrufer auf einen freien Platz, dann bekommt er eine Absage
+    borrow-timeout: 30s
+    # unbenutzte Verbindungen über min-idle-connections hinaus werden nach dieser Zeit geschlossen
+    idle-timeout: 10m
+    # Ablage JJJJ/MM/TT[_n]/<sha256>.bin: ab so vielen Dateien am Tag wird ein weiterer Ordner _n aufgemacht
+    max-files-per-directory: 10000

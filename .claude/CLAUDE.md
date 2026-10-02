@@ -16,3 +16,5 @@ Andere Memories werden nicht verwendet (siehe `settings.json`).
 ## Vorlage
 
 `../../hobby/home-plus-extern` (relativ zu diesem Repo) ist die grobe Vorlage. Bei neuen Features dort nach Inspiration schauen, aber nicht 1:1 kopieren.
+
+Was schon aus der Vorlage bekannt ist (User, AR/ARC, Login/JWT, Compose, SFTP, Solr, DMS), steht in `vorlage-erkenntnisse.md`. Dort zuerst nachsehen, bevor die Vorlage neu durchsucht wird.
