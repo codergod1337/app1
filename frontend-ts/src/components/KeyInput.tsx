@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { isValidKey, KEY_MAX_LENGTH, KEY_RULE_TEXT, toKeyCharacters } from './keyRule.ts'
+import { useTranslation } from 'react-i18next'
+import { isValidKey, KEY_MAX_LENGTH, toKeyCharacters } from './keyRule.ts'
 
 interface KeyInputProps {
   id: string
@@ -18,9 +19,11 @@ interface KeyInputProps {
  * Ungültig lässt sich das Formular nicht abschicken.
  */
 export function KeyInput({ id, value, onChange, prefix = '', required = false, disabled = false }: KeyInputProps) {
+  const { t } = useTranslation()
   const input = useRef<HTMLInputElement>(null)
   const invalid = value !== '' && !(isValidKey(value) && value.startsWith(prefix))
-  const ruleText = prefix ? `beginnt mit ${prefix}, ${KEY_RULE_TEXT}` : KEY_RULE_TEXT
+  const rule = t('common.keyRule')
+  const ruleText = prefix ? t('common.keyRuleWithPrefix', { prefix, rule }) : rule
 
   // Der Browser hält das Formular auf, solange der Key ungültig ist
   useEffect(() => {

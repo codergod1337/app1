@@ -2,7 +2,8 @@ import { useCallback, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import { useLoad } from '../../api/useLoad.ts'
-import { DEFAULT_LANGUAGE, type LanguageCode } from '../../branding/languages.ts'
+import type { LanguageCode } from '../../branding/languages.ts'
+import { useLanguage } from '../../components/languageContext.ts'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { MultilingualInput } from '../../components/MultilingualInput.tsx'
 import { useOrigin } from '../../components/Origin.ts'
@@ -110,7 +111,7 @@ export function EditProfileUsersDetails() {
   const usersGuid = useSession().sessionInfo?.usersGuid ?? ''
   const loadUsersDetails = useCallback(() => getUsersDetailsByUsersGuid(usersGuid), [usersGuid])
   const { data: usersDetails, errorMessage: loadErrorMessage } = useLoad(loadUsersDetails)
-  const [language, setLanguage] = useState<LanguageCode>(DEFAULT_LANGUAGE)
+  const [language, setLanguage] = useState<LanguageCode>(useLanguage().language)
   const [saving, setSaving] = useState(false)
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null)
 

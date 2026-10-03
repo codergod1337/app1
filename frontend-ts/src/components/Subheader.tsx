@@ -2,10 +2,17 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import type { IconName } from '../branding/icons.ts'
 import { Icon } from './Icon.tsx'
+import { PackIcon } from './PackIcon.tsx'
+import type { PackSymbol } from './PackSymbol.ts'
 
 export interface SubheaderTab {
   label: string
+  /** festes Symbol der Oberfläche */
   icon?: IconName
+  /** Symbol aus den Daten, z. B. das eines Solr-Kerns. Steht beides da, kommt erst icon, dann symbol. */
+  symbol?: PackSymbol
+  /** Farbe des symbol, Hex. Fehlt sie, gilt die Schriftfarbe des Tabs */
+  color?: string
   /** Ziel des Tabs, z. B. /admin/users */
   to: string
 }
@@ -43,7 +50,13 @@ export function Subheader({ status, tabs = [], sticky = false }: SubheaderProps)
         <div ref={tabsRef} className="subheader-tabs">
           {tabs.map((tab) => (
             <NavLink key={tab.to} className="subheader-tab" to={tab.to}>
-              {tab.icon && <Icon name={tab.icon} />} {tab.label}
+              {tab.icon && <Icon name={tab.icon} />}
+              {tab.symbol && (
+                <span style={{ color: tab.color }}>
+                  <PackIcon symbol={tab.symbol} />
+                </span>
+              )}{' '}
+              {tab.label}
             </NavLink>
           ))}
         </div>

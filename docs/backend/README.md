@@ -10,6 +10,7 @@ Spring Boot mit Java (LTS, die Version steht in `spring/pom.xml` unter `java.ver
 ## Themen
 
 - [SFTP-Dateispeicher](sftp.md): wie Dateien abgelegt werden, Installation des Containers
+- [Solr](solr.md): Container, wie ein Kern entsteht, Passwort, Installation
 
 ## Pakete
 
@@ -24,6 +25,7 @@ codergod1337.app1
     masterdata/   Export und Import der Stammdaten
     sftp/         Dateispeicher
   file/           Dateiarten und Endungen (FileSubClass, FileExtension)
+  solr/           SolrManager: Hooks, Hook-Gruppen, Kerne, Felder. Tabellen heißen solr_*
 ```
 
 Jedes Paket ist aufgeteilt in `controller/`, `service/`, `repository/` und `model/`. In `model/` liegen Entities, Enums und, wo nötig, DTOs.

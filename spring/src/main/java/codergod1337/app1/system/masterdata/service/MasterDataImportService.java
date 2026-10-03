@@ -6,6 +6,15 @@ import codergod1337.app1.file.fileextension.service.FileExtensionCollectionServi
 import codergod1337.app1.file.fileextension.service.FileExtensionService;
 import codergod1337.app1.file.filesubclass.model.FileSubClass;
 import codergod1337.app1.file.filesubclass.service.FileSubClassService;
+import codergod1337.app1.solr.SolrFieldName;
+import codergod1337.app1.solr.core.model.SolrCore;
+import codergod1337.app1.solr.core.service.SolrCoreService;
+import codergod1337.app1.solr.field.model.SolrField;
+import codergod1337.app1.solr.field.service.SolrFieldService;
+import codergod1337.app1.solr.hook.model.SolrHook;
+import codergod1337.app1.solr.hook.model.SolrHookGroup;
+import codergod1337.app1.solr.hook.service.SolrHookGroupService;
+import codergod1337.app1.solr.hook.service.SolrHookService;
 import codergod1337.app1.system.HelperInputs;
 import codergod1337.app1.system.access.model.AccessRole;
 import codergod1337.app1.system.access.model.AccessRoleCollection;
@@ -109,6 +118,10 @@ public class MasterDataImportService {
 	private final FileExtensionCollectionService fileExtensionCollectionService;
 	private final FileExtensionService fileExtensionService;
 	private final FileSubClassService fileSubClassService;
+	private final SolrHookGroupService solrHookGroupService;
+	private final SolrHookService solrHookService;
+	private final SolrCoreService solrCoreService;
+	private final SolrFieldService solrFieldService;
 	private final UsersService usersService;
 	private final UsersCredentialsService usersCredentialsService;
 	private final UsersDetailsService usersDetailsService;
@@ -123,9 +136,11 @@ public class MasterDataImportService {
 	public MasterDataImportService(AccessRoleService accessRoleService,
 			AccessRoleCollectionService accessRoleCollectionService,
 			FileExtensionCollectionService fileExtensionCollectionService, FileExtensionService fileExtensionService,
-			FileSubClassService fileSubClassService, UsersService usersService,
-			UsersCredentialsService usersCredentialsService, UsersDetailsService usersDetailsService,
-			UsersSettingsService usersSettingsService, AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
+			FileSubClassService fileSubClassService, SolrHookGroupService solrHookGroupService,
+			SolrHookService solrHookService, SolrCoreService solrCoreService,
+			SolrFieldService solrFieldService, UsersService usersService, UsersCredentialsService usersCredentialsService,
+			UsersDetailsService usersDetailsService, UsersSettingsService usersSettingsService,
+			AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
 			AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService,
 			MasterDataExportService masterDataExportService, JsonMapper jsonMapper, Validator validator) {
 		this.accessRoleService = accessRoleService;
@@ -133,6 +148,10 @@ public class MasterDataImportService {
 		this.fileExtensionCollectionService = fileExtensionCollectionService;
 		this.fileExtensionService = fileExtensionService;
 		this.fileSubClassService = fileSubClassService;
+		this.solrHookGroupService = solrHookGroupService;
+		this.solrHookService = solrHookService;
+		this.solrCoreService = solrCoreService;
+		this.solrFieldService = solrFieldService;
 		this.usersService = usersService;
 		this.usersCredentialsService = usersCredentialsService;
 		this.usersDetailsService = usersDetailsService;
@@ -197,6 +216,10 @@ public class MasterDataImportService {
 		planFileExtensionCollections(plan, linesBySection.get(MasterDataSection.FILE_EXTENSION_COLLECTIONS));
 		planFileExtensions(plan, linesBySection.get(MasterDataSection.FILE_EXTENSIONS));
 		planFileSubClasses(plan, linesBySection.get(MasterDataSection.FILE_SUB_CLASSES));
+		planSolrHookGroups(plan, linesBySection.get(MasterDataSection.SOLR_HOOK_GROUPS));
+		planSolrHooks(plan, linesBySection.get(MasterDataSection.SOLR_HOOKS));
+		planSolrCores(plan, linesBySection.get(MasterDataSection.SOLR_CORES));
+		planSolrFields(plan, linesBySection.get(MasterDataSection.SOLR_FIELDS));
 		planUsers(plan, linesBySection.get(MasterDataSection.USERS));
 		planUsersDetails(plan, linesBySection.get(MasterDataSection.USERS_DETAILS));
 		planUsersSettings(plan, linesBySection.get(MasterDataSection.USERS_SETTINGS));
@@ -313,6 +336,114 @@ public class MasterDataImportService {
 			fileSubClass.setWriteAccessRoleKeys(writeAccessRoleKeys);
 			fileSubClass.setExtensions(keepKnown(row, fileSubClass.getExtensions(), plan.extensions, "Endung"));
 		}
+	}
+
+	/** Hook-Gruppen: normale Key-Regel. Sie verweisen auf nichts, es kann nichts wegfallen. */
+	private void planSolrHookGroups(ImportPlan plan, List<Line> lines) {
+		Map<String, SolrHookGroup> existing = byKey(solrHookGroupService.getAllSolrHookGroups(), SolrHookGroup::getKey);
+		plan.rowsBySection.put(MasterDataSection.SOLR_HOOK_GROUPS, planKeyedRows(lines, SolrHookGroup.class,
+				SolrHookGroup::getKey, SolrHookGroup::getDisplayName, existing, HelperInputs::isValidKey,
+				"key fehlt oder ist ungültig"));
+		plan.solrHookGroupKeys.addAll(existing.keySet());
+		plan.solrHookGroupKeys.addAll(newKeys(plan, MasterDataSection.SOLR_HOOK_GROUPS));
+	}
+
+	/** Hooks: der key ist ein Solr-Feldname. Gibt es ihre Gruppe weder bei uns noch im Import, kommt der Hook ohne Gruppe. */
+	private void planSolrHooks(ImportPlan plan, List<Line> lines) {
+		Map<String, SolrHook> existing = byKey(solrHookService.getAllSolrHooks(), SolrHook::getKey);
+		List<PlannedRow> rows = planKeyedRows(lines, SolrHook.class, SolrHook::getKey, SolrHook::getDisplayName, existing,
+				SolrFieldName::isValid, "key fehlt oder ist kein gültiger Solr-Feldname");
+		plan.rowsBySection.put(MasterDataSection.SOLR_HOOKS, rows);
+		for (PlannedRow row : rows) {
+			SolrHook solrHook = row.isNew() ? (SolrHook) row.data : null;
+			if (solrHook != null && solrHook.getHookGroupKey() != null
+					&& !plan.solrHookGroupKeys.contains(solrHook.getHookGroupKey())) {
+				row.addMessage("Hook-Gruppe " + solrHook.getHookGroupKey()
+						+ " gibt es weder bei uns noch im Import, der Hook kommt ohne Gruppe");
+				solrHook.setHookGroupKey(null);
+			}
+		}
+		plan.solrHookKeys.addAll(existing.keySet());
+		plan.solrHookKeys.addAll(newKeys(plan, MasterDataSection.SOLR_HOOKS));
+	}
+
+	/** Kerne: normale Key-Regel, HOOKS und CORES sind reserviert. Sie verweisen auf nichts, es kann nichts wegfallen. */
+	private void planSolrCores(ImportPlan plan, List<Line> lines) {
+		Map<String, SolrCore> existing = byKey(solrCoreService.getAllSolrCores(), SolrCore::getKey);
+		plan.rowsBySection.put(MasterDataSection.SOLR_CORES, planKeyedRows(lines, SolrCore.class, SolrCore::getKey,
+				SolrCore::getDisplayName, existing, SolrCoreService::isValidSolrCoreKey,
+				"key fehlt oder ist ungültig, HOOKS und CORES sind reserviert"));
+		plan.solrCoreKeys.addAll(existing.keySet());
+		plan.solrCoreKeys.addAll(newKeys(plan, MasterDataSection.SOLR_CORES));
+	}
+
+	/**
+	 * Felder: erkannt am Paar Kern und name. Verwaist, wenn es den Kern weder bei uns noch angehakt im Import gibt.
+	 * Ungültig bei Hook-Namen (die gibt es in jedem Kern schon) und suggest an einem Typ ohne Zwilling. Das Feld id
+	 * wird nicht geschrieben: Das legt jeder Kern beim Anlegen selbst an.
+	 */
+	private void planSolrFields(ImportPlan plan, List<Line> lines) {
+		Map<String, SolrField> existingByPair = new HashMap<>();
+		for (SolrField solrField : solrFieldService.getAllSolrFields()) {
+			existingByPair.put(solrField.getCoreKey() + "|" + solrField.getName(), solrField);
+		}
+		ObjectReader reader = jsonMapper.readerFor(SolrField.class).without(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+		List<PlannedRow> rows = new ArrayList<>();
+		Map<String, Integer> countByPair = new HashMap<>();
+		for (Line line : lines) {
+			PlannedRow row = new PlannedRow(line);
+			rows.add(row);
+			if (line.values() == null) {
+				row.reject(RowStatus.INVALID, "kein gültiges JSON");
+				continue;
+			}
+			SolrField solrField;
+			try {
+				solrField = reader.readValue(line.text());
+			} catch (JacksonException e) {
+				row.reject(RowStatus.INVALID, "nicht lesbar: " + e.getOriginalMessage());
+				continue;
+			}
+			row.data = solrField;
+			if (solrField.getCoreKey() != null && solrField.getName() != null) {
+				row.id = solrField.getCoreKey() + " · " + solrField.getName();
+				row.label = row.id;
+				countByPair.merge(solrField.getCoreKey() + "|" + solrField.getName(), 1, Integer::sum);
+			}
+		}
+
+		for (PlannedRow row : rows) {
+			if (!row.isNew()) {
+				continue;
+			}
+			SolrField solrField = (SolrField) row.data;
+			String pair = solrField.getCoreKey() + "|" + solrField.getName();
+			if (!SolrCoreService.isValidSolrCoreKey(solrField.getCoreKey())) {
+				row.reject(RowStatus.INVALID, "coreKey fehlt oder ist ungültig");
+			} else if (!SolrFieldName.isValid(solrField.getName())) {
+				row.reject(RowStatus.INVALID, "name fehlt oder ist kein gültiger Solr-Feldname");
+			} else if (countByPair.get(pair) > 1) {
+				row.reject(RowStatus.INVALID, "steht mehrfach in der Datei");
+			} else if (plan.solrHookKeys.contains(solrField.getName())) {
+				row.reject(RowStatus.INVALID, "name ist ein Hook, den gibt es in jedem Kern schon");
+			} else if (solrField.getType() == null) {
+				row.reject(RowStatus.INVALID, "type fehlt oder ist unbekannt");
+			} else if (solrField.isSuggest() && !solrField.getType().isSuggestable()) {
+				row.reject(RowStatus.INVALID, "suggest geht bei " + solrField.getType() + " nicht");
+			} else if (SolrCore.BUILT_IN_FIELD_NAMES.contains(solrField.getName())) {
+				row.reject(RowStatus.EXISTING,
+						"das Feld " + solrField.getName() + " legt jeder Kern beim Anlegen selbst an");
+			} else if (!plan.solrCoreKeys.contains(solrField.getCoreKey())) {
+				row.reject(RowStatus.ORPHAN,
+						"Kern " + solrField.getCoreKey() + " gibt es weder bei uns noch angehakt im Import");
+			} else if (existingByPair.containsKey(pair)) {
+				row.status = RowStatus.EXISTING;
+				addDifferences(row, existingByPair.get(pair));
+			} else {
+				rejectViolations(row, solrField);
+			}
+		}
+		plan.rowsBySection.put(MasterDataSection.SOLR_FIELDS, rows);
 	}
 
 	/**
@@ -970,6 +1101,32 @@ public class MasterDataImportService {
 			}
 		}
 
+		for (PlannedRow row : plan.writtenRows(MasterDataSection.SOLR_HOOK_GROUPS)) {
+			SolrHookGroup solrHookGroup = (SolrHookGroup) row.data;
+			solrHookGroupService.createSolrHookGroup(solrHookGroup.getKey(), solrHookGroup.getDisplayName(),
+					solrHookGroup.getListingPosition());
+		}
+
+		for (PlannedRow row : plan.writtenRows(MasterDataSection.SOLR_HOOKS)) {
+			SolrHook solrHook = (SolrHook) row.data;
+			solrHookService.createSolrHook(solrHook.getKey(), solrHook.getDisplayName(), solrHook.getDescription(),
+					solrHook.getHookGroupKey(), solrHook.getListingPosition());
+		}
+
+		for (PlannedRow row : plan.writtenRows(MasterDataSection.SOLR_CORES)) {
+			SolrCore solrCore = (SolrCore) row.data;
+			solrCoreService.createSolrCore(solrCore.getKey(), solrCore.getDisplayName(), solrCore.getLook(),
+					solrCore.getListingPosition());
+		}
+
+		for (PlannedRow row : plan.writtenRows(MasterDataSection.SOLR_FIELDS)) {
+			SolrField solrField = (SolrField) row.data;
+			solrFieldService.createSolrField(solrField.getCoreKey(), solrField.getName(), solrField.getType(),
+					solrField.isIndexed(), solrField.isStored(), solrField.isMultiValued(), solrField.isDocValues(),
+					solrField.isRequired(), solrField.isSuggest(), solrField.getDescription(),
+					solrField.getListingPosition());
+		}
+
 		String startPassword = sha256Hex(START_PASSWORD);
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.USERS)) {
 			Users users = (Users) row.data;
@@ -1167,6 +1324,9 @@ public class MasterDataImportService {
 		private final Map<String, List<String>> accessRoleKeysByAccessRoleCollectionKey = new HashMap<>();
 		private final Set<String> fileExtensionCollectionKeys = new HashSet<>();
 		private final Set<String> extensions = new HashSet<>();
+		private final Set<String> solrHookGroupKeys = new HashSet<>();
+		private final Set<String> solrHookKeys = new HashSet<>();
+		private final Set<String> solrCoreKeys = new HashSet<>();
 		/** guid aus der Datei → guid, an die geschrieben wird. Fehlt sie, ist alles an diesem User verwaist. */
 		private final Map<UUID, UUID> targetUsersGuidByFileGuid = new HashMap<>();
 		private final Map<UUID, String> emailByUsersGuid = new HashMap<>();

@@ -16,6 +16,14 @@ export const icons = {
   fileSubClassAcl: { pack: 'bootstrap', id: 'file-earmark-lock' },
   accessRoleCollectionAccessRoles: { pack: 'bootstrap', id: 'ui-checks-grid' },
   masterData: { pack: 'bootstrap', id: 'database-gear' },
+  solrManager: { pack: 'bootstrap', id: 'hdd-network-fill' },
+  // wie die Hooks-Spalte im Dokumente-Tab der Vorlage
+  solrHooks: { pack: 'bootstrap', id: 'diagram-3' },
+  solrHookGroups: { pack: 'bootstrap', id: 'tags' },
+  solrCores: { pack: 'bootstrap', id: 'hdd-stack' },
+  /** der Primärschlüssel eines Kerns: das Feld id, der uniqueKey in Solr */
+  documentId: { pack: 'bootstrap', id: 'key' },
+  search: { pack: 'bootstrap', id: 'search' },
   download: { pack: 'bootstrap', id: 'download' },
   upload: { pack: 'bootstrap', id: 'upload' },
   add: { pack: 'bootstrap', id: 'plus-lg' },

@@ -1,11 +1,11 @@
 # Docker-Logs: zusammen maximal 500 MB. Docker kann nur pro Container begrenzen,
 # daher bei jedem neuen Container max-size so anpassen, dass die Summe 500 MB bleibt.
-# Aktuell 2 Container: 2 x 5 x 50 MB = 500 MB.
+# Aktuell 3 Container: 3 x 5 x 33 MB = 495 MB.
 # Gilt erst für neu angelegte Container: "docker compose up -d", nicht "docker restart".
 x-logging: &logging
   driver: json-file
   options:
-    max-size: "50m"
+    max-size: "33m"
     max-file: "5"
 
 services:
@@ -48,4 +48,69 @@ services:
       - ../docker_mounts/sftp/sftproot:/home/${sftp_user}/sftproot
       # Fester Host-Key (chmod 600), damit er jedes "up" überlebt: Das Backend akzeptiert nur genau diesen Server.
       - ../docker_mounts/sftp/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key:ro
+    logging: *logging
+
+  # Suchindex. Ein Kern je SolrCore im SolrManager, beim File-Kern ist Solr der einzige Speicher (docs/backend/solr.md).
+  # Solr 10 startet ohne --user-managed im Cloud-Modus (ZooKeeper) und lädt keine Kerne von der Platte, daher das Flag.
+  # Kein eigenes Image: Das Basis-Configset (nur Feldtypen und Systemfelder) kommt als Nur-Lese-Mount aus dem Repo, die
+  # Felder legt das Backend per Schema-API an. Den Ordner eines Kerns legt die Startkette aus solr_cores an, denn im
+  # user-managed Modus kann die API keinen Kern mit eigener Schemakopie anlegen; vorhandene Kerne bleiben unberührt.
+  app1_solr:
+    image: solr:10.0.0
+    container_name: app1_solr
+    restart: unless-stopped
+    environment:
+      # Heap der JVM, nicht der Speicher des Containers. Reicht für den Anfang, bei großen Kernen erhöhen.
+      SOLR_HEAP: 1g
+      SOLR_ADMIN_USER: ${solr_user}
+      SOLR_ADMIN_PW: ${solr_pw}
+      SOLR_CORES: ${solr_cores}
+    ports:
+      - "${solr_port}:8983"
+    # Zweiter Name ohne Unterstrich: Java (java.net.URI) lehnt Unterstriche im Hostnamen ab, SolrJ hätte kein Ziel.
+    # Das Backend im Docker-Netz spricht später http://solrhost:8983/solr an.
+    networks:
+      default:
+        aliases:
+          - solrhost
+    volumes:
+      # Kerne mit Index und Schema, Logs und security.json. Gehört uid 8983, dem User solr im Container.
+      - ../docker_mounts/solr:/var/solr
+      - ./solr/configsets/app1:/opt/app1/configsets/app1:ro
+    # Startkette ($$ ist ein Shell-$, ein einfaches $ würde Compose selbst auflösen):
+    # 1. Je Kern aus solr_cores den Ordner /var/solr/data/<kern> aus dem Basis-Configset anlegen, nur wenn er fehlt.
+    # 2. security.json für Basic Auth neu schreiben: User und Passwort aus der .env, das Passwort so, wie Solr es
+    #    erwartet: base64(sha256(sha256(salz + passwort))) und base64(salz), durch Leerzeichen getrennt. Ein neues
+    #    Passwort in der .env gilt damit nach "docker compose up -d". blockUnknown: Ohne Anmeldung geht nichts.
+    # 3. Solr im Vordergrund starten.
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        mkdir -p /var/solr/data
+        for core in $${SOLR_CORES//,/ }; do
+          precreate-core "$$core" /opt/app1/configsets/app1
+        done
+        salt=$$(tr -dc A-Za-z0-9 < /dev/urandom | head -c 32)
+        hex=$$(printf '%s%s' "$$salt" "$$SOLR_ADMIN_PW" | sha256sum | cut -c 1-64)
+        hex=$$(printf '%b' "$$(printf '%s' "$$hex" | sed 's/../\\x&/g')" | sha256sum | cut -c 1-64)
+        hash=$$(printf '%b' "$$(printf '%s' "$$hex" | sed 's/../\\x&/g')" | base64 -w 0)
+        saltb64=$$(printf '%s' "$$salt" | base64 -w 0)
+        cat > /var/solr/data/security.json <<EOF
+        {
+          "authentication": {
+            "class": "solr.BasicAuthPlugin",
+            "blockUnknown": true,
+            "realm": "app1 Solr",
+            "credentials": { "$$SOLR_ADMIN_USER": "$$hash $$saltb64" }
+          },
+          "authorization": {
+            "class": "solr.RuleBasedAuthorizationPlugin",
+            "permissions": [ { "name": "all", "role": "admin" } ],
+            "user-role": { "$$SOLR_ADMIN_USER": "admin" }
+          }
+        }
+        EOF
+        exec solr-foreground --user-managed
     logging: *logging

@@ -64,12 +64,8 @@
     --import-problem-bg: #b91c1c;
 
     /* Benutzermenü im header */
-    --user-menu-bg: #ffffff;
-    --user-menu-text: #111827;
     --user-menu-head-bg: #1f2937;
     --user-menu-head-text: #f9fafb;
-    --user-menu-item-hover-bg: #e5e7eb;
-    --user-menu-item-hover-text: #111827;
 
     /* Profil: Titelbild (nur Hex, das Muster wird daraus gezeichnet) und der Ring für „online“ */
     --profile-cover-from: #1f2937;
@@ -281,6 +277,11 @@
     pointer-events: none;
   }
 
+  /* Eine Erklärung (hoverlay-explanation) darf breiter sein als ein kurzer Hinweis, sonst stünde jede Tabelle darin hochkant */
+  .hoverlay:has(.hoverlay-explanation) {
+    max-width: 36rem;
+  }
+
   /* ===== Toasts: nur die Leiste unten rechts über dem footer, das Aussehen bestimmt das Theme ===== */
   .app-toast-container {
     position: fixed;
@@ -405,6 +406,11 @@
 
   .dragging .drag-handle {
     cursor: grabbing;
+  }
+
+  /* feste Zeile in einer verschiebbaren Tabelle: der Platz des Griffs bleibt, der Griff nicht */
+  .drag-handle-fixed {
+    visibility: hidden;
   }
 
   /* ===== Tabelle mobil: Zeile antippen zeigt alle Spalten im Popup ===== */
@@ -690,6 +696,348 @@
       0 1px 3px var(--badge-shadow, rgb(15 23 42 / 0.35));
   }
 
+  /*
+   * ===== SolrLook: Farben und Verlauf des Kern-Emblems =====
+   * Theme-invariant wie die Badges, weil die Farben aus den Daten kommen (--look-main, --look-gradient-start,
+   * --look-gradient-end, --look-text, --look-text-shadow, --look-shadow). Fehlt eine, gilt der Standard hier. Drei
+   * Stufen: Anfang, Hauptfarbe in der Mitte, Ende. Fehlen Anfang oder Ende, nimmt die Hauptfarbe ihren Platz. Ohne
+   * Verlaufsart gilt LINEAR. Form, Größe und Schrift bestimmt solr-core-emblem darunter.
+   */
+  .solr-look {
+    background: linear-gradient(
+      to bottom,
+      var(--look-gradient-start, var(--look-main, #0ea5e9)),
+      var(--look-main, #0ea5e9),
+      var(--look-gradient-end, var(--look-main, #0369a1))
+    );
+    color: var(--look-text, #ffffff);
+    /* Kontrast: ein weicher Schatten rund um die Schrift, nur wenn eine Farbe gesetzt ist */
+    text-shadow:
+      0 0 2px var(--look-text-shadow, transparent),
+      0 0 2px var(--look-text-shadow, transparent),
+      0 1px 3px var(--look-text-shadow, transparent);
+    box-shadow: 0 1px 3px var(--look-shadow, rgb(15 23 42 / 0.3));
+  }
+
+  .solr-look-gradient-flat {
+    background: var(--look-main, #0ea5e9);
+  }
+
+  .solr-look-gradient-diagonal {
+    background: linear-gradient(
+      135deg,
+      var(--look-gradient-start, var(--look-main, #0ea5e9)),
+      var(--look-main, #0ea5e9),
+      var(--look-gradient-end, var(--look-main, #0369a1))
+    );
+  }
+
+  /* 3D gewölbt: oben aufgehellt, Hauptfarbe knapp über der Mitte, Lichtkante oben, dunkle Kante unten */
+  .solr-look-gradient-bevel {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--look-gradient-start, var(--look-main, #0ea5e9)) 70%, #ffffff) 0%,
+      var(--look-main, #0ea5e9) 48%,
+      var(--look-gradient-end, var(--look-main, #0369a1)) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.45),
+      inset 0 -1px 0 var(--look-shadow, rgb(15 23 42 / 0.35)),
+      0 1px 2px var(--look-shadow, rgb(15 23 42 / 0.35));
+  }
+
+  .solr-look-gradient-radial {
+    background: radial-gradient(
+      circle at 50% 30%,
+      var(--look-gradient-start, var(--look-main, #0ea5e9)),
+      var(--look-main, #0ea5e9),
+      var(--look-gradient-end, var(--look-main, #0369a1))
+    );
+  }
+
+  /* Metall: mehrere Stufen mit Glanzstreifen, darüber feine senkrechte Bürstung */
+  .solr-look-gradient-metal {
+    background:
+      repeating-linear-gradient(90deg, rgb(255 255 255 / 0.07) 0 1px, transparent 1px 3px),
+      linear-gradient(
+        to bottom,
+        var(--look-gradient-start, var(--look-main, #e5e7eb)) 0%,
+        var(--look-gradient-end, var(--look-main, #9ca3af)) 45%,
+        color-mix(in srgb, var(--look-main, #e5e7eb) 40%, #ffffff) 52%,
+        var(--look-gradient-end, var(--look-main, #9ca3af)) 60%,
+        var(--look-gradient-start, var(--look-main, #e5e7eb)) 100%
+      );
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.6),
+      0 1px 3px var(--look-shadow, rgb(15 23 42 / 0.35));
+  }
+
+  /*
+   * ===== SolrCoreEmblem =====
+   * Das Emblem eines Solr-Kerns: Symbol und Anzeigename. Kein Badge, Kerne gibt es eine Handvoll. Die eigentliche
+   * Emblem-Form kommt noch, bis dahin ein abgerundetes Rechteck.
+   */
+  .solr-core-emblem {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  .solr-core-emblem .bi,
+  .solr-core-emblem .ti,
+  .solr-core-emblem [class^='icon-'] {
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  /*
+   * ===== SolrHookChip =====
+   * Der Chip eines Hooks: Anzeigename und Wert, als gesetzter Filter oder als Angebot. Pillenform, damit er sich von
+   * Badge (Rechteck, Pille nur bei der ARC) und Emblem unterscheidet.
+   *
+   * DER LOOK STEHT HIER FEST, nicht in den Daten: ein Fels. Anthrazit mit 3D-Wölbung (oben hell, unten dunkel, Lichtkante
+   * oben, dunkle Kante unten), zwei weiche Flecken als Facetten, und darüber ein paar Risse, die rot glühen: im SVG je
+   * Riss ein gezackter Pfad, einmal breit und weichgezeichnet als Glut, einmal fein und hell als Kante, dazu kleine
+   * Abzweigungen. Das SVG wiederholt sich waagerecht, lange Chips bekommen so mehr Risse, kurze weniger. Alle Hooks
+   * sehen gleich aus, theme-invariant.
+   */
+  .solr-hook-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.65rem;
+    border: 0;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    vertical-align: middle;
+    color: #f3f4f6;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.85);
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 24'%3E%3Cdefs%3E%3Cfilter id='g' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeGaussianBlur stdDeviation='1.4'/%3E%3C/filter%3E%3C/defs%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg stroke='%23ef4444' stroke-width='2.4' opacity='0.85' filter='url(%23g)'%3E%3Cpath d='M9 1 L14 8 L11 13 L18 23'/%3E%3Cpath d='M57 0 L62 7 L59 12 L65 17 L63 24'/%3E%3Cpath d='M99 3 L104 9 L101 15 L108 22'/%3E%3C/g%3E%3Cg stroke='%23ff8a80' stroke-width='0.9'%3E%3Cpath d='M9 1 L14 8 L11 13 L18 23'/%3E%3Cpath d='M57 0 L62 7 L59 12 L65 17 L63 24'/%3E%3Cpath d='M99 3 L104 9 L101 15 L108 22'/%3E%3Cpath d='M14 8 L19 6' stroke-width='0.6'/%3E%3Cpath d='M59 12 L54 15' stroke-width='0.6'/%3E%3Cpath d='M104 9 L109 7' stroke-width='0.6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")
+        left center / auto 100% repeat-x,
+      radial-gradient(ellipse at 22% 25%, rgb(255 255 255 / 0.1), transparent 45%),
+      radial-gradient(ellipse at 72% 85%, rgb(0 0 0 / 0.35), transparent 50%),
+      linear-gradient(to bottom, #5a6068 0%, #3b4046 38%, #2b2f34 68%, #1a1d21 100%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.22),
+      inset 0 -2px 3px rgb(0 0 0 / 0.55),
+      0 2px 4px rgb(0 0 0 / 0.45);
+  }
+
+  /* Der ganze Chip als Knopf (Angebot), oder nur sein Inhalt, wenn daneben der Mülleimer steht */
+  button.solr-hook-chip {
+    font: inherit;
+    cursor: pointer;
+  }
+
+  /* Unter der Maus glüht der Fels etwas heller */
+  button.solr-hook-chip:hover,
+  .solr-hook-chip:has(.solr-hook-chip-button:hover) {
+    filter: brightness(1.15);
+  }
+
+  .solr-hook-chip-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-shadow: inherit;
+    cursor: pointer;
+  }
+
+  .solr-hook-chip .bi,
+  .solr-hook-chip .ti,
+  .solr-hook-chip [class^='icon-'] {
+    font-size: 0.95rem;
+    line-height: 1;
+  }
+
+  /* Der Wert, durch einen feinen Strich vom Hook getrennt */
+  .solr-hook-chip-value {
+    padding-left: 0.35rem;
+    border-left: 1px solid color-mix(in srgb, currentColor 45%, transparent);
+    font-weight: 700;
+  }
+
+  .solr-hook-chip-value-link {
+    color: inherit;
+    text-decoration: underline dotted;
+  }
+
+  .solr-hook-chip-value-link:hover {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  /*
+   * ===== SolrHookValues: ein Hook am Dokument =====
+   * Der Chip des Hooks, dahinter jeder Wert als Badge: ein kleiner Stein in dunklem Grau, passend zum Fels des Chips,
+   * hell beschriftet. Eine hauseigene Artikelnummer ist ein Link in ihre Mappe, gepunktet unterstrichen wie der Wert
+   * im Chip. Theme-invariant wie der Chip.
+   */
+  .solr-hook-values {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    vertical-align: middle;
+  }
+
+  .solr-hook-value-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.375rem;
+    background: linear-gradient(to bottom, #4b5057, #2f3338);
+    color: #f3f4f6;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.15),
+      0 1px 2px rgb(0 0 0 / 0.4);
+  }
+
+  .solr-hook-value-badge-link {
+    text-decoration: underline dotted;
+  }
+
+  .solr-hook-value-badge-link:hover {
+    color: #ffffff;
+    text-decoration: underline;
+    filter: brightness(1.15);
+  }
+
+  /* ===== SolrHookFields: das Hook-Modul am Dokument, eine Zeile je Hook ===== */
+  .solr-hook-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .solr-hook-fields-title {
+    font-weight: 600;
+  }
+
+  .solr-hook-field-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* ===== ValuesInput: eingeloggte Werte, dahinter das schmale Eingabefeld ===== */
+  .values-input {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Ein volles Feld (hunderte Nummern) rollt in sich, statt die Maske wegzuschieben */
+  .values-list {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    max-height: 7.5rem;
+    overflow-y: auto;
+  }
+
+  .values-input-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: 0.375rem;
+    font-size: 0.8rem;
+  }
+
+  .solr-hook-value-badge .delete-button {
+    margin-left: 0.25rem;
+  }
+
+  /*
+   * ===== SolrHookCatalog: die Hooks je Gruppe =====
+   * Je Gruppe eine Überschrift, darunter eine Zeile pro Hook: der Chip und daneben der Feldname in Monospace. In der
+   * Hook-Auswahl ist jede Zeile ein Knopf, im Kern-Tab nur Anzeige in einer Hoverlay-Box. Striche und Hover-Tonung
+   * bestimmt das Theme.
+   */
+  .solr-hook-catalog {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .solr-hook-catalog-empty {
+    font-size: 0.85em;
+    opacity: 0.75;
+  }
+
+  .solr-hook-catalog-group {
+    display: block;
+    padding: 0.4rem 0.25rem 0.15rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .solr-hook-catalog-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.3rem 0.25rem;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+
+  button.solr-hook-catalog-entry {
+    cursor: pointer;
+  }
+
+  .solr-hook-catalog-key {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+    opacity: 0.8;
+  }
+
+  /* In der Hook-Auswahl rollt die Liste in sich, statt das Popup zu sprengen */
+  .solr-hook-picker-list {
+    max-height: min(60vh, 28rem);
+    overflow-y: auto;
+    margin-top: 0.5rem;
+  }
+
+  /* Eine Box im Aussehen des Hoverlays, nur fest in der Seite statt aufpoppend. Das Aussehen bestimmt das Theme. */
+  .hoverlay-box {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .solr-hook-catalog-box {
+    max-width: 36rem;
+  }
+
+
   /* ===== Benutzermenü rechts im header: Symbol und E-Mail öffnen es ===== */
   .header {
     position: relative;
@@ -699,16 +1047,26 @@
     position: relative;
   }
 
-  .user-menu-caret {
+  /* Die Knöpfe der Menüs im header: nur Symbol oder Flagge, kein Text, kein Pfeil. Rand und Hover bestimmt das Theme. */
+  .header-icon-button {
     display: inline-flex;
-    font-size: 0.7rem;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border-radius: 999px;
+    font-size: 1.05rem;
+    line-height: 1;
+    cursor: pointer;
     transition: transform 0.15s ease-in-out;
   }
 
-  .user-menu-toggle[aria-expanded='true'] .user-menu-caret {
-    transform: rotate(180deg);
+  .header-icon-button:hover {
+    transform: scale(1.08);
   }
 
+  /* Die Klappe: Lage und Breite, das Aussehen (wie das Hoverlay) bestimmt das Theme */
   .user-menu-panel {
     position: absolute;
     top: calc(100% + 0.5rem);
@@ -716,20 +1074,14 @@
     z-index: 1050;
     width: 18rem;
     overflow: hidden;
-    border: 1px solid var(--contentbox-border);
-    border-radius: var(--contentbox-radius);
-    background: var(--user-menu-bg);
-    color: var(--user-menu-text);
-    box-shadow: 0 14px 36px rgb(15 23 42 / 0.3);
   }
 
+  /* Die Box mit E-Mail, Session und Refresh, eine eigene Box über dem Hoverlay der Klappe */
   .user-menu-head {
     display: flex;
     flex-direction: column;
     gap: 0.1rem;
     padding: 0.85rem 1rem;
-    background: var(--user-menu-head-bg);
-    color: var(--user-menu-head-text);
     line-height: 1.35;
     overflow-wrap: anywhere;
   }
@@ -761,11 +1113,8 @@
     cursor: pointer;
   }
 
-  .user-menu-item:hover,
   .user-menu-item:focus-visible {
     outline: none;
-    background: var(--user-menu-item-hover-bg);
-    color: var(--user-menu-item-hover-text);
   }
 
   .user-menu-item.active {
@@ -775,7 +1124,30 @@
   .user-menu-divider {
     height: 1px;
     margin: 0.35rem 0.3rem;
-    background: var(--contentbox-border);
+  }
+
+  /* ===== Sprachwahl im header: dasselbe Menü wie das Benutzermenü, nur die Flagge als Knopf und schmaler ===== */
+  .language-menu-toggle {
+    width: auto;
+    height: auto;
+    padding: 0.15rem;
+    border-radius: 0.3rem;
+  }
+
+  .language-menu-toggle .fi {
+    display: block;
+    width: 1.5rem;
+    line-height: 1.125rem;
+    border-radius: 0.15rem;
+  }
+
+  .language-menu-panel {
+    width: 12rem;
+  }
+
+  .language-menu .user-menu-item .fi {
+    width: 1.5rem;
+    line-height: 1.125rem;
   }
 
   /* Handy: das Menü über die ganze Breite unter dem header */

@@ -45,7 +45,7 @@ Den ausführenden User (current user) liefert ein Provider aus dem Security-Cont
 - In `main` rendert das Modul selbst: optional seinen `subheader` (mit Bootstrap `sticky-top` bleibt er beim Scrollen stehen), dann `main-content` mit dem eigentlichen Inhalt.
 - In `main-content` steht genau eine von drei Darstellungen: ContentBox, Matrix oder A4-Ansicht.
 - ContentBox: `contentbox` mit `contentbox-header`, `contentbox-main` und `contentbox-footer`. Der Footer ist fürs Design immer da, nur sein Inhalt (Text, Knöpfe) ist optional. In ContentBoxen stehen auch Tabellen.
-- Tabelle: einmal zentral definiert (`components/Table.tsx`), mit Kopfzeile, Zeile A und Zeile B (abwechselnd, A und B dürfen gleich aussehen).
+- Tabelle: einmal zentral definiert (`components/Table.tsx`), mit Kopfzeile, Zeile A und Zeile B (abwechselnd, A und B dürfen gleich aussehen). Jede Tabelle im Frontend ist diese Komponente, nie ein eigenes `<table>`, auch nicht für Zeilen mit Eingabefeldern: Zellen dürfen Eingaben enthalten. Fehlt der Tabelle etwas, wird sie erweitert, nicht umgangen.
 - Die Seiten müssen auch auf dem Handy passen. In Tabellen können Spalten als unwichtig markiert werden, die fallen in der mobilen Auflösung (unter 768 px) weg. Dort zeigt ein Tipp auf die Zeile alle Spalten im Popup.
 - Matrix: steht direkt im kompletten `main`, ohne ContentBox. Matrix und ContentBox schließen sich aus. Die Details legen wir fest, wenn wir die erste Matrix anlegen.
 

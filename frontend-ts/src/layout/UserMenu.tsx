@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { Icon } from '../components/Icon.tsx'
 import { useSession } from '../modul/login/sessionContext.ts'
@@ -10,11 +11,12 @@ interface UserMenuProps {
 }
 
 /**
- * Das Menü hinter Symbol und E-Mail rechts im header: oben, wer angemeldet ist, darunter Profil, Passwort ändern und
- * Abmelden. Schließt bei einem Klick daneben und mit Esc, lässt sich mit den Pfeiltasten bedienen.
- * Ohne Anmeldung zeigt es nichts.
+ * Das Menü hinter dem Profil-Symbol rechts im header: oben die Box, wer angemeldet ist (E-Mail, Session, Refresh),
+ * darunter Profil, Passwort ändern und Abmelden. Schließt bei einem Klick daneben und mit Esc, lässt sich mit den
+ * Pfeiltasten bedienen. Ohne Anmeldung zeigt es nichts.
  */
 export function UserMenu({ countdown }: UserMenuProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const { sessionInfo, logout } = useSession()
@@ -95,41 +97,44 @@ export function UserMenu({ countdown }: UserMenuProps) {
 
   return (
     <div ref={menu} className="user-menu">
+      {/* nur das Symbol mit dünnem Rand, kein Text, kein Pfeil: die E-Mail steht im Kopf der Klappe */}
       <button
         ref={toggle}
         type="button"
-        className="button-other user-menu-toggle"
+        className="header-icon-button user-menu-toggle"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="user-menu-list"
-        aria-label="Benutzermenü"
+        aria-label={t('layout.userMenu', { email: sessionInfo.email })}
         onClick={() => setOpen(!open)}
         onKeyDown={openWithKeyboard}
       >
         <Icon name="user" />
-        {/* auf dem Handy nur das Symbol */}
-        <span className="d-none d-md-inline">{sessionInfo.email}</span>
-        <span className="user-menu-caret">
-          <Icon name="expand" />
-        </span>
       </button>
       {open && (
         <div className="user-menu-panel">
           <div className="user-menu-head">
             <strong>{sessionInfo.email}</strong>
             <span className="user-menu-head-sub">
-              Session #{sessionInfo.sessionNumber}
-              {countdown !== null && ` · Refresh in ${countdown}`}
+              {t('layout.session', { number: sessionInfo.sessionNumber })}
+              {countdown !== null && ` · ${t('layout.refreshIn', { countdown })}`}
             </span>
           </div>
-          <div ref={list} id="user-menu-list" className="user-menu-list" role="menu" aria-label="Benutzermenü" onKeyDown={moveFocus}>
+          <div
+            ref={list}
+            id="user-menu-list"
+            className="user-menu-list"
+            role="menu"
+            aria-label={t('layout.menu')}
+            onKeyDown={moveFocus}
+          >
             <Link
               role="menuitem"
               className={pathname.startsWith('/profile') ? 'user-menu-item active' : 'user-menu-item'}
               to="/profile"
               onClick={() => setOpen(false)}
             >
-              <Icon name="user" /> Profil
+              <Icon name="user" /> {t('layout.profile')}
             </Link>
             <button
               type="button"
@@ -140,11 +145,11 @@ export function UserMenu({ countdown }: UserMenuProps) {
                 setChangingPassword(true)
               }}
             >
-              <Icon name="password" /> Passwort ändern
+              <Icon name="password" /> {t('layout.changePassword')}
             </button>
             <div className="user-menu-divider" role="separator" />
             <button type="button" role="menuitem" className="user-menu-item" onClick={logoutAndGoHome}>
-              <Icon name="logout" /> Abmelden
+              <Icon name="logout" /> {t('layout.logout')}
             </button>
           </div>
         </div>

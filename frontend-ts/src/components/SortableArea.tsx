@@ -32,6 +32,12 @@ interface SortableAreaProps<T> {
   layout: SortableLayout
   /** nach dem Loslassen: die Elemente in neuer Reihenfolge */
   onReorder: (items: T[]) => void
+  /**
+   * Elemente, die an ihrem Platz bleiben, z. B. id ganz oben in einer Feldtabelle. Sie lassen sich nicht ziehen und
+   * nichts lässt sich auf sie ziehen; die anderen tauschen nur die übrigen Plätze untereinander. Solche Elemente
+   * rufen useSortableItem nicht auf.
+   */
+  fixed?: (item: T) => boolean
   children: ReactNode
 }
 
@@ -39,20 +45,34 @@ interface SortableAreaProps<T> {
  * Der Bereich, in dem Elemente per Drag and Drop verschoben werden. Zeichnet selbst nichts: die Elemente darin
  * nutzen useSortableItem. Grundlage für SortableList und die Table.
  */
-export function SortableArea<T>({ items, itemKey, layout, onReorder, children }: SortableAreaProps<T>) {
+export function SortableArea<T>({ items, itemKey, layout, onReorder, fixed, children }: SortableAreaProps<T>) {
   const sensors = useSensors(
     // erst ab 4 px Bewegung ziehen, ein einfacher Klick oder Tipp bleibt ein Klick
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
-  const keys = items.map(itemKey)
+  const isFixed = (item: T) => fixed?.(item) ?? false
+  const movable = items.filter((item) => !isFixed(item))
+  const keys = movable.map(itemKey)
 
   function drop(event: DragEndEvent) {
     const { active, over } = event
     if (over === null || active.id === over.id) {
       return
     }
-    onReorder(arrayMove(items, keys.indexOf(String(active.id)), keys.indexOf(String(over.id))))
+    const moved = arrayMove(movable, keys.indexOf(String(active.id)), keys.indexOf(String(over.id)))
+    // Feste Elemente bleiben, wo sie sind, die verschiebbaren füllen die übrigen Plätze in neuer Reihenfolge
+    let next = 0
+    onReorder(
+      items.map((item) => {
+        if (isFixed(item)) {
+          return item
+        }
+        const movedItem = moved[next]
+        next += 1
+        return movedItem
+      }),
+    )
   }
 
   return (

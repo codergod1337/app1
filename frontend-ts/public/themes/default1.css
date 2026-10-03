@@ -110,6 +110,50 @@
 }
 
 /*
+ * ===== Menüs im header: Sprache und Benutzer =====
+ * Die Knöpfe sind nur Symbol oder Flagge mit dünnem hellem Rand, ohne Hintergrund; beim Hover wird der Rand weiß und die
+ * Fläche hellt sich auf. Die Klappe sieht aus wie das Hoverlay, nur 90 % deckend. Beim Benutzermenü bleibt die Box
+ * mit E-Mail, Session und Refresh eine eigene, deckende Box oben über dem Hoverlay.
+ */
+.header-icon-button {
+  border: 1px solid rgb(255 255 255 / 0.45);
+  background: transparent;
+  color: inherit;
+}
+
+.header-icon-button:hover,
+.header-icon-button:focus-visible,
+.header-icon-button[aria-expanded='true'] {
+  outline: none;
+  border-color: #ffffff;
+  background: rgb(255 255 255 / 0.14);
+}
+
+.user-menu-panel {
+  border: 1px solid #475569;
+  border-radius: 0.375rem;
+  background: linear-gradient(135deg, rgb(30 41 59 / 0.9) 0%, rgb(49 46 129 / 0.9) 100%);
+  color: #f8fafc;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.35);
+}
+
+.user-menu-head {
+  border-bottom: 1px solid rgb(255 255 255 / 0.25);
+  background: var(--user-menu-head-bg);
+  color: var(--user-menu-head-text);
+}
+
+.user-menu-item:hover,
+.user-menu-item:focus-visible {
+  background: rgb(255 255 255 / 0.14);
+  color: #ffffff;
+}
+
+.user-menu-divider {
+  background: rgb(255 255 255 / 0.25);
+}
+
+/*
  * ===== Tabs im subheader =====
  * Hauchdünne Trennstriche zwischen den Tabs (nicht vor dem ersten), der aktive Tab indigo hinterlegt.
  * Neben dem aktiven und dem überfahrenen Tab verschwindet der Strich, die Fläche trennt dort schon.
@@ -181,6 +225,13 @@
   border-bottom: none;
 }
 
+/* Ein Spaltenkopf mit Erklärung im Hoverlay: gepunktet unterstrichen, damit man sieht, dass es etwas zu lesen gibt */
+.table-header-hinted {
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+  cursor: help;
+}
+
 /*
  * ===== Hoverlay =====
  * Das aufpoppende Feld für alle Hinweistexte, später auch der Hintergrund der A4-Seiten im Browser.
@@ -196,6 +247,82 @@
   font-size: 0.8125rem;
   line-height: 1.35;
   box-shadow: 0 4px 12px rgb(15 23 42 / 0.35);
+}
+
+/* Längere Erklärungen im Hoverlay, z. B. zu den Solr-Einstellungen: Titel fett, darunter die Absätze mit Luft */
+.hoverlay-explanation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  white-space: normal;
+  text-align: left;
+}
+
+.hoverlay-explanation strong {
+  display: block;
+  color: #c7d2fe;
+}
+
+/* Die zentrale Tabelle im Hoverlay: in den Farben des Hoverlays, mit feinen hellen Strichen */
+.hoverlay-explanation .data-table {
+  --bs-table-color: #f8fafc;
+  --bs-table-bg: transparent;
+  --bs-table-striped-color: #f8fafc;
+  --bs-table-striped-bg: rgb(255 255 255 / 0.06);
+  --bs-table-border-color: rgb(255 255 255 / 0.25);
+  font-size: inherit;
+}
+
+.hoverlay-explanation .data-table > :not(caption) > * > * {
+  border-bottom-color: rgb(255 255 255 / 0.25);
+}
+
+.hoverlay-explanation .data-table > :not(caption) > * > * + * {
+  border-left-color: rgb(255 255 255 / 0.12);
+}
+
+/* Eine Box im Aussehen des Hoverlays, fest in der Seite, z. B. der Hook-Katalog im Kern-Tab */
+.hoverlay-box {
+  border: 1px solid #475569;
+  border-radius: 0.375rem;
+  background: linear-gradient(135deg, #1e293b 0%, #312e81 100%);
+  color: #f8fafc;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.35);
+}
+
+/*
+ * ===== SolrHookCatalog =====
+ * Die Gruppenzeile wie ein Spaltenkopf, die Einträge mit feinen Strichen wie Tabellenzeilen, in der Hook-Auswahl mit
+ * einer Hover-Tonung in der Aktivfarbe. Die Fundstelle des Suchtexts im Feldnamen als mark in derselben Tonung. In
+ * der Hoverlay-Box helle Striche.
+ */
+.solr-hook-catalog-group {
+  border-bottom: 2px solid rgb(15 23 42 / 0.2);
+}
+
+.solr-hook-catalog-entry {
+  border-bottom: 1px solid rgb(15 23 42 / 0.08);
+}
+
+button.solr-hook-catalog-entry:hover,
+button.solr-hook-catalog-entry:focus-visible {
+  background: rgb(79 70 229 / 0.08);
+}
+
+.solr-hook-catalog-key mark {
+  padding: 0 0.15rem;
+  border-radius: 2px;
+  background: rgb(79 70 229 / 0.25);
+  color: inherit;
+  font-weight: 600;
+}
+
+.hoverlay-box .solr-hook-catalog-group {
+  border-bottom-color: rgb(255 255 255 / 0.35);
+}
+
+.hoverlay-box .solr-hook-catalog-entry {
+  border-bottom-color: rgb(255 255 255 / 0.15);
 }
 
 /*

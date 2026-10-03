@@ -1,4 +1,5 @@
 import { DEFAULT_LANGUAGE, type LanguageCode } from '../branding/languages.ts'
+import { currentLanguage } from './multilingual.ts'
 import type { MultilingualText } from './multilingual.ts'
 
 /**
@@ -17,7 +18,7 @@ const ENTITY_STATUS_NAMES: Record<string, MultilingualText> = {
 }
 
 /** Der Name des Status in der gewünschten Sprache. Fehlt er, die Standardsprache, ist der Status unbekannt, er selbst. */
-export function entityStatusName(status: string, language: LanguageCode = DEFAULT_LANGUAGE): string {
+export function entityStatusName(status: string, language: LanguageCode = currentLanguage()): string {
   const names = ENTITY_STATUS_NAMES[status]
   return names?.[language] ?? names?.[DEFAULT_LANGUAGE] ?? status
 }

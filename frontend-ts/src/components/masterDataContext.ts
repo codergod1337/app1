@@ -4,6 +4,10 @@ import type { AccessRoleCollection } from '../modul/accessrolecollection/AccessR
 import type { FileExtension } from '../modul/fileextension/FileExtension.ts'
 import type { FileExtensionCollection } from '../modul/fileextension/FileExtensionCollection.ts'
 import type { FileSubClass } from '../modul/filesubclass/FileSubClass.ts'
+import type { SolrCore } from '../modul/solrmanager/SolrCore.ts'
+import type { SolrField } from '../modul/solrmanager/SolrField.ts'
+import type { SolrHook } from '../modul/solrmanager/SolrHook.ts'
+import type { SolrHookGroup } from '../modul/solrmanager/SolrHookGroup.ts'
 
 /** Die Stammdaten für alle Module: useMasterData() */
 export interface MasterDataState {
@@ -17,8 +21,16 @@ export interface MasterDataState {
   fileExtensions: FileExtension[] | null
   /** null, solange sie beim Start laden */
   fileExtensionCollections: FileExtensionCollection[] | null
+  /** null, solange sie beim Start laden */
+  solrHookGroups: SolrHookGroup[] | null
+  /** null, solange sie beim Start laden */
+  solrHooks: SolrHook[] | null
+  /** null, solange sie beim Start laden */
+  solrCores: SolrCore[] | null
+  /** null, solange sie beim Start laden. Alle Kerne, sortiert nach Kern, listingPosition und name */
+  solrFields: SolrField[] | null
   errorMessage: string | null
-  /** neu laden, z. B. nachdem ein Admin eine AR, ARC oder Dateiart angelegt, geändert, verschoben oder gelöscht hat */
+  /** neu laden, z. B. nachdem ein Admin eine AR, ARC, Dateiart oder einen Hook angelegt, geändert, verschoben oder gelöscht hat */
   reloadMasterData: () => void
 }
 

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
-import { DEFAULT_LANGUAGE, type LanguageCode } from '../../branding/languages.ts'
+import type { LanguageCode } from '../../branding/languages.ts'
+import { useLanguage } from '../../components/languageContext.ts'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { useOrigin } from '../../components/Origin.ts'
@@ -23,7 +24,7 @@ export function NewAccessRoleCollectionTab() {
   const { accessRoleCollections, errorMessage: loadErrorMessage, reloadMasterData } = useMasterData()
   const [saving, setSaving] = useState(false)
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null)
-  const [language, setLanguage] = useState<LanguageCode>(DEFAULT_LANGUAGE)
+  const [language, setLanguage] = useState<LanguageCode>(useLanguage().language)
 
   function saveNewAccessRoleCollection(newData: NewAccessRoleCollectionData) {
     setSaving(true)

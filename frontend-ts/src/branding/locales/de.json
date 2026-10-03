@@ -1,0 +1,260 @@
+{
+  "common": {
+    "actions": "Aktionen",
+    "cancel": "Abbrechen",
+    "create": "Anlegen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "close": "Schließen",
+    "edit": "bearbeiten",
+    "deleteAction": "löschen",
+    "move": "verschieben",
+    "loading": "lädt",
+    "saving": "speichert",
+    "saved": "gespeichert",
+    "creating": "legt an",
+    "unknownError": "Unbekannter Fehler",
+    "default": "Standard",
+    "none": "keine",
+    "key": "Key",
+    "displayName": "Anzeigename",
+    "description": "Beschreibung",
+    "position": "Position",
+    "preview": "Vorschau",
+    "symbol": "Symbol",
+    "chooseSymbol": "Symbol wählen",
+    "noSymbol": "kein Symbol",
+    "allPacks": "alle Pakete",
+    "symbolsLoading": "Symbole werden geladen …",
+    "symbolsCount_one": "{{count}} Symbol",
+    "symbolsCount_other": "{{count}} Symbole",
+    "symbolSearchPlaceholder": "suchen, z. B. shield, star, crown, desk",
+    "keyRule": "nur A–Z, 0–9 und _, beginnt und endet mit einem Großbuchstaben, nie zwei _ hintereinander",
+    "keyRuleWithPrefix": "beginnt mit {{prefix}}, {{rule}}",
+    "solrFieldNameRule": "beginnt mit einem Buchstaben, dann Buchstaben, Ziffern und _, endet nicht auf _ oder Suggested, nicht id",
+    "valuesInputAria": "Wert eingeben, Leertaste, Tab oder Enter loggt ein",
+    "removeValue": "{{value}} entfernen",
+    "gradient": {
+      "FLAT": "einfarbig",
+      "LINEAR": "Verlauf oben → unten",
+      "DIAGONAL": "Verlauf schräg",
+      "BEVEL": "3D gewölbt",
+      "RADIAL": "von der Mitte nach außen",
+      "METAL": "Metall"
+    }
+  },
+  "layout": {
+    "backTo": "zurück zu {{label}}",
+    "login": "Anmelden",
+    "userMenu": "Benutzermenü, {{email}}",
+    "menu": "Benutzermenü",
+    "session": "Session #{{number}}",
+    "refreshIn": "Refresh in {{countdown}}",
+    "profile": "Profil",
+    "changePassword": "Passwort ändern",
+    "logout": "Abmelden",
+    "language": "Sprache: {{country}}",
+    "languageMenu": "Sprache",
+    "myPosition": "Meine Position",
+    "showMyPosition": "Meine Position anzeigen",
+    "noPosition": "keine Position",
+    "positionArc": "Position (ARC)",
+    "rightsAr": "Rechte im Token (AR)",
+    "tokenNote": "Die Rechte stehen im Token. Ändert der Admin sie, gelten die neuen nach dem nächsten Refresh."
+  },
+  "solrmanager": {
+    "tabs": {
+      "hooks": "Hooks",
+      "hookGroups": "Hook-Gruppen",
+      "cores": "Kerne"
+    },
+    "hooks": {
+      "title": "Hooks",
+      "search": "Hook suchen",
+      "add": "Hook hinzufügen",
+      "count_one": "{{count}} Hook",
+      "count_other": "{{count}} Hooks",
+      "empty": "keine Hooks",
+      "deleteTitle": "Hook löschen",
+      "deleteQuestion": "Soll der Hook <strong>{{key}}</strong> wirklich gelöscht werden? Was die Kerne mit dem Feld machen, entscheidet der Abgleich mit Solr.",
+      "editTitle": "Hook bearbeiten: {{key}}",
+      "editTitleNone": "Hook bearbeiten",
+      "notFound": "kein Hook gewählt oder nicht gefunden",
+      "columns": {
+        "chip": "Chip",
+        "fieldName": "Feldname",
+        "group": "Gruppe",
+        "description": "Beschreibung"
+      },
+      "form": {
+        "fieldName": "Feldname in Solr",
+        "group": "Gruppe",
+        "noGroup": "ohne Gruppe",
+        "asFilter": "als Filter",
+        "onDocument": "am Dokument"
+      },
+      "picker": {
+        "placeholder": "Feldname oder Anzeigename",
+        "searchAria": "Hook suchen",
+        "shown": "{{shown}} von {{total}} Hooks",
+        "noMatches": "keine Treffer"
+      },
+      "fields": {
+        "title": "Hooks",
+        "noneSet": "keine Hooks gesetzt",
+        "noneYet": "noch keine Hooks, unten einen hinzufügen",
+        "removeField": "{{key}} entfernen, leert alle Werte",
+        "addValue": "{{key}} hinzufügen",
+        "addValueAria": "{{key}} hinzufügen, Leertaste, Semikolon oder Enter loggt ein"
+      },
+      "removeFilter": "Filter {{name}} {{value}} entfernen"
+    },
+    "hookGroups": {
+      "title": "Hook-Gruppen",
+      "intro": "Nur für die Anzeige: Kern-Tab, Hook-Auswahl und Upload zeigen die Hooks nach diesen Gruppen, in dieser Reihenfolge. Welche Gruppe ein Hook hat, steht am Hook.",
+      "count_one": "{{count}} Hook-Gruppe",
+      "count_other": "{{count}} Hook-Gruppen",
+      "empty": "keine Hook-Gruppen",
+      "deleteTitle": "Hook-Gruppe löschen",
+      "deleteQuestion": "Soll die Gruppe <strong>{{key}}</strong> wirklich gelöscht werden? Das geht nur, solange kein Hook mehr darin steht.",
+      "editTitle": "Hook-Gruppe bearbeiten: {{key}}",
+      "editTitleNone": "Hook-Gruppe bearbeiten",
+      "notFound": "keine Hook-Gruppe gewählt oder nicht gefunden",
+      "columns": {
+        "hooks": "Hooks"
+      }
+    },
+    "cores": {
+      "title": "Kerne",
+      "count_one": "{{count}} Kern",
+      "count_other": "{{count}} Kerne",
+      "empty": "keine Kerne",
+      "deleteTitle": "Kern löschen",
+      "deleteQuestion": "Soll der Kern <strong>{{key}}</strong> wirklich aus unserer Tabelle gelöscht werden? Was in Solr mit dem Kern passiert, entscheidet der Abgleich.",
+      "editTitle": "Kern bearbeiten: {{key}}",
+      "editTitleNone": "Kern bearbeiten",
+      "notFound": "kein Kern gewählt oder nicht gefunden",
+      "columns": {
+        "core": "Kern",
+        "nameInSolr": "Name in Solr",
+        "gradient": "Verlaufsart"
+      },
+      "form": {
+        "key": "Key (Name des Kerns in Solr)"
+      },
+      "core": {
+        "title": "Kern {{key}}",
+        "notFound": "keinen Kern mit dem Key {{key}} gefunden",
+        "footer": "{{fields}} Felder, {{hooks}} Hooks",
+        "fields": "Felder",
+        "hooks": "Hooks",
+        "noHooks": "keine Hooks"
+      }
+    },
+    "look": {
+      "mainColor": "Hauptfarbe (einfarbig: die Fläche, im Verlauf: die Mitte)",
+      "gradientStart": "Verlauf, Anfang",
+      "gradientEnd": "Verlauf, Ende",
+      "textColor": "Schrift und Symbol",
+      "textShadowColor": "Schatten hinter der Schrift (Kontrast)",
+      "shadowColor": "Schatten",
+      "gradient": "Verlaufsart"
+    },
+    "sheet": {
+      "id": "ID",
+      "fieldName": "Feldname in Solr",
+      "type": "Typ",
+      "description": "Beschreibung: wozu, welche Daten",
+      "status": "Status",
+      "newField": "neues Feld",
+      "settingFor": "{{setting}} für {{name}}",
+      "typeOf": "Typ von {{name}}",
+      "empty": "keine Felder",
+      "idHoverlay": "der Primärschlüssel des Kerns (uniqueKey), was hineinkommt, steht in der Beschreibung",
+      "deleteTitle": "Feld löschen",
+      "deleteQuestion": "Soll das Feld <strong>{{name}}</strong> aus dem Kern <strong>{{core}}</strong> wirklich gelöscht werden? Was in Solr mit dem Feld passiert, entscheidet der Abgleich."
+    },
+    "hints": {
+      "limitIntro": "Limit je Wert bei string, Bytes in UTF-8, Umlaute zählen doppelt:",
+      "limitColumns": {
+        "setting": "Schalter",
+        "limit": "Limit je Wert",
+        "reason": "warum"
+      },
+      "limitRows": {
+        "indexed": "32766 Bytes",
+        "indexedReason": "der Wert ist ein Term im Index, längere Terme lehnt Lucene beim Schreiben ab („immense term“), das ganze Dokument scheitert",
+        "docValues": "32766 Bytes",
+        "docValuesReason": "die Spalte für Strings hat dasselbe Limit",
+        "storedOnly": "nur stored",
+        "storedOnlyLimit": "praktisch keines",
+        "storedOnlyReason": "der Wert liegt nur im Dokument, das darf groß sein, Grenze ist die Request-Größe"
+      },
+      "indexed": {
+        "title": "indexed: das Feld kommt in den Suchindex",
+        "paragraphs": [
+          "Der Index läuft vom Wert zum Dokument: Für jeden Begriff steht, in welchen Dokumenten er vorkommt. Das ist das Finden und Filtern, „welche Dokumente haben 4711“. Nur ein indexiertes Feld lässt sich durchsuchen, filtern (fq) und für Facetten nutzen.",
+          "Steht es aus, wird der Wert nur gespeichert und mit dem Dokument zurückgegeben, aber keine Abfrage findet ihn. Beispiel: der Pfad auf dem Dateispeicher, der nur zum Nachsehen da ist.",
+          "Auswirkung: Jedes indexierte Feld macht den Index größer und das Schreiben langsamer, bei Texten deutlich. Nachträglich einschalten wirkt nur für neue Dokumente, alte bleiben unsichtbar, bis der Kern neu aufgebaut wird.",
+          "Gegenstück: docValues laufen andersherum, vom Dokument zum Wert. Wer filtert und sortiert, braucht beides."
+        ]
+      },
+      "stored": {
+        "title": "stored: der Originalwert bleibt im Dokument",
+        "paragraphs": [
+          "Ein gespeichertes Feld kommt bei einer Abfrage zurück (fl). Steht es aus, ist der Wert nur suchbar, aber nie wieder lesbar.",
+          "Bei uns sind alle echten Felder stored, weil Solr für diese Kerne der einzige Speicher ist: Nur so lässt sich ein Kern aus sich selbst neu aufbauen. Außerdem brauchen Atomic Updates stored oder docValues für jedes Feld, sonst verliert das Dokument beim Teilupdate Werte.",
+          "Große Volltexte kosten Platz, bleiben aber stored. In Trefferlisten werden sie einfach nicht angefordert."
+        ]
+      },
+      "multiValued": {
+        "title": "multiValued: mehrere Werte je Dokument",
+        "paragraphs": [
+          "Das Feld darf je Dokument eine Liste tragen, z. B. mehrere Artikelnummern an einem Datenblatt. Die Suche trifft jeden Wert, Facetten zählen jeden Wert.",
+          "Folgen: Nach dem Feld lässt sich nicht sortieren, und es kann nicht die ID des Dokuments liefern.",
+          "Nachträglich umschalten heißt den Kern neu aufbauen, Solr schreibt alte Dokumente nicht um."
+        ]
+      },
+      "docValues": {
+        "title": "docValues: eine spaltenweise Kopie der Werte",
+        "paragraphs": [
+          "docValues laufen vom Dokument zum Wert: Für jedes Dokument steht sein Wert in einer durchgehenden Spalte, wie in einer Tabelle. Das ist nicht fürs Finden da, dafür ist der Index schon die schnellste Struktur. Es ist für die Fragen danach: Stehen die Treffer fest, will man sie sortieren, zählen oder mit ihrem Wert rechnen, und dafür muss Solr je Treffer nachschlagen, welchen Wert dieses Dokument hat. Das kann der Index nicht, er läuft nur andersherum.",
+          "Sortieren, Facetten, Gruppieren und Funktionen wie der Recency-Boost laufen über docValues schnell und ohne Arbeitsspeicher für den Feldcache. Ohne docValues müsste Solr den Index umdrehen und das Ergebnis im Speicher halten: langsam beim ersten Mal, und es frisst Speicher.",
+          "Kostet Platz auf der Platte. Geht nur bei string, long, double, date und boolean, nicht bei Text.",
+          "Wofür: jedes Feld, nach dem sortiert oder gezählt wird, z. B. Status, Dateiart, Datum. Wer danach auch filtert, braucht dazu indexed: zwei Listen in entgegengesetzter Richtung."
+        ]
+      },
+      "required": {
+        "title": "required: ohne Wert kein Dokument",
+        "paragraphs": [
+          "Solr lehnt jedes Dokument ab, dem der Wert fehlt, mit einem Fehler beim Schreiben. Für Pflichtfelder wie id.",
+          "Vorsicht beim Nachrüsten: Alte Dokumente ohne Wert lassen sich erst wieder schreiben, wenn sie den Wert bekommen, auch bei einem Teilupdate."
+        ]
+      },
+      "suggest": {
+        "title": "suggest: ein Zwilling für die Vervollständigung beim Tippen",
+        "paragraphs": [
+          "Legt das Feld <name>Suggested an, das jeden Wert als Präfixe ab 3 Zeichen ablegt (EdgeNGram). Solr befüllt es selbst per copyField, kein Code schreibt es. Darüber laufen die Vorschläge beim Tippen und die Filterangebote der Suche, das Feld selbst bleibt exakt.",
+          "Bei Texten wortweise, bei string, long und double auf den ganzen Wert. Nicht bei boolean und date.",
+          "Kostet Indexplatz: je Wert alle seine Präfixe. Der Zwilling ist nie stored und steht nicht in dieser Tabelle."
+        ]
+      },
+      "type": {
+        "title": "Typ: der fieldType im Basis-Schema",
+        "paragraphs": [
+          "string: der Wert so, wie er kommt, nicht zerlegt, nicht klein geschrieben. Trifft nur exakt. Für Keys, Status, Nummern, Hashes. Der ganze Wert ist ein Term, und ein Term darf höchstens 32766 Bytes haben: Das gilt mit indexed und mit docValues, Umlaute zählen doppelt. Nur gespeichert (beides aus) darf ein string beliebig groß sein, so wie ein Vorschaubild.",
+          "long: ganze Zahl mit 64 Bit, für Bereiche und Sortierung. Es gibt kein int, ganze Zahlen sind bei uns immer long. double: Kommazahl mit 64 Bit. date: Zeitpunkt nach ISO 8601 in UTC, für Bereiche und Sortierung. boolean: wahr oder falsch.",
+          "text_minimal: zerlegt an Leerzeichen, alles klein. Satzzeichen bleiben am Token, ein Dateiname bleibt so wortweise treffbar. text_word: zerlegt auch an Satzzeichen (StandardTokenizer), alles klein, für Beschreibungen und mehrsprachiges JSON. text_words: nimmt fertige Token vom Backend, das vorher stemmt und Komposita zerlegt, Solr vergleicht nur noch. Jede Suche muss ihre Eingabe genauso aufbereiten. Bei allen Texttypen gilt das Term-Limit je Token, der Wert selbst darf beliebig groß sein.",
+          "Einen Typ nachträglich zu ändern heißt den Kern neu aufbauen, Solr schreibt alte Dokumente nicht um."
+        ]
+      },
+      "id": {
+        "title": "ID: der Primärschlüssel des Kerns",
+        "paragraphs": [
+          "Der Schlüssel steht an id, dem Primärschlüssel jedes Kerns (uniqueKey in Solr). Solr lässt ihn nach dem Anlegen des Kerns nicht mehr ändern, deshalb heißt er überall id, kommt mit jedem Kern von selbst und steht fest: string, indexed, required, nie multiValued, nicht löschbar. stored, docValues, Beschreibung und Position sind frei.",
+          "Was hineinkommt, steht in der Beschreibung des Feldes, z. B. beim DMS der Hash der Bytes (sha256). Danach richtet sich, wer den Kern befüllt. Dokumente ohne id lehnt Solr ab."
+        ]
+      }
+    }
+  }
+}

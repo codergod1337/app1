@@ -6,10 +6,8 @@
 
 export const KEY_MAX_LENGTH = 200
 
-/** Für das pattern-Attribut von input */
+/** Für das pattern-Attribut von input. Der Text der Regel für den User steht im Sprachkatalog (common.keyRule). */
 export const KEY_PATTERN = '(?!.*__)[A-Z]([A-Z0-9_]*[A-Z])?'
-
-export const KEY_RULE_TEXT = 'nur A–Z, 0–9 und _, beginnt und endet mit einem Großbuchstaben, nie zwei _ hintereinander'
 
 const VALID_KEY = new RegExp(`^${KEY_PATTERN}$`)
 

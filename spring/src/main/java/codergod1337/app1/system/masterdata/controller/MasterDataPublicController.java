@@ -3,6 +3,10 @@ package codergod1337.app1.system.masterdata.controller;
 import codergod1337.app1.file.fileextension.service.FileExtensionCollectionService;
 import codergod1337.app1.file.fileextension.service.FileExtensionService;
 import codergod1337.app1.file.filesubclass.service.FileSubClassService;
+import codergod1337.app1.solr.core.service.SolrCoreService;
+import codergod1337.app1.solr.field.service.SolrFieldService;
+import codergod1337.app1.solr.hook.service.SolrHookGroupService;
+import codergod1337.app1.solr.hook.service.SolrHookService;
 import codergod1337.app1.system.access.service.AccessRoleCollectionService;
 import codergod1337.app1.system.access.service.AccessRoleService;
 import java.util.Map;
@@ -23,20 +27,30 @@ public class MasterDataPublicController {
 	private final FileSubClassService fileSubClassService;
 	private final FileExtensionService fileExtensionService;
 	private final FileExtensionCollectionService fileExtensionCollectionService;
+	private final SolrHookGroupService solrHookGroupService;
+	private final SolrHookService solrHookService;
+	private final SolrCoreService solrCoreService;
+	private final SolrFieldService solrFieldService;
 
 	public MasterDataPublicController(AccessRoleService accessRoleService,
 			AccessRoleCollectionService accessRoleCollectionService, FileSubClassService fileSubClassService,
-			FileExtensionService fileExtensionService, FileExtensionCollectionService fileExtensionCollectionService) {
+			FileExtensionService fileExtensionService, FileExtensionCollectionService fileExtensionCollectionService,
+			SolrHookGroupService solrHookGroupService, SolrHookService solrHookService, SolrCoreService solrCoreService,
+			SolrFieldService solrFieldService) {
 		this.accessRoleService = accessRoleService;
 		this.accessRoleCollectionService = accessRoleCollectionService;
 		this.fileSubClassService = fileSubClassService;
 		this.fileExtensionService = fileExtensionService;
 		this.fileExtensionCollectionService = fileExtensionCollectionService;
+		this.solrHookGroupService = solrHookGroupService;
+		this.solrHookService = solrHookService;
+		this.solrCoreService = solrCoreService;
+		this.solrFieldService = solrFieldService;
 	}
 
 	/**
-	 * {accessRoles, accessRoleCollections, fileSubClasses, fileExtensions, fileExtensionCollections}, alle sortiert
-	 * nach listingPosition
+	 * {accessRoles, accessRoleCollections, fileSubClasses, fileExtensions, fileExtensionCollections, solrHookGroups,
+	 * solrHooks, solrCores, solrFields}, alle sortiert nach listingPosition, die Felder zuerst nach Kern
 	 */
 	@GetMapping
 	public Map<String, Object> getMasterData() {
@@ -45,7 +59,11 @@ public class MasterDataPublicController {
 				"accessRoleCollections", accessRoleCollectionService.getAllAccessRoleCollections(),
 				"fileSubClasses", fileSubClassService.getAllFileSubClasses(),
 				"fileExtensions", fileExtensionService.getAllFileExtensions(),
-				"fileExtensionCollections", fileExtensionCollectionService.getAllFileExtensionCollections());
+				"fileExtensionCollections", fileExtensionCollectionService.getAllFileExtensionCollections(),
+				"solrHookGroups", solrHookGroupService.getAllSolrHookGroups(),
+				"solrHooks", solrHookService.getAllSolrHooks(),
+				"solrCores", solrCoreService.getAllSolrCores(),
+				"solrFields", solrFieldService.getAllSolrFields());
 	}
 
 }

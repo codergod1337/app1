@@ -13,6 +13,7 @@ interface HomeTile {
 
 const HOME_TILES: HomeTile[] = [
   { icon: 'admin', title: 'Administration', to: '/admin', accessRoleKey: ADMIN_ACCESS_ROLE_KEY },
+  { icon: 'solrManager', title: 'SolrManager', to: '/solrmanager', accessRoleKey: ADMIN_ACCESS_ROLE_KEY },
 ]
 
 /** Startseite: Kacheln zu den Modulen, ohne subheader. Jeder sieht nur die Kacheln, die er nutzen darf. */

@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Hoverlay } from './Hoverlay.tsx'
 import { PackIcon } from './PackIcon.tsx'
 import { SYMBOL_PACKS, type PackSymbol, type SymbolPack } from './PackSymbol.ts'
@@ -14,6 +15,7 @@ interface SymbolPopupProps {
 
 /** Alle Symbole aller Pakete zum Durchscrollen. Das Suchfeld blendet alles aus, was nicht passt. */
 export function SymbolPopup({ open, value, onSelect, onClose }: SymbolPopupProps) {
+  const { t } = useTranslation()
   const [catalog, setCatalog] = useState<Record<SymbolPack, string[]> | null>(null)
   const [packFilter, setPackFilter] = useState<SymbolPack | 'all'>('all')
   const [search, setSearch] = useState('')
@@ -51,17 +53,22 @@ export function SymbolPopup({ open, value, onSelect, onClose }: SymbolPopupProps
     }
   }
 
-  const footer = catalog === null ? <span>Symbole werden geladen …</span> : <span>{symbols.length} Symbole</span>
+  const footer =
+    catalog === null ? (
+      <span>{t('common.symbolsLoading')}</span>
+    ) : (
+      <span>{t('common.symbolsCount', { count: symbols.length })}</span>
+    )
 
   return (
-    <Popup open={open} title="Symbol wählen" footer={footer} onClose={onClose}>
+    <Popup open={open} title={t('common.chooseSymbol')} footer={footer} onClose={onClose}>
       <div className="symbol-popup-search">
         <select
           className="form-select w-auto"
           value={packFilter}
           onChange={(event) => setPackFilter(event.target.value as SymbolPack | 'all')}
         >
-          <option value="all">alle Pakete</option>
+          <option value="all">{t('common.allPacks')}</option>
           {SYMBOL_PACKS.map(({ pack, label }) => (
             <option key={pack} value={pack}>
               {label}
@@ -70,7 +77,7 @@ export function SymbolPopup({ open, value, onSelect, onClose }: SymbolPopupProps
         </select>
         <input
           className="form-control"
-          placeholder="suchen, z. B. shield, star, crown, desk"
+          placeholder={t('common.symbolSearchPlaceholder')}
           autoFocus
           value={search}
           onChange={(event) => setSearch(event.target.value)}

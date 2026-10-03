@@ -1,4 +1,7 @@
 import { useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Hoverlay } from './Hoverlay.tsx'
+import { Icon } from './Icon.tsx'
 import { Popup } from './Popup.tsx'
 import { SortableArea } from './SortableArea.tsx'
 import { useIsMobile } from './useIsMobile.ts'
@@ -6,6 +9,8 @@ import { useSortableItem } from './useSortableItem.tsx'
 
 export interface TableColumn<T> {
   header: string
+  /** Erklärung der Spalte im Hoverlay am Spaltenkopf, auch im Detail-Popup. Fehlt sie, steht der Kopf allein. */
+  headerHint?: ReactNode
   cell: (row: T) => ReactNode
   /** unwichtig: in der mobilen Auflösung ausgeblendet, im Detail-Popup aber zu sehen */
   unimportant?: boolean
@@ -28,9 +33,21 @@ interface TableProps<T> {
   emptyText: string
   /** Macht die Zeilen per Drag and Drop verschiebbar (Griff ganz links). Bekommt die Zeilen in neuer Reihenfolge. */
   onReorder?: (rows: T[]) => void
+  /**
+   * Nur mit onReorder: Zeilen, die an ihrem Platz bleiben, z. B. id ganz oben oder die leere Zeile für einen neuen
+   * Eintrag ganz unten. Sie bekommen keinen Griff, nur den Platz dafür, damit die Spalten weiter übereinander stehen.
+   */
+  fixedRow?: (row: T) => boolean
   /** Breite der Aktionsspalte beim festen Layout (siehe TableColumn.width). Standard: Platz für zwei Knöpfe. */
   actionsWidth?: string
 }
+
+/** Der Platz des Griffs in einer festen Zeile: gleiche Breite, unsichtbar */
+const FIXED_ROW_HANDLE = (
+  <span className="drag-handle drag-handle-fixed" aria-hidden="true">
+    <Icon name="drag" />
+  </span>
+)
 
 /** Was jede Zeile zum Zeichnen braucht */
 interface RowProps<T> {
@@ -70,7 +87,8 @@ function RowCells<T>({ row, columns, actions, dragHandle }: RowProps<T> & { drag
   )
 }
 
-function StaticRow<T>(props: RowProps<T>) {
+/** Zeile ohne Griff. In einer verschiebbaren Tabelle ist das eine feste Zeile, dann mit dem Platz für den Griff. */
+function StaticRow<T>(props: RowProps<T> & { dragHandle?: ReactNode }) {
   return (
     <tr className={props.onOpenDetails ? 'details-trigger' : undefined} onClick={props.onOpenDetails}>
       <RowCells {...props} />
@@ -100,7 +118,7 @@ function SortableRow<T>({ id, ...props }: RowProps<T> & { id: string }) {
 /**
  * Die Tabelle für alle Listen: Kopfzeile, Zeile A und Zeile B im Wechsel, ganz rechts die Aktionen.
  * In der mobilen Auflösung fallen unwichtige Spalten weg, ein Tipp auf die Zeile zeigt dann alle Spalten im Popup.
- * Mit onReorder lassen sich die Zeilen per Drag and Drop verschieben.
+ * Mit onReorder lassen sich die Zeilen per Drag and Drop verschieben, feste Zeilen (fixedRow) bleiben dabei stehen.
  */
 export function Table<T>({
   columns,
@@ -110,8 +128,10 @@ export function Table<T>({
   detailTitle,
   emptyText,
   onReorder,
+  fixedRow,
   actionsWidth = '6rem',
 }: TableProps<T>) {
+  const { t } = useTranslation()
   const isMobile = useIsMobile()
   const [detailRow, setDetailRow] = useState<T | null>(null)
   const visibleColumns = isMobile ? columns.filter((column) => !column.unimportant) : columns
@@ -133,10 +153,16 @@ export function Table<T>({
           {/* Mit onReorder sitzt der Griff in der ersten sichtbaren Spalte */}
           {visibleColumns.map((column, index) => (
             <th key={column.header} className={onReorder && index === 0 ? 'drag-cell' : undefined}>
-              {column.header}
+              {column.headerHint !== undefined ? (
+                <Hoverlay text={column.headerHint}>
+                  <span className="table-header-hinted">{column.header}</span>
+                </Hoverlay>
+              ) : (
+                column.header
+              )}
             </th>
           ))}
-          {actions && <th className="actions-cell">Aktionen</th>}
+          {actions && <th className="actions-cell">{t('common.actions')}</th>}
         </tr>
       </thead>
       <tbody>
@@ -147,11 +173,10 @@ export function Table<T>({
             actions,
             onOpenDetails: isMobile ? () => setDetailRow(row) : undefined,
           }
-          return onReorder ? (
-            <SortableRow key={rowKey(row)} id={rowKey(row)} {...rowProps} />
-          ) : (
-            <StaticRow key={rowKey(row)} {...rowProps} />
-          )
+          if (onReorder && !fixedRow?.(row)) {
+            return <SortableRow key={rowKey(row)} id={rowKey(row)} {...rowProps} />
+          }
+          return <StaticRow key={rowKey(row)} {...rowProps} dragHandle={onReorder ? FIXED_ROW_HANDLE : undefined} />
         })}
         {rows.length === 0 && (
           <tr>
@@ -165,7 +190,7 @@ export function Table<T>({
   return (
     <>
       {onReorder ? (
-        <SortableArea items={rows} itemKey={rowKey} layout="vertical" onReorder={onReorder}>
+        <SortableArea items={rows} itemKey={rowKey} layout="vertical" onReorder={onReorder} fixed={fixedRow}>
           {table}
         </SortableArea>
       ) : (
@@ -188,7 +213,15 @@ export function Table<T>({
           <dl className="details-list">
             {columns.map((column) => (
               <div key={column.header}>
-                <dt>{column.header}</dt>
+                <dt>
+                  {column.headerHint !== undefined ? (
+                    <Hoverlay text={column.headerHint}>
+                      <span className="table-header-hinted">{column.header}</span>
+                    </Hoverlay>
+                  ) : (
+                    column.header
+                  )}
+                </dt>
                 <dd>{column.cell(detailRow)}</dd>
               </div>
             ))}

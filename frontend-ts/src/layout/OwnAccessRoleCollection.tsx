@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useMasterData } from '../components/masterDataContext.ts'
 import { Popup } from '../components/Popup.tsx'
 import { AccessRoleBadge } from '../modul/accessrole/AccessRoleBadge.tsx'
@@ -10,6 +11,7 @@ import { useSession } from '../modul/login/sessionContext.ts'
  * AR aus dem Token. Namen und Farben kommen aus den Stammdaten. Ohne Anmeldung zeigt es nichts.
  */
 export function OwnAccessRoleCollection() {
+  const { t } = useTranslation()
   const { sessionInfo } = useSession()
   const { accessRoles, accessRoleCollections } = useMasterData()
   const [open, setOpen] = useState(false)
@@ -29,7 +31,7 @@ export function OwnAccessRoleCollection() {
     if (accessRoleCollection !== null) {
       return <AccessRoleBadge badge={accessRoleCollection} size={size} shape="pill" />
     }
-    return accessRoleCollectionKey !== null ? <code>{accessRoleCollectionKey}</code> : 'keine Position'
+    return accessRoleCollectionKey !== null ? <code>{accessRoleCollectionKey}</code> : t('layout.noPosition')
   }
 
   return (
@@ -38,28 +40,23 @@ export function OwnAccessRoleCollection() {
         type="button"
         // ohne ARC auf dem Handy gar nicht, dort ist der Platz knapp
         className={accessRoleCollectionKey !== null ? 'header-position' : 'header-position d-none d-md-inline-flex'}
-        aria-label="Meine Position anzeigen"
+        aria-label={t('layout.showMyPosition')}
         onClick={() => setOpen(true)}
       >
         <span className="d-none d-md-inline-flex">{position('full')}</span>
         {accessRoleCollectionKey !== null && <span className="d-inline-flex d-md-none">{position('compact')}</span>}
       </button>
-      <Popup
-        open={open}
-        title="Meine Position"
-        footer="Die Rechte stehen im Token. Ändert der Admin sie, gelten die neuen nach dem nächsten Refresh."
-        onClose={() => setOpen(false)}
-      >
+      <Popup open={open} title={t('layout.myPosition')} footer={t('layout.tokenNote')} onClose={() => setOpen(false)}>
         <dl className="details-list">
           <div>
-            <dt>Position (ARC)</dt>
+            <dt>{t('layout.positionArc')}</dt>
             <dd>{position('full')}</dd>
           </div>
           <div>
-            <dt>Rechte im Token (AR)</dt>
+            <dt>{t('layout.rightsAr')}</dt>
             <dd>
               {sessionInfo.accessRoleKeys.length === 0 ? (
-                'keine'
+                t('common.none')
               ) : (
                 <span className="badge-list">
                   {sessionInfo.accessRoleKeys.map((accessRoleKey) => {

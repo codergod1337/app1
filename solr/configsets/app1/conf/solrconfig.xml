@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  Konfiguration jedes app1-Kerns. Grundsatz wie in der Vorlage: Solr dumm halten, kein Stemming und keine Sprachmagie im
+  Index, das Backend bereitet Texte vor dem Schreiben auf und baut jede Anfrage selbst. Erklärungen in docs/backend/solr.md.
+-->
+<config>
+
+    <luceneMatchVersion>10.0.0</luceneMatchVersion>
+
+    <dataDir>${solr.data.dir:}</dataDir>
+
+    <directoryFactory name="DirectoryFactory" class="${solr.directoryFactory:solr.NRTCachingDirectoryFactory}"/>
+
+    <codecFactory class="solr.SchemaCodecFactory"/>
+
+    <!-- mutable: Das Backend legt die Felder per Schema-API an (SolrManager, Schritt 4). Solr schreibt dabei die
+         managed-schema.xml des Kerns neu. -->
+    <schemaFactory class="ManagedIndexSchemaFactory">
+        <bool name="mutable">true</bool>
+        <str name="managedSchemaResourceName">managed-schema.xml</str>
+    </schemaFactory>
+
+    <indexConfig>
+        <lockType>${solr.lock.type:native}</lockType>
+    </indexConfig>
+
+    <!-- updateLog ist Pflicht für Atomic Updates und _version_. Hard-Commit alle 15 s ohne neuen Searcher
+         (Dauerhaftigkeit), Soft-Commit alle 5 s (Sichtbarkeit). -->
+    <updateHandler class="solr.DirectUpdateHandler2">
+        <updateLog>
+            <str name="dir">${solr.ulog.dir:}</str>
+        </updateLog>
+        <autoCommit>
+            <maxTime>${solr.autoCommit.maxTime:15000}</maxTime>
+            <openSearcher>false</openSearcher>
+        </autoCommit>
+        <autoSoftCommit>
+            <maxTime>${solr.autoSoftCommit.maxTime:5000}</maxTime>
+        </autoSoftCommit>
+    </updateHandler>
+
+    <query>
+        <maxBooleanClauses>1024</maxBooleanClauses>
+        <filterCache size="512" initialSize="512" autowarmCount="0"/>
+        <queryResultCache size="512" initialSize="512" autowarmCount="0"/>
+        <documentCache size="512" initialSize="512" autowarmCount="0"/>
+        <enableLazyFieldLoading>true</enableLazyFieldLoading>
+        <queryResultWindowSize>20</queryResultWindowSize>
+        <useColdSearcher>false</useColdSearcher>
+    </query>
+
+    <requestDispatcher>
+        <requestParsers enableRemoteStreaming="false" multipartUploadLimitInKB="2048000" formdataUploadLimitInKB="20480"/>
+    </requestDispatcher>
+
+    <!-- Bewusst ohne defType und df: Das Backend baut jede Anfrage selbst, mit dem Zugriffsfilter als fq. -->
+    <requestHandler name="/select" class="solr.SearchHandler">
+        <lst name="defaults">
+            <str name="echoParams">explicit</str>
+            <str name="rows">20</str>
+        </lst>
+    </requestHandler>
+
+</config>

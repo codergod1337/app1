@@ -13,6 +13,10 @@
 - Parameter heißen nach ihrem Inhalt, nie allgemein wie `input`, `data` oder `obj`. Beispiel: `newUsersData` für die Daten eines neu anzulegenden Users.
 - Wer eine Methode auslöst, steht nicht im Namen. Das ergibt sich aus dem current user (siehe `architektur.md`, Zugriffsfälle).
 
+## Postgres-Tabellen
+
+- Alles, was zu Solr gehört (Hooks, Kerne, Felder), heißt `solr_<name>`: `solr_hook`, `solr_core`, `solr_field`. So stehen die Tabellen in DBeaver untereinander.
+
 ## Env-Variablen
 
 - Klein geschrieben mit Unterstrich, vorne der Dienst: `postgres_user`, `postgres_pw`

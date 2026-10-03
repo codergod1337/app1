@@ -1,11 +1,12 @@
 # app1
 
-Demo-Fullstack-App: Spring Boot (Backend), React mit TypeScript (Frontend), Postgres und SFTP als Container. Dieses Repo enthält nur Code, keine Daten und keine Zugangsdaten.
+Demo-Fullstack-App: Spring Boot (Backend), React mit TypeScript (Frontend), Postgres, Solr und SFTP als Container. Dieses Repo enthält nur Code, keine Daten und keine Zugangsdaten.
 
 ## Doku
 
 - [Backend](docs/backend/README.md): Spring, Pakete, Endpunkte, Konfiguration, Starten
   - [SFTP-Dateispeicher](docs/backend/sftp.md): Funktionsweise und Installation
+  - [Solr](docs/backend/solr.md): Container, wie ein Kern entsteht, Passwort, Installation
 - [Frontend](docs/frontend/README.md): React, Ordner, Grundsätze, Starten
 
 ## Ordner
@@ -16,15 +17,16 @@ app1/
     docker-compose.yml, env.beispiel, .env, app1-deploy.sh
     spring/          Backend
     frontend-ts/     Frontend
+    solr/            Basis-Configset für die Solr-Kerne
     docs/            diese Doku
-  docker_mounts/     ein Ordner pro Container (postgres, sftp), nicht in Git
+  docker_mounts/     ein Ordner pro Container (postgres, sftp, solr), nicht in Git
 ```
 
 Die Compose erwartet `docker_mounts` neben `gitfiles`. Das Repo wird deshalb in einen Ordner namens `gitfiles` geklont. Der Name des Ordners darüber ist egal.
 
 ## Betrieb
 
-Die Container (Postgres, SFTP) laufen auf einem Server, bei uns ein Raspberry Pi, auch beim Entwickeln. Backend und Frontend laufen beim Entwickeln lokal auf dem PC und sprechen die Container über das LAN an. Solange entwickelt wird, sind die Ports der Container nach außen gemappt.
+Die Container (Postgres, Solr, SFTP) laufen auf einem Server, bei uns ein Raspberry Pi, auch beim Entwickeln. Backend und Frontend laufen beim Entwickeln lokal auf dem PC und sprechen die Container über das LAN an. Solange entwickelt wird, sind die Ports der Container nach außen gemappt.
 
 ## Installation
 
@@ -43,7 +45,8 @@ cp gitfiles/env.beispiel gitfiles/.env
 Auf dem Server, im Ordner `gitfiles`:
 
 1. Host-Key und Ordner für den SFTP-Container anlegen, siehe [SFTP-Installation](docs/backend/sftp.md#installation).
-2. Container starten:
+2. Ordner für den Solr-Container anlegen, siehe [Solr-Installation](docs/backend/solr.md#installation).
+3. Container starten:
 
 ```
 docker compose up -d

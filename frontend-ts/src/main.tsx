@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, Navigate } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import './styles/basic.css'
+// die festen Texte der Oberfläche, vor allem anderen, damit jede Komponente übersetzen kann
+import './branding/i18n.ts'
 import { Layout } from './layout/Layout.tsx'
 import { ADMIN_ACCESS_ROLE_KEY } from './modul/accessrole/AccessRole.ts'
 import { AccessRoleCollectionAccessRoleMatrixTab } from './modul/admin/AccessRoleCollectionAccessRoleMatrixTab.tsx'
@@ -36,6 +38,17 @@ import { EditProfileUsers } from './modul/profile/EditProfileUsers.tsx'
 import { EditProfileUsersDetails } from './modul/profile/EditProfileUsersDetails.tsx'
 import { Profile } from './modul/profile/Profile.tsx'
 import { ProfileOverview } from './modul/profile/ProfileOverview.tsx'
+import { EditSolrCoreTab } from './modul/solrmanager/EditSolrCoreTab.tsx'
+import { EditSolrHookGroupTab } from './modul/solrmanager/EditSolrHookGroupTab.tsx'
+import { EditSolrHookTab } from './modul/solrmanager/EditSolrHookTab.tsx'
+import { NewSolrCoreTab } from './modul/solrmanager/NewSolrCoreTab.tsx'
+import { NewSolrHookGroupTab } from './modul/solrmanager/NewSolrHookGroupTab.tsx'
+import { NewSolrHookTab } from './modul/solrmanager/NewSolrHookTab.tsx'
+import { SolrCoresTab } from './modul/solrmanager/SolrCoresTab.tsx'
+import { SolrCoreTab } from './modul/solrmanager/SolrCoreTab.tsx'
+import { SolrHookGroupsTab } from './modul/solrmanager/SolrHookGroupsTab.tsx'
+import { SolrHooksTab } from './modul/solrmanager/SolrHooksTab.tsx'
+import { SolrManager } from './modul/solrmanager/SolrManager.tsx'
 
 const router = createBrowserRouter([
   {
@@ -89,6 +102,29 @@ const router = createBrowserRouter([
           { path: 'filematrix', element: <FileMatrixTab /> },
           { path: 'fsc-acl', element: <FileSubClassAclMatrixTab /> },
           { path: 'masterdata', element: <MasterDataTab /> },
+        ],
+      },
+      {
+        path: 'solrmanager',
+        element: (
+          <RequireLogin accessRoleKey={ADMIN_ACCESS_ROLE_KEY}>
+            <SolrManager />
+          </RequireLogin>
+        ),
+        children: [
+          { index: true, element: <Navigate to="hooks" replace /> },
+          { path: 'hooks', element: <SolrHooksTab /> },
+          { path: 'hooks/new', element: <NewSolrHookTab /> },
+          { path: 'hooks/edit', element: <EditSolrHookTab /> },
+          { path: 'hookgroups', element: <SolrHookGroupsTab /> },
+          { path: 'hookgroups/new', element: <NewSolrHookGroupTab /> },
+          { path: 'hookgroups/edit', element: <EditSolrHookGroupTab /> },
+          { path: 'cores', element: <SolrCoresTab /> },
+          { path: 'cores/new', element: <NewSolrCoreTab /> },
+          { path: 'cores/edit', element: <EditSolrCoreTab /> },
+          // je Kern ein Tab unter seinem key, die Felder werden direkt darin bearbeitet. HOOKS, HOOKGROUPS und CORES
+          // sind als key reserviert, das prüft das Backend.
+          { path: ':coreKey', element: <SolrCoreTab /> },
         ],
       },
     ],

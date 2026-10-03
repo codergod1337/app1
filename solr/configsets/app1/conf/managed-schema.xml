@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  Basis-Schema jedes app1-Kerns. Welche Felder ein Kern hat, steht in Postgres (SolrManager), das Backend legt sie per
+  Schema-API an. Hier steht nur, was Solr schon beim Anlegen des Kerns braucht: die Feldtypen aus SolrFieldType.java
+  (die Namen stehen dort fest), der uniqueKey id und die beiden Systemfelder. Erklärungen in docs/backend/solr.md.
+  Bei der ersten Änderung per Schema-API schreibt Solr diese Datei neu, ohne Kommentare.
+-->
+<schema name="app1" version="1.7">
+
+    <uniqueKey>id</uniqueKey>
+
+    <!-- Feldtypen, Namen wie in SolrFieldType.java -->
+    <fieldType name="string"  class="solr.StrField"         sortMissingLast="true" docValues="true"/>
+    <fieldType name="boolean" class="solr.BoolField"        sortMissingLast="true" docValues="true"/>
+    <fieldType name="plong"   class="solr.LongPointField"   docValues="true"/>
+    <fieldType name="pdouble" class="solr.DoublePointField" docValues="true"/>
+    <fieldType name="pdate"   class="solr.DatePointField"   docValues="true"/>
+
+    <!-- text_minimal: Leerzeichen trennen, Kleinschreibung, sonst nichts (Dateinamen) -->
+    <fieldType name="text_minimal" class="solr.TextField" positionIncrementGap="100">
+        <analyzer>
+            <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+        </analyzer>
+    </fieldType>
+
+    <!-- text_word: auch an Satzzeichen trennen (Beschreibungen, mehrsprachiges JSON) -->
+    <fieldType name="text_word" class="solr.TextField" positionIncrementGap="100">
+        <analyzer>
+            <tokenizer class="solr.StandardTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+        </analyzer>
+    </fieldType>
+
+    <!-- text_words: vom Backend aufbereitete Token (Volltext), Solr trennt nur an Leerzeichen -->
+    <fieldType name="text_words" class="solr.TextField" positionIncrementGap="100">
+        <analyzer>
+            <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+        </analyzer>
+    </fieldType>
+
+    <!-- text_suggest: Suggest-Zwilling von Texten, wortweise Präfixe ab 3 Zeichen, die Anfrage ohne NGram -->
+    <fieldType name="text_suggest" class="solr.TextField" positionIncrementGap="100">
+        <analyzer type="index">
+            <tokenizer class="solr.StandardTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+            <filter class="solr.EdgeNGramFilterFactory" minGramSize="3" maxGramSize="30" preserveOriginal="true"/>
+        </analyzer>
+        <analyzer type="query">
+            <tokenizer class="solr.StandardTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+        </analyzer>
+    </fieldType>
+
+    <!-- code_suggest: Suggest-Zwilling von String und Zahlen, der ganze Wert als ein Token, Präfixe ab 3 Zeichen -->
+    <fieldType name="code_suggest" class="solr.TextField" positionIncrementGap="100">
+        <analyzer type="index">
+            <tokenizer class="solr.KeywordTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+            <filter class="solr.EdgeNGramFilterFactory" minGramSize="3" maxGramSize="30" preserveOriginal="true"/>
+        </analyzer>
+        <analyzer type="query">
+            <tokenizer class="solr.KeywordTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+        </analyzer>
+    </fieldType>
+
+    <!-- id: der uniqueKey muss beim Anlegen des Kerns da sein. stored und docValues zieht das Backend aus Postgres nach. -->
+    <field name="id" type="string" indexed="true" stored="true" required="true" multiValued="false"/>
+
+    <!-- Systemfelder von Solr, nicht in Postgres: _version_ für Optimistic Concurrency, _root_ für geschachtelte Dokumente -->
+    <field name="_version_" type="plong"  indexed="false" stored="false" docValues="true"/>
+    <field name="_root_"    type="string" indexed="true"  stored="false" docValues="false"/>
+
+</schema>

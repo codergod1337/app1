@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { RequestError } from '../api/client.ts'
 import { DeleteButton } from './DeleteButton.tsx'
 import { Popup } from './Popup.tsx'
@@ -17,6 +18,7 @@ interface DeletePopupProps {
 
 /** Die Sicherheitsabfrage vor jedem Löschen. Erst „Löschen“ im Popup löscht wirklich, ein Fehler bleibt im Popup stehen. */
 export function DeletePopup({ open, title, children, onConfirm, onDeleted, onClose }: DeletePopupProps) {
+  const { t } = useTranslation()
   const [deleting, setDeleting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -33,7 +35,9 @@ export function DeletePopup({ open, title, children, onConfirm, onDeleted, onClo
         close()
         onDeleted()
       })
-      .catch((error: unknown) => setErrorMessage(error instanceof RequestError ? error.message : 'Unbekannter Fehler'))
+      .catch((error: unknown) =>
+        setErrorMessage(error instanceof RequestError ? error.message : t('common.unknownError')),
+      )
       .finally(() => setDeleting(false))
   }
 
@@ -42,10 +46,10 @@ export function DeletePopup({ open, title, children, onConfirm, onDeleted, onClo
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
       <span className="ms-auto d-flex gap-2">
         <button type="button" className="button-cancel" disabled={deleting} onClick={close}>
-          Abbrechen
+          {t('common.cancel')}
         </button>
         <DeleteButton label={title} disabled={deleting} onClick={confirmDelete}>
-          Löschen
+          {t('common.delete')}
         </DeleteButton>
       </span>
     </>

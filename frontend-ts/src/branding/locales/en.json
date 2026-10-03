@@ -1,0 +1,260 @@
+{
+  "common": {
+    "actions": "Actions",
+    "cancel": "Cancel",
+    "create": "Create",
+    "save": "Save",
+    "delete": "Delete",
+    "close": "Close",
+    "edit": "edit",
+    "deleteAction": "delete",
+    "move": "move",
+    "loading": "loading",
+    "saving": "saving",
+    "saved": "saved",
+    "creating": "creating",
+    "unknownError": "Unknown error",
+    "default": "Default",
+    "none": "none",
+    "key": "Key",
+    "displayName": "Display name",
+    "description": "Description",
+    "position": "Position",
+    "preview": "Preview",
+    "symbol": "Symbol",
+    "chooseSymbol": "Choose symbol",
+    "noSymbol": "no symbol",
+    "allPacks": "all packs",
+    "symbolsLoading": "Loading symbols …",
+    "symbolsCount_one": "{{count}} symbol",
+    "symbolsCount_other": "{{count}} symbols",
+    "symbolSearchPlaceholder": "search, e.g. shield, star, crown, desk",
+    "keyRule": "only A–Z, 0–9 and _, starts and ends with a capital letter, never two _ in a row",
+    "keyRuleWithPrefix": "starts with {{prefix}}, {{rule}}",
+    "solrFieldNameRule": "starts with a letter, then letters, digits and _, does not end with _ or Suggested, not id",
+    "valuesInputAria": "Enter a value, space, Tab or Enter adds it",
+    "removeValue": "remove {{value}}",
+    "gradient": {
+      "FLAT": "flat",
+      "LINEAR": "gradient top → bottom",
+      "DIAGONAL": "gradient diagonal",
+      "BEVEL": "3D bevel",
+      "RADIAL": "from the centre outwards",
+      "METAL": "metal"
+    }
+  },
+  "layout": {
+    "backTo": "back to {{label}}",
+    "login": "Sign in",
+    "userMenu": "User menu, {{email}}",
+    "menu": "User menu",
+    "session": "Session #{{number}}",
+    "refreshIn": "Refresh in {{countdown}}",
+    "profile": "Profile",
+    "changePassword": "Change password",
+    "logout": "Sign out",
+    "language": "Language: {{country}}",
+    "languageMenu": "Language",
+    "myPosition": "My position",
+    "showMyPosition": "Show my position",
+    "noPosition": "no position",
+    "positionArc": "Position (ARC)",
+    "rightsAr": "Rights in the token (AR)",
+    "tokenNote": "The rights are in the token. If the admin changes them, the new ones apply after the next refresh."
+  },
+  "solrmanager": {
+    "tabs": {
+      "hooks": "Hooks",
+      "hookGroups": "Hook groups",
+      "cores": "Cores"
+    },
+    "hooks": {
+      "title": "Hooks",
+      "search": "Find hook",
+      "add": "Add hook",
+      "count_one": "{{count}} hook",
+      "count_other": "{{count}} hooks",
+      "empty": "no hooks",
+      "deleteTitle": "Delete hook",
+      "deleteQuestion": "Really delete the hook <strong>{{key}}</strong>? What the cores do with the field is decided by the sync with Solr.",
+      "editTitle": "Edit hook: {{key}}",
+      "editTitleNone": "Edit hook",
+      "notFound": "no hook chosen or not found",
+      "columns": {
+        "chip": "Chip",
+        "fieldName": "Field name",
+        "group": "Group",
+        "description": "Description"
+      },
+      "form": {
+        "fieldName": "Field name in Solr",
+        "group": "Group",
+        "noGroup": "no group",
+        "asFilter": "as filter",
+        "onDocument": "on the document"
+      },
+      "picker": {
+        "placeholder": "field name or display name",
+        "searchAria": "Find hook",
+        "shown": "{{shown}} of {{total}} hooks",
+        "noMatches": "no matches"
+      },
+      "fields": {
+        "title": "Hooks",
+        "noneSet": "no hooks set",
+        "noneYet": "no hooks yet, add one below",
+        "removeField": "remove {{key}}, clears all values",
+        "addValue": "add {{key}}",
+        "addValueAria": "add {{key}}, space, semicolon or Enter adds it"
+      },
+      "removeFilter": "remove filter {{name}} {{value}}"
+    },
+    "hookGroups": {
+      "title": "Hook groups",
+      "intro": "Display only: the core tab, the hook picker and the upload show the hooks by these groups, in this order. Which group a hook belongs to is set on the hook.",
+      "count_one": "{{count}} hook group",
+      "count_other": "{{count}} hook groups",
+      "empty": "no hook groups",
+      "deleteTitle": "Delete hook group",
+      "deleteQuestion": "Really delete the group <strong>{{key}}</strong>? This only works while no hook is in it.",
+      "editTitle": "Edit hook group: {{key}}",
+      "editTitleNone": "Edit hook group",
+      "notFound": "no hook group chosen or not found",
+      "columns": {
+        "hooks": "Hooks"
+      }
+    },
+    "cores": {
+      "title": "Cores",
+      "count_one": "{{count}} core",
+      "count_other": "{{count}} cores",
+      "empty": "no cores",
+      "deleteTitle": "Delete core",
+      "deleteQuestion": "Really delete the core <strong>{{key}}</strong> from our table? What happens to the core in Solr is decided by the sync.",
+      "editTitle": "Edit core: {{key}}",
+      "editTitleNone": "Edit core",
+      "notFound": "no core chosen or not found",
+      "columns": {
+        "core": "Core",
+        "nameInSolr": "Name in Solr",
+        "gradient": "Gradient"
+      },
+      "form": {
+        "key": "Key (name of the core in Solr)"
+      },
+      "core": {
+        "title": "Core {{key}}",
+        "notFound": "no core with the key {{key}} found",
+        "footer": "{{fields}} fields, {{hooks}} hooks",
+        "fields": "Fields",
+        "hooks": "Hooks",
+        "noHooks": "no hooks"
+      }
+    },
+    "look": {
+      "mainColor": "Main colour (flat: the whole area, gradient: the middle)",
+      "gradientStart": "Gradient, start",
+      "gradientEnd": "Gradient, end",
+      "textColor": "Text and symbol",
+      "textShadowColor": "Shadow behind the text (contrast)",
+      "shadowColor": "Shadow",
+      "gradient": "Gradient"
+    },
+    "sheet": {
+      "id": "ID",
+      "fieldName": "Field name in Solr",
+      "type": "Type",
+      "description": "Description: what for, which data",
+      "status": "Status",
+      "newField": "new field",
+      "settingFor": "{{setting}} for {{name}}",
+      "typeOf": "type of {{name}}",
+      "empty": "no fields",
+      "idHoverlay": "the primary key of the core (uniqueKey), what goes in is described in the description",
+      "deleteTitle": "Delete field",
+      "deleteQuestion": "Really delete the field <strong>{{name}}</strong> from the core <strong>{{core}}</strong>? What happens to the field in Solr is decided by the sync."
+    },
+    "hints": {
+      "limitIntro": "Limit per value for string, bytes in UTF-8, umlauts count twice:",
+      "limitColumns": {
+        "setting": "Switch",
+        "limit": "Limit per value",
+        "reason": "why"
+      },
+      "limitRows": {
+        "indexed": "32766 bytes",
+        "indexedReason": "the value is a term in the index, Lucene rejects longer terms when writing (“immense term”), the whole document fails",
+        "docValues": "32766 bytes",
+        "docValuesReason": "the column for strings has the same limit",
+        "storedOnly": "stored only",
+        "storedOnlyLimit": "practically none",
+        "storedOnlyReason": "the value only lives in the document, which may be large, the limit is the request size"
+      },
+      "indexed": {
+        "title": "indexed: the field goes into the search index",
+        "paragraphs": [
+          "The index runs from value to document: for every term it lists the documents it occurs in. That is finding and filtering, “which documents have 4711”. Only an indexed field can be searched, filtered (fq) and used for facets.",
+          "Switched off, the value is only stored and returned with the document, but no query finds it. Example: the path on the file store, which is only there to look up.",
+          "Effect: every indexed field makes the index bigger and writing slower, for texts noticeably. Switching it on later only affects new documents, old ones stay invisible until the core is rebuilt.",
+          "Counterpart: docValues run the other way, from document to value. Whoever filters and sorts needs both."
+        ]
+      },
+      "stored": {
+        "title": "stored: the original value stays in the document",
+        "paragraphs": [
+          "A stored field comes back with a query (fl). Switched off, the value is only searchable but never readable again.",
+          "For us all real fields are stored, because Solr is the only storage for these cores: only then can a core be rebuilt from itself. Atomic updates also need stored or docValues for every field, otherwise the document loses values on a partial update.",
+          "Large full texts cost space but stay stored. Result lists simply do not request them."
+        ]
+      },
+      "multiValued": {
+        "title": "multiValued: several values per document",
+        "paragraphs": [
+          "The field may carry a list per document, e.g. several article numbers on a data sheet. The search hits every value, facets count every value.",
+          "Consequences: the field cannot be sorted by, and it cannot provide the ID of the document.",
+          "Switching it later means rebuilding the core, Solr does not rewrite old documents."
+        ]
+      },
+      "docValues": {
+        "title": "docValues: a column-wise copy of the values",
+        "paragraphs": [
+          "docValues run from document to value: for every document its value sits in a continuous column, like in a table. That is not for finding, the index is already the fastest structure for that. It is for the questions afterwards: once the hits are known, you want to sort, count or calculate with their value, and for that Solr must look up per hit which value this document has. The index cannot do that, it only runs the other way.",
+          "Sorting, facets, grouping and functions like the recency boost run fast over docValues and without memory for the field cache. Without docValues Solr would have to invert the index and keep the result in memory: slow the first time, and it eats memory.",
+          "Costs disk space. Only works for string, long, double, date and boolean, not for text.",
+          "What for: every field that is sorted or counted by, e.g. status, file sub class, date. Whoever also filters by it needs indexed as well: two lists in opposite directions."
+        ]
+      },
+      "required": {
+        "title": "required: no document without a value",
+        "paragraphs": [
+          "Solr rejects every document missing the value, with an error when writing. For mandatory fields like id.",
+          "Careful when adding it later: old documents without the value can only be written again once they get the value, even on a partial update."
+        ]
+      },
+      "suggest": {
+        "title": "suggest: a twin for completion while typing",
+        "paragraphs": [
+          "Creates the field <name>Suggested, which stores every value as prefixes from 3 characters (EdgeNGram). Solr fills it itself via copyField, no code writes it. It drives the suggestions while typing and the filter offers of the search, the field itself stays exact.",
+          "Word by word for texts, on the whole value for string, long and double. Not for boolean and date.",
+          "Costs index space: all prefixes of every value. The twin is never stored and does not appear in this table."
+        ]
+      },
+      "type": {
+        "title": "Type: the fieldType in the base schema",
+        "paragraphs": [
+          "string: the value as it comes, not split, not lower-cased. Only matches exactly. For keys, status, numbers, hashes. The whole value is one term, and a term may have at most 32766 bytes: this applies with indexed and with docValues, umlauts count twice. Stored only (both off), a string may be arbitrarily large, like a preview image.",
+          "long: whole number with 64 bits, for ranges and sorting. There is no int, whole numbers are always long for us. double: decimal number with 64 bits. date: point in time per ISO 8601 in UTC, for ranges and sorting. boolean: true or false.",
+          "text_minimal: split at spaces, all lower case. Punctuation stays on the token, so a file name stays hittable word by word. text_word: also split at punctuation (StandardTokenizer), all lower case, for descriptions and multilingual JSON. text_words: takes finished tokens from the backend, which stems and splits compounds beforehand, Solr only compares. Every search must prepare its input the same way. For all text types the term limit applies per token, the value itself may be arbitrarily large.",
+          "Changing a type later means rebuilding the core, Solr does not rewrite old documents."
+        ]
+      },
+      "id": {
+        "title": "ID: the primary key of the core",
+        "paragraphs": [
+          "The key marks id, the primary key of every core (uniqueKey in Solr). Solr does not allow changing it after the core is created, so it is called id everywhere, comes with every core by itself and is fixed: string, indexed, required, never multiValued, not deletable. stored, docValues, description and position are free.",
+          "What goes in is described in the description of the field, e.g. the hash of the bytes (sha256) for the DMS. Whoever fills the core follows that. Solr rejects documents without id."
+        ]
+      }
+    }
+  }
+}

@@ -7,6 +7,10 @@ export type MasterDataSection =
   | 'FILE_EXTENSION_COLLECTIONS'
   | 'FILE_EXTENSIONS'
   | 'FILE_SUB_CLASSES'
+  | 'SOLR_HOOK_GROUPS'
+  | 'SOLR_HOOKS'
+  | 'SOLR_CORES'
+  | 'SOLR_FIELDS'
   | 'USERS'
   | 'USERS_DETAILS'
   | 'USERS_SETTINGS'
@@ -20,6 +24,10 @@ export const MASTER_DATA_SECTIONS: { section: MasterDataSection; label: string }
   { section: 'FILE_EXTENSION_COLLECTIONS', label: 'Endungsgruppen' },
   { section: 'FILE_EXTENSIONS', label: 'Endungen' },
   { section: 'FILE_SUB_CLASSES', label: 'Dateiarten (FSC) mit Rechten und Endungen' },
+  { section: 'SOLR_HOOK_GROUPS', label: 'Solr-Hook-Gruppen' },
+  { section: 'SOLR_HOOKS', label: 'Solr-Hooks' },
+  { section: 'SOLR_CORES', label: 'Solr-Kerne' },
+  { section: 'SOLR_FIELDS', label: 'Solr-Felder der Kerne' },
   { section: 'USERS', label: 'User' },
   { section: 'USERS_DETAILS', label: 'User-Details' },
   { section: 'USERS_SETTINGS', label: 'User-Einstellungen' },

@@ -35,8 +35,23 @@ export function stringifyMultilingual(text: MultilingualText): string | null {
   return Object.keys(filled).length > 0 ? JSON.stringify(filled) : null
 }
 
-/** Der Text in der gewünschten Sprache. Fehlt er, die Standardsprache, fehlt auch die, der erste vorhandene. */
-export function translate(value: string | null, language: LanguageCode = DEFAULT_LANGUAGE): string {
+/**
+ * Die Sprache der Oberfläche, gesetzt vom UsersSettingsProvider (Flagge im Header, UsersSetting LANGUAGE). translate
+ * ohne Sprache nimmt sie. Ein Modul-Wert statt eines Contexts, damit auch Spalten und Helfer außerhalb von Komponenten
+ * übersetzen; bei einem Wechsel baut der Provider alles darunter neu auf. In Komponenten: useLanguage().
+ */
+let currentUiLanguage: LanguageCode = DEFAULT_LANGUAGE
+
+export function setCurrentLanguage(language: LanguageCode) {
+  currentUiLanguage = language
+}
+
+export function currentLanguage(): LanguageCode {
+  return currentUiLanguage
+}
+
+/** Der Text in der gewünschten Sprache, ohne Angabe der Oberfläche. Fehlt er, die Standardsprache, fehlt auch die, der erste vorhandene. */
+export function translate(value: string | null, language: LanguageCode = currentUiLanguage): string {
   const text = parseMultilingual(value)
   return text[language] ?? text[DEFAULT_LANGUAGE] ?? Object.values(text)[0] ?? ''
 }

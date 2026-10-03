@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { ContentBox } from './ContentBox.tsx'
 
 interface PopupProps {
@@ -18,6 +19,7 @@ interface PopupProps {
  * Hängt per Portal an document.body, damit es nie in einem fremden form landet (Enter im Suchfeld schickte es sonst ab).
  */
 export function Popup({ open, title, footer, onClose, children }: PopupProps) {
+  const { t } = useTranslation()
   const dialog = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export function Popup({ open, title, footer, onClose, children }: PopupProps) {
 
   const closeButton = (
     <button type="button" className="button-cancel" onClick={onClose}>
-      Schließen
+      {t('common.close')}
     </button>
   )
 

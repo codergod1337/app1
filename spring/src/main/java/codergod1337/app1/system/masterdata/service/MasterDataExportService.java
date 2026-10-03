@@ -3,6 +3,11 @@ package codergod1337.app1.system.masterdata.service;
 import codergod1337.app1.file.fileextension.service.FileExtensionCollectionService;
 import codergod1337.app1.file.fileextension.service.FileExtensionService;
 import codergod1337.app1.file.filesubclass.service.FileSubClassService;
+import codergod1337.app1.solr.core.service.SolrCoreService;
+import codergod1337.app1.solr.field.model.SolrField;
+import codergod1337.app1.solr.field.service.SolrFieldService;
+import codergod1337.app1.solr.hook.service.SolrHookGroupService;
+import codergod1337.app1.solr.hook.service.SolrHookService;
 import codergod1337.app1.system.access.model.AccessRoleUsersAssignment;
 import codergod1337.app1.system.access.service.AccessRoleCollectionService;
 import codergod1337.app1.system.access.service.AccessRoleCollectionUsersAssignmentService;
@@ -58,7 +63,8 @@ public class MasterDataExportService {
 	private static final Map<Class<?>, Set<String>> NOT_EXPORTED_FIELDS = Map.of(
 			UsersDetails.class, Set.of("pwUnsuccessfull"),
 			UsersSettings.class, Set.of("id"),
-			AccessRoleUsersAssignment.class, Set.of("id"));
+			AccessRoleUsersAssignment.class, Set.of("id"),
+			SolrField.class, Set.of("id"));
 
 	private static final TypeReference<LinkedHashMap<String, Object>> LINE_TYPE = new TypeReference<>() {
 	};
@@ -68,6 +74,10 @@ public class MasterDataExportService {
 	private final FileExtensionCollectionService fileExtensionCollectionService;
 	private final FileExtensionService fileExtensionService;
 	private final FileSubClassService fileSubClassService;
+	private final SolrHookGroupService solrHookGroupService;
+	private final SolrHookService solrHookService;
+	private final SolrCoreService solrCoreService;
+	private final SolrFieldService solrFieldService;
 	private final UsersService usersService;
 	private final UsersDetailsService usersDetailsService;
 	private final UsersSettingsService usersSettingsService;
@@ -79,7 +89,9 @@ public class MasterDataExportService {
 	public MasterDataExportService(AccessRoleService accessRoleService,
 			AccessRoleCollectionService accessRoleCollectionService,
 			FileExtensionCollectionService fileExtensionCollectionService, FileExtensionService fileExtensionService,
-			FileSubClassService fileSubClassService, UsersService usersService, UsersDetailsService usersDetailsService,
+			FileSubClassService fileSubClassService, SolrHookGroupService solrHookGroupService,
+			SolrHookService solrHookService, SolrCoreService solrCoreService,
+			SolrFieldService solrFieldService, UsersService usersService, UsersDetailsService usersDetailsService,
 			UsersSettingsService usersSettingsService, AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
 			AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService,
 			CurrentUsersProvider currentUsersProvider, JsonMapper jsonMapper) {
@@ -88,6 +100,10 @@ public class MasterDataExportService {
 		this.fileExtensionCollectionService = fileExtensionCollectionService;
 		this.fileExtensionService = fileExtensionService;
 		this.fileSubClassService = fileSubClassService;
+		this.solrHookGroupService = solrHookGroupService;
+		this.solrHookService = solrHookService;
+		this.solrCoreService = solrCoreService;
+		this.solrFieldService = solrFieldService;
 		this.usersService = usersService;
 		this.usersDetailsService = usersDetailsService;
 		this.usersSettingsService = usersSettingsService;
@@ -167,6 +183,10 @@ public class MasterDataExportService {
 		case FILE_EXTENSION_COLLECTIONS -> fileExtensionCollectionService.getAllFileExtensionCollections();
 		case FILE_EXTENSIONS -> fileExtensionService.getAllFileExtensions();
 		case FILE_SUB_CLASSES -> fileSubClassService.getAllFileSubClasses();
+		case SOLR_HOOK_GROUPS -> solrHookGroupService.getAllSolrHookGroups();
+		case SOLR_HOOKS -> solrHookService.getAllSolrHooks();
+		case SOLR_CORES -> solrCoreService.getAllSolrCores();
+		case SOLR_FIELDS -> solrFieldService.getAllSolrFields();
 		case USERS -> usersService.getAllUsers();
 		case USERS_DETAILS -> usersDetailsService.getAllUsersDetails();
 		case USERS_SETTINGS -> usersSettingsService.getAllUsersSettings();

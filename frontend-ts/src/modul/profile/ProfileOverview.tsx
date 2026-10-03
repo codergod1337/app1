@@ -2,7 +2,8 @@ import { useCallback, useState, type CSSProperties, type ReactNode } from 'react
 import { useNavigate } from 'react-router'
 import { useLoad } from '../../api/useLoad.ts'
 import type { IconName } from '../../branding/icons.ts'
-import { DEFAULT_LANGUAGE, type LanguageCode } from '../../branding/languages.ts'
+import type { LanguageCode } from '../../branding/languages.ts'
+import { useLanguage } from '../../components/languageContext.ts'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { DeleteButton } from '../../components/DeleteButton.tsx'
 import { EditButton } from '../../components/EditButton.tsx'
@@ -77,7 +78,7 @@ export function ProfileOverview() {
   const { data: users, errorMessage: usersErrorMessage } = useLoad(loadUsers)
   const loadUsersDetails = useCallback(() => getUsersDetailsByUsersGuid(usersGuid), [usersGuid])
   const { data: usersDetails, errorMessage: usersDetailsErrorMessage } = useLoad(loadUsersDetails)
-  const [language, setLanguage] = useState<LanguageCode>(DEFAULT_LANGUAGE)
+  const [language, setLanguage] = useState<LanguageCode>(useLanguage().language)
   const [changingPassword, setChangingPassword] = useState(false)
   const [deletingUsers, setDeletingUsers] = useState(false)
 

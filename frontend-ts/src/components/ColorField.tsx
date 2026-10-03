@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Hoverlay } from './Hoverlay.tsx'
 
 /** Farben zum Anklicken, darunter Gold, Silber und Bronze für Badges. */
@@ -31,6 +32,7 @@ interface ColorFieldProps {
 
 /** Farbe wählen: Farbwähler (liefert immer Hex), Palette zum Anklicken und zurück auf den Standard. */
 export function ColorField({ id, label, value, onChange, disabled = false }: ColorFieldProps) {
+  const { t } = useTranslation()
   return (
     <div className="color-field">
       <label className="form-label" htmlFor={id}>
@@ -45,9 +47,9 @@ export function ColorField({ id, label, value, onChange, disabled = false }: Col
           disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
         />
-        <code>{value ?? 'Standard'}</code>
+        <code>{value ?? t('common.default')}</code>
         <button type="button" className="button-other ms-auto" disabled={disabled || value === null} onClick={() => onChange(null)}>
-          Standard
+          {t('common.default')}
         </button>
       </div>
       <div className="color-field-palette">
