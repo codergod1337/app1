@@ -14,6 +14,9 @@ import { EditAccessRoleCollectionTab } from './modul/admin/EditAccessRoleCollect
 import { NewAccessRoleCollectionTab } from './modul/admin/NewAccessRoleCollectionTab.tsx'
 import { Admin } from './modul/admin/Admin.tsx'
 import { EditAccessRoleTab } from './modul/admin/EditAccessRoleTab.tsx'
+import { EditEntityStateTab } from './modul/admin/EditEntityStateTab.tsx'
+import { EntityStatesTab } from './modul/admin/EntityStatesTab.tsx'
+import { NewEntityStateTab } from './modul/admin/NewEntityStateTab.tsx'
 import { EditFileExtensionCollectionTab } from './modul/admin/EditFileExtensionCollectionTab.tsx'
 import { EditFileExtensionTab } from './modul/admin/EditFileExtensionTab.tsx'
 import { EditFileSubClassTab } from './modul/admin/EditFileSubClassTab.tsx'
@@ -30,6 +33,17 @@ import { NewAccessRoleTab } from './modul/admin/NewAccessRoleTab.tsx'
 import { NewUsersTab } from './modul/admin/NewUsersTab.tsx'
 import { UsersAccessRoleCollectionMatrixTab } from './modul/admin/UsersAccessRoleCollectionMatrixTab.tsx'
 import { UsersTab } from './modul/admin/UsersTab.tsx'
+import { Dms } from './modul/dms/Dms.tsx'
+import { DMS_ACCESS_ROLE_KEY } from './modul/dms/Dms.ts'
+import { DmsExactResolveTab } from './modul/dms/DmsExactResolveTab.tsx'
+import { DmsMyGrantsTab } from './modul/dms/DmsMyGrantsTab.tsx'
+import { DmsSolrDocumentPage } from './modul/dms/DmsSolrDocumentPage.tsx'
+import { DmsSolrDocumentViewerPage } from './modul/dms/DmsSolrDocumentViewerPage.tsx'
+import { DmsUploadBatchTab } from './modul/dms/DmsUploadBatchTab.tsx'
+import { DmsUploadTab } from './modul/dms/DmsUploadTab.tsx'
+import { AdvancedFieldGrantsPerCoreTab } from './modul/grant/AdvancedFieldGrantsPerCoreTab.tsx'
+import { DocumentGrantsPerCoreTab } from './modul/grant/DocumentGrantsPerCoreTab.tsx'
+import { Grant } from './modul/grant/Grant.tsx'
 import { Home } from './modul/home/Home.tsx'
 import { ConfirmLoginPage } from './modul/login/ConfirmLoginPage.tsx'
 import { LoginPage } from './modul/login/LoginPage.tsx'
@@ -101,6 +115,9 @@ const router = createBrowserRouter([
           { path: 'fileextensions/collections/edit', element: <EditFileExtensionCollectionTab /> },
           { path: 'filematrix', element: <FileMatrixTab /> },
           { path: 'fsc-acl', element: <FileSubClassAclMatrixTab /> },
+          { path: 'entitystates', element: <EntityStatesTab /> },
+          { path: 'entitystates/new', element: <NewEntityStateTab /> },
+          { path: 'entitystates/edit', element: <EditEntityStateTab /> },
           { path: 'masterdata', element: <MasterDataTab /> },
         ],
       },
@@ -125,6 +142,39 @@ const router = createBrowserRouter([
           // je Kern ein Tab unter seinem key, die Felder werden direkt darin bearbeitet. HOOKS, HOOKGROUPS und CORES
           // sind als key reserviert, das prüft das Backend.
           { path: ':coreKey', element: <SolrCoreTab /> },
+        ],
+      },
+      {
+        path: 'dms',
+        element: (
+          <RequireLogin accessRoleKey={DMS_ACCESS_ROLE_KEY}>
+            <Dms />
+          </RequireLogin>
+        ),
+        children: [
+          { index: true, element: <Navigate to="upload" replace /> },
+          { path: 'upload', element: <DmsUploadBatchTab /> },
+          { path: 'probe', element: <DmsUploadTab /> },
+          { path: 'resolve', element: <DmsExactResolveTab /> },
+          { path: 'my-grants', element: <DmsMyGrantsTab /> },
+          // ein einzelnes Dokument: in der URL steht nur die id, das Backend prüft die Leseprüfung des Users
+          { path: 'solr-document/:id', element: <DmsSolrDocumentPage mode="details" /> },
+          { path: 'solr-document/:id/edit', element: <DmsSolrDocumentPage mode="edit" /> },
+          { path: 'solr-document/:id/viewer', element: <DmsSolrDocumentViewerPage /> },
+        ],
+      },
+      {
+        // Freigaben vorerst nur für ADMIN, später eine eigene AR
+        path: 'grant',
+        element: (
+          <RequireLogin accessRoleKey={ADMIN_ACCESS_ROLE_KEY}>
+            <Grant />
+          </RequireLogin>
+        ),
+        children: [
+          { index: true, element: <Navigate to="documents" replace /> },
+          { path: 'documents', element: <DocumentGrantsPerCoreTab /> },
+          { path: 'fields', element: <AdvancedFieldGrantsPerCoreTab /> },
         ],
       },
     ],

@@ -1,6 +1,7 @@
 import { request } from '../api/client.ts'
 import type { AccessRole } from '../modul/accessrole/AccessRole.ts'
 import type { AccessRoleCollection } from '../modul/accessrolecollection/AccessRoleCollection.ts'
+import type { EntityState } from '../modul/entitystate/EntityState.ts'
 import type { FileExtension } from '../modul/fileextension/FileExtension.ts'
 import type { FileExtensionCollection } from '../modul/fileextension/FileExtensionCollection.ts'
 import type { FileSubClass } from '../modul/filesubclass/FileSubClass.ts'
@@ -29,6 +30,8 @@ export interface MasterData {
   solrCores: SolrCore[]
   /** alle Kerne, sortiert nach Kern, listingPosition und name */
   solrFields: SolrField[]
+  /** sortiert nach listingPosition */
+  entityStates: EntityState[]
 }
 
 /** Alle Stammdaten in einem Request, auch ohne Anmeldung */

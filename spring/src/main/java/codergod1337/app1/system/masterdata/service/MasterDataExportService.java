@@ -7,6 +7,7 @@ import codergod1337.app1.solr.core.service.SolrCoreService;
 import codergod1337.app1.solr.field.model.SolrField;
 import codergod1337.app1.solr.field.service.SolrFieldService;
 import codergod1337.app1.solr.hook.service.SolrHookGroupService;
+import codergod1337.app1.system.state.service.EntityStateService;
 import codergod1337.app1.solr.hook.service.SolrHookService;
 import codergod1337.app1.system.access.model.AccessRoleUsersAssignment;
 import codergod1337.app1.system.access.service.AccessRoleCollectionService;
@@ -78,6 +79,7 @@ public class MasterDataExportService {
 	private final SolrHookService solrHookService;
 	private final SolrCoreService solrCoreService;
 	private final SolrFieldService solrFieldService;
+	private final EntityStateService entityStateService;
 	private final UsersService usersService;
 	private final UsersDetailsService usersDetailsService;
 	private final UsersSettingsService usersSettingsService;
@@ -91,8 +93,9 @@ public class MasterDataExportService {
 			FileExtensionCollectionService fileExtensionCollectionService, FileExtensionService fileExtensionService,
 			FileSubClassService fileSubClassService, SolrHookGroupService solrHookGroupService,
 			SolrHookService solrHookService, SolrCoreService solrCoreService,
-			SolrFieldService solrFieldService, UsersService usersService, UsersDetailsService usersDetailsService,
-			UsersSettingsService usersSettingsService, AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
+			SolrFieldService solrFieldService, EntityStateService entityStateService, UsersService usersService,
+			UsersDetailsService usersDetailsService, UsersSettingsService usersSettingsService,
+			AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
 			AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService,
 			CurrentUsersProvider currentUsersProvider, JsonMapper jsonMapper) {
 		this.accessRoleService = accessRoleService;
@@ -104,6 +107,7 @@ public class MasterDataExportService {
 		this.solrHookService = solrHookService;
 		this.solrCoreService = solrCoreService;
 		this.solrFieldService = solrFieldService;
+		this.entityStateService = entityStateService;
 		this.usersService = usersService;
 		this.usersDetailsService = usersDetailsService;
 		this.usersSettingsService = usersSettingsService;
@@ -187,6 +191,7 @@ public class MasterDataExportService {
 		case SOLR_HOOKS -> solrHookService.getAllSolrHooks();
 		case SOLR_CORES -> solrCoreService.getAllSolrCores();
 		case SOLR_FIELDS -> solrFieldService.getAllSolrFields();
+		case ENTITY_STATES -> entityStateService.getAllEntityStates();
 		case USERS -> usersService.getAllUsers();
 		case USERS_DETAILS -> usersDetailsService.getAllUsersDetails();
 		case USERS_SETTINGS -> usersSettingsService.getAllUsersSettings();

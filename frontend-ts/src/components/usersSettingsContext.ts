@@ -6,8 +6,8 @@ export interface UsersSettingsState {
   loaded: boolean
   /** Der Wert zu einem key, oder null: dann gilt der Standard des Frontends. Ohne Anmeldung immer null. */
   settingValue: (key: string) => string | null
-  /** Setzt einen eigenen Wert, sofort sichtbar, dann gespeichert (PUT) */
-  changeSetting: (key: string, value: string) => Promise<void>
+  /** Setzt einen eigenen Wert, sofort sichtbar, dann gespeichert (PUT). keepalive: auch noch beim Verlassen der Seite. */
+  changeSetting: (key: string, value: string, keepalive?: boolean) => Promise<void>
   /** Entfernt einen eigenen Wert (DELETE), zurück auf den Standard */
   deleteSetting: (key: string) => Promise<void>
 }

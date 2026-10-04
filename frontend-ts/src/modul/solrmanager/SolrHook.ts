@@ -48,6 +48,24 @@ export function groupSolrHooks(solrHooks: SolrHook[], solrHookGroups: SolrHookGr
   return groups.filter((group) => group.solrHooks.length > 0)
 }
 
+/**
+ * Die Hooks eines Dokuments, wie das Hook-Modul (SolrHookFields) sie nimmt: je Hook-Key seine Werte, nur die Hooks,
+ * die im Dokument stehen und Werte haben. Alles andere im Dokument sind normale Felder und bleiben außen vor.
+ */
+export function solrHookValuesOf(
+  document: Readonly<Record<string, unknown>>,
+  solrHooks: readonly SolrHook[],
+): Record<string, string[]> {
+  const hooks: Record<string, string[]> = {}
+  for (const solrHook of solrHooks) {
+    const values = document[solrHook.key]
+    if (Array.isArray(values) && values.length > 0) {
+      hooks[solrHook.key] = values.map(String)
+    }
+  }
+  return hooks
+}
+
 /** Der Anzeigename einer Gruppe in der Sprache, bei null „ohne Gruppe“ aus dem Katalog */
 export function solrHookGroupLabel(solrHookGroup: SolrHookGroup | null, language?: LanguageCode): string {
   return solrHookGroup

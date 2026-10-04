@@ -9,6 +9,8 @@ import codergod1337.app1.solr.hook.service.SolrHookGroupService;
 import codergod1337.app1.solr.hook.service.SolrHookService;
 import codergod1337.app1.system.access.service.AccessRoleCollectionService;
 import codergod1337.app1.system.access.service.AccessRoleService;
+import codergod1337.app1.system.state.service.EntityStateService;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,12 +33,13 @@ public class MasterDataPublicController {
 	private final SolrHookService solrHookService;
 	private final SolrCoreService solrCoreService;
 	private final SolrFieldService solrFieldService;
+	private final EntityStateService entityStateService;
 
 	public MasterDataPublicController(AccessRoleService accessRoleService,
 			AccessRoleCollectionService accessRoleCollectionService, FileSubClassService fileSubClassService,
 			FileExtensionService fileExtensionService, FileExtensionCollectionService fileExtensionCollectionService,
 			SolrHookGroupService solrHookGroupService, SolrHookService solrHookService, SolrCoreService solrCoreService,
-			SolrFieldService solrFieldService) {
+			SolrFieldService solrFieldService, EntityStateService entityStateService) {
 		this.accessRoleService = accessRoleService;
 		this.accessRoleCollectionService = accessRoleCollectionService;
 		this.fileSubClassService = fileSubClassService;
@@ -46,24 +49,27 @@ public class MasterDataPublicController {
 		this.solrHookService = solrHookService;
 		this.solrCoreService = solrCoreService;
 		this.solrFieldService = solrFieldService;
+		this.entityStateService = entityStateService;
 	}
 
 	/**
 	 * {accessRoles, accessRoleCollections, fileSubClasses, fileExtensions, fileExtensionCollections, solrHookGroups,
-	 * solrHooks, solrCores, solrFields}, alle sortiert nach listingPosition, die Felder zuerst nach Kern
+	 * solrHooks, solrCores, solrFields, entityStates}, alle sortiert nach listingPosition, die Felder zuerst nach Kern
 	 */
 	@GetMapping
 	public Map<String, Object> getMasterData() {
-		return Map.of(
-				"accessRoles", accessRoleService.getAllAccessRoles(),
-				"accessRoleCollections", accessRoleCollectionService.getAllAccessRoleCollections(),
-				"fileSubClasses", fileSubClassService.getAllFileSubClasses(),
-				"fileExtensions", fileExtensionService.getAllFileExtensions(),
-				"fileExtensionCollections", fileExtensionCollectionService.getAllFileExtensionCollections(),
-				"solrHookGroups", solrHookGroupService.getAllSolrHookGroups(),
-				"solrHooks", solrHookService.getAllSolrHooks(),
-				"solrCores", solrCoreService.getAllSolrCores(),
-				"solrFields", solrFieldService.getAllSolrFields());
+		Map<String, Object> masterData = new LinkedHashMap<>();
+		masterData.put("accessRoles", accessRoleService.getAllAccessRoles());
+		masterData.put("accessRoleCollections", accessRoleCollectionService.getAllAccessRoleCollections());
+		masterData.put("fileSubClasses", fileSubClassService.getAllFileSubClasses());
+		masterData.put("fileExtensions", fileExtensionService.getAllFileExtensions());
+		masterData.put("fileExtensionCollections", fileExtensionCollectionService.getAllFileExtensionCollections());
+		masterData.put("solrHookGroups", solrHookGroupService.getAllSolrHookGroups());
+		masterData.put("solrHooks", solrHookService.getAllSolrHooks());
+		masterData.put("solrCores", solrCoreService.getAllSolrCores());
+		masterData.put("solrFields", solrFieldService.getAllSolrFields());
+		masterData.put("entityStates", entityStateService.getAllEntityStates());
+		return masterData;
 	}
 
 }

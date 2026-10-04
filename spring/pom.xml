@@ -64,6 +64,53 @@
 			<artifactId>jsch</artifactId>
 			<version>2.28.7</version>
 		</dependency>
+		<!-- Apache Tika liest Text und Metadaten aus den Bytes jeder hochgeladenen Datei (dms/service/TikaService).
+		     tika-core allein kennt kein Format, das Standardpaket bringt die Parser für PDF, Office, Bilder, Mails und
+		     Archive mit. Version wie in der Vorlage, dort am 2026-07-29 als stabil geprüft. -->
+		<dependency>
+			<groupId>org.apache.tika</groupId>
+			<artifactId>tika-core</artifactId>
+			<version>3.3.2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.tika</groupId>
+			<artifactId>tika-parsers-standard-package</artifactId>
+			<version>3.3.2</version>
+		</dependency>
+		<!-- Spracherkennung aus dem Text, den Tika liefert (dms/service/DmsDocumentLanguageService): Optimaize
+		     rechnet offline mit eingebauten Sprachprofilen, kein Dienst, keine Modelle zum Nachladen. -->
+		<dependency>
+			<groupId>org.apache.tika</groupId>
+			<artifactId>tika-langdetect-optimaize</artifactId>
+			<version>3.3.2</version>
+		</dependency>
+		<!-- SolrJ, der Java-Client für Solr, Version wie der Container solr:10.0.0. Der Jetty-Client ist in Solr 10 ein
+		     eigenes Modul (solr-solrj-jetty) und liefert HttpJettySolrClient (solr/client/SolrClientRegistry). Nie der
+		     HttpJdkSolrClient: Der hängt nach einem Verbindungsabbruch für immer, ohne Fehler (SOLR-17707, in 10.0.0
+		     ungefixt), Erkenntnis aus der Vorlage. -->
+		<dependency>
+			<groupId>org.apache.solr</groupId>
+			<artifactId>solr-solrj</artifactId>
+			<version>10.0.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.solr</groupId>
+			<artifactId>solr-solrj-jetty</artifactId>
+			<version>10.0.0</version>
+		</dependency>
+		<!-- Bildleser für das Vorschaubild (dms/service/PreviewImageService), reines Java, registrieren sich selbst bei
+		     ImageIO. imageio-jpeg ersetzt den JPEG-Leser des JDK, der an CMYK- und manchen progressiven JPEGs scheitert,
+		     imageio-webp liest WebP. Version am 2026-10-03 über Maven Central geprüft. -->
+		<dependency>
+			<groupId>com.twelvemonkeys.imageio</groupId>
+			<artifactId>imageio-jpeg</artifactId>
+			<version>3.12.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.twelvemonkeys.imageio</groupId>
+			<artifactId>imageio-webp</artifactId>
+			<version>3.12.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>

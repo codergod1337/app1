@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Outlet, useLocation } from 'react-router'
 import { Icon } from '../../components/Icon.tsx'
 import { Subheader } from '../../components/Subheader.tsx'
@@ -7,6 +8,7 @@ const MATRIX_PATHS = ['/admin/users-arc', '/admin/arc-ar', '/admin/filematrix', 
 
 /** Administrationsmodul: subheader mit den Tabs, darunter der gewählte Tab. */
 export function Admin() {
+  const { t } = useTranslation()
   const { pathname } = useLocation()
   const isMatrix = MATRIX_PATHS.some((matrixPath) => pathname.startsWith(matrixPath))
 
@@ -28,6 +30,7 @@ export function Admin() {
           { label: 'Endungen', icon: 'fileExtensions', to: '/admin/fileextensions' },
           { label: 'FileMatrix', icon: 'fileMatrix', to: '/admin/filematrix' },
           { label: 'FSC-ACL', icon: 'fileSubClassAcl', to: '/admin/fsc-acl' },
+          { label: t('admin.tabs.entityStates'), icon: 'entityStates', to: '/admin/entitystates' },
           { label: 'Stammdaten', icon: 'masterData', to: '/admin/masterdata' },
         ]}
         sticky

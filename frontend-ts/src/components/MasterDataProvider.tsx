@@ -21,6 +21,7 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
       solrHooks: data?.solrHooks ?? null,
       solrCores: data?.solrCores ?? null,
       solrFields: data?.solrFields ?? null,
+      entityStates: data?.entityStates ?? null,
       errorMessage,
       reloadMasterData: reload,
     }),

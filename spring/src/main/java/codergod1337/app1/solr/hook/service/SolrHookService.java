@@ -4,12 +4,14 @@ import codergod1337.app1.solr.SolrFieldName;
 import codergod1337.app1.solr.hook.model.SolrHook;
 import codergod1337.app1.solr.hook.repository.SolrHookGroupRepository;
 import codergod1337.app1.solr.hook.repository.SolrHookRepository;
+import codergod1337.app1.solr.sync.SolrDefinitionChangedEvent;
 import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -43,12 +45,17 @@ public class SolrHookService {
 	 */
 	private final SolrHookGroupRepository solrHookGroupRepository;
 
+	/** Meldet jede Änderung nach dem Commit, der SolrSchemaSyncService zieht alle Kerne nach: Ein Hook ist in jedem Kern */
+	private final ApplicationEventPublisher applicationEventPublisher;
+
 	/** Die ganze Tabelle nach key, in Listenreihenfolge. Wird nur ersetzt, nie verändert. */
 	private volatile Map<String, SolrHook> solrHooksByKey = Map.of();
 
-	public SolrHookService(SolrHookRepository solrHookRepository, SolrHookGroupRepository solrHookGroupRepository) {
+	public SolrHookService(SolrHookRepository solrHookRepository, SolrHookGroupRepository solrHookGroupRepository,
+			ApplicationEventPublisher applicationEventPublisher) {
 		this.solrHookRepository = solrHookRepository;
 		this.solrHookGroupRepository = solrHookGroupRepository;
+		this.applicationEventPublisher = applicationEventPublisher;
 	}
 
 	@PostConstruct
@@ -174,10 +181,12 @@ public class SolrHookService {
 				@Override
 				public void afterCommit() {
 					reloadSolrHooks();
+					applicationEventPublisher.publishEvent(new SolrDefinitionChangedEvent(null));
 				}
 			});
 		} else {
 			reloadSolrHooks();
+			applicationEventPublisher.publishEvent(new SolrDefinitionChangedEvent(null));
 		}
 	}
 

@@ -309,7 +309,8 @@ button.solr-hook-catalog-entry:focus-visible {
   background: rgb(79 70 229 / 0.08);
 }
 
-.solr-hook-catalog-key mark {
+.solr-hook-catalog-key mark,
+.file-sub-class-picker-name mark {
   padding: 0 0.15rem;
   border-radius: 2px;
   background: rgb(79 70 229 / 0.25);
@@ -323,6 +324,66 @@ button.solr-hook-catalog-entry:focus-visible {
 
 .hoverlay-box .solr-hook-catalog-entry {
   border-bottom-color: rgb(255 255 255 / 0.15);
+}
+
+/* Das Vorschaubild auf einem Schachbrett, damit die transparenten Ränder zu sehen sind */
+.dms-preview-image {
+  border: 1px solid #cbd5e1;
+  background: repeating-conic-gradient(#cbd5e1 0 25%, #f8fafc 0 50%) 0 0 / 20px 20px;
+}
+
+/*
+ * ===== Dropzone für Dateien =====
+ * Gestrichelter Rahmen in Ruhe zurückgenommen, beim Zeigen und beim Darüberziehen in der Akzentfarbe.
+ */
+.file-dropzone {
+  border-color: #94a3b8;
+  color: #475569;
+}
+
+.file-dropzone:hover:not(:disabled),
+.file-dropzone-dragover {
+  border-color: #4f46e5;
+  background: rgb(79 70 229 / 0.06);
+  color: #1e293b;
+}
+
+.file-dropzone:disabled,
+.file-dropzone-camera:disabled {
+  opacity: 0.6;
+}
+
+.file-dropzone-camera {
+  border-color: #94a3b8;
+}
+
+.file-dropzone-camera:hover:not(:disabled) {
+  border-color: #4f46e5;
+}
+
+/*
+ * ===== Dateiart-Auswahl =====
+ * Kacheln gedimmt, beim Zeigen voll, die Wahl voll mit Ring. Der Ring ist ein box-shadow, kein outline: Er gehört zum
+ * Malvorgang des Elements, folgt dem Radius und ist sofort da. Die Regel für die Wahl steht nach :disabled, sonst
+ * verschwände die getroffene Wahl, sobald die Auswahl gesperrt wird, gerade dann muss sie sichtbar sein.
+ */
+.file-sub-class-picker-tile {
+  opacity: 0.75;
+}
+
+.file-sub-class-picker-tile:hover:not(:disabled),
+.file-sub-class-picker-tile:focus-visible {
+  opacity: 1;
+  background: rgb(79 70 229 / 0.08);
+}
+
+.file-sub-class-picker-tile:disabled {
+  opacity: 0.35;
+}
+
+.file-sub-class-picker-tile.active {
+  opacity: 1;
+  box-shadow: 0 0 0 2px #4f46e5;
 }
 
 /*
@@ -384,6 +445,13 @@ button.solr-hook-catalog-entry:focus-visible {
   --app-toast-glow: rgb(79 70 229 / 0.55);
   --app-toast-bar: linear-gradient(90deg, #93c5fd 0%, #a5b4fc 50%, #c4b5fd 100%);
   background: linear-gradient(135deg, #1e293b 0%, #1e40af 50%, #312e81 100%);
+}
+
+/* Upload läuft: Bernstein über Orange nach Indigo, der Balken unten zeigt den Fortschritt */
+.app-toast-upload {
+  --app-toast-glow: rgb(245 158 11 / 0.55);
+  --app-toast-bar: linear-gradient(90deg, #fde68a 0%, #fdba74 50%, #a5b4fc 100%);
+  background: linear-gradient(135deg, #78350f 0%, #c2410c 50%, #312e81 100%);
 }
 
 .app-toast-icon {
@@ -477,6 +545,32 @@ button.solr-hook-catalog-entry:focus-visible {
 
 .app-toast-paused .app-toast-progress {
   animation-play-state: paused;
+}
+
+/* Der Balken zeigt einen Fortschritt statt der Zeit: keine Animation, der Stand kommt aus der Komponente */
+.app-toast-progress-manual {
+  animation: none;
+  transition: transform 0.25s ease-out;
+}
+
+/*
+ * ===== DMS-Stapelmaske =====
+ * Fertige Zeilen grün, gescheiterte rot, über die Variablen der Bootstrap-Tabelle, sonst deckt die Streifung sie zu.
+ */
+.table > tbody > tr.dms-upload-row-done > * {
+  --bs-table-bg-state: rgb(16 185 129 / 0.2);
+}
+
+.table > tbody > tr.dms-upload-row-failed > * {
+  --bs-table-bg-state: rgb(220 38 38 / 0.14);
+}
+
+.dms-upload-countdown {
+  background: rgb(15 23 42 / 0.12);
+}
+
+.dms-upload-countdown-bar {
+  background: #10b981;
 }
 
 .app-toast-leaving {

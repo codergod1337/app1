@@ -34,6 +34,11 @@
     "solrFieldNameRule": "beginnt mit einem Buchstaben, dann Buchstaben, Ziffern und _, endet nicht auf _ oder Suggested, nicht id",
     "valuesInputAria": "Wert eingeben, Leertaste, Tab oder Enter loggt ein",
     "removeValue": "{{value}} entfernen",
+    "search": "suchen",
+    "noMatches": "keine Treffer",
+    "dropzone": "Datei hierher ziehen oder klicken",
+    "dropzoneMultiple": "Dateien hierher ziehen oder klicken",
+    "takePhoto": "Foto aufnehmen",
     "gradient": {
       "FLAT": "einfarbig",
       "LINEAR": "Verlauf oben → unten",
@@ -62,7 +67,354 @@
     "rightsAr": "Rechte im Token (AR)",
     "tokenNote": "Die Rechte stehen im Token. Ändert der Admin sie, gelten die neuen nach dem nächsten Refresh."
   },
+  "home": {
+    "tiles": {
+      "admin": "Administration",
+      "solrManager": "SolrManager",
+      "dms": "DMS",
+      "grant": "Freigaben"
+    },
+    "entryAccessRoles": {
+      "symbolLabel": "Welche AR dieses Modul öffnen",
+      "oneOf_one": "Diese AR öffnet das Modul:",
+      "oneOf_other": "Eine dieser AR öffnet das Modul:",
+      "missingHint": "Gedimmt: Die hast du nicht.",
+      "insideHint": "Was du darin darfst, bestimmen weitere AR im Modul."
+    },
+    "noModules": "Für dich gibt es hier noch keine Module.",
+    "noModulesAnonymous": "Hier gibt es noch keine Module ohne Anmeldung. Melde dich an, um mehr zu sehen."
+  },
+  "admin": {
+    "tabs": {
+      "entityStates": "Status"
+    }
+  },
+  "entitystate": {
+    "title": "Status",
+    "intro": "Die Status aller Entities, die einen brauchen, z. B. die Dokumente des DMS. Der Bereich sagt, wo ein Status gilt, ohne Bereich gilt er überall: Eine Maske bietet nur die Status ihres Bereichs an. Die Status, die ein Modul selbst braucht, legt es beim Start an, was hier daran geändert wird, bleibt.",
+    "count_one": "{{count}} Status",
+    "count_other": "{{count}} Status",
+    "empty": "keine Status",
+    "deleteTitle": "Status löschen",
+    "deleteQuestion": "Soll der Status <strong>{{key}}</strong> wirklich gelöscht werden? Dokumente, die ihn tragen, behalten den key ohne Anzeigenamen.",
+    "editTitle": "Status bearbeiten: {{key}}",
+    "editTitleNone": "Status bearbeiten",
+    "notFound": "kein Status gewählt oder nicht gefunden",
+    "scope": "Bereich",
+    "scopeHint": "leer: gilt überall",
+    "everywhere": "überall"
+  },
+  "filesubclass": {
+    "picker": {
+      "title": "Dateiart",
+      "clickToChange": "{{key}}, klicken zum Ändern"
+    }
+  },
+  "fileextension": {
+    "collection": {
+      "documentLanguageApplies": "Dateien dieser Gruppe haben eine Sprache",
+      "documentLanguageAppliesHint": "Dokumente, Videos und Anwendungsdateien ja, Bilder, Archive und CAD nein. Nur dann fragt der Upload nach der Sprache, erkennt das Backend sie aus dem Text und lässt das Bearbeiten sie setzen."
+    }
+  },
+  "dms": {
+    "tabs": {
+      "upload": "Upload",
+      "probe": "Probe",
+      "resolve": "Auflösen",
+      "myGrants": "Meine Freigaben"
+    },
+    "myGrants": {
+      "intro": "Was dir im DMS freigegeben ist: Dokumente, die deine guid tragen, und Felder, nach denen du zusätzlich auflösen darfst. Was deine Rollen ohnehin öffnen, steht hier nicht.",
+      "documentGrantsTitle": "Meine Dateifreigaben",
+      "fieldGrantsTitle": "Meine Feldfreigaben",
+      "noDocumentGrants": "Für dich gibt es keine Dateifreigabe im DMS.",
+      "noFieldGrants": "Für dich gibt es keine Feldfreigabe im DMS.",
+      "documentsTitle_one": "{{count}} Dokument für dich freigegeben",
+      "documentsTitle_other": "{{count}} Dokumente für dich freigegeben"
+    },
+    "resolve": {
+      "title": "Auflösen",
+      "intro": "Exakt nach Feld und Wert: mehrere Werte eines Feldes mit ODER, mehrere Felder mit UND. Ohne Bedingung kommt alles, was du sehen darfst. Die Treffer tragen nur die Felder, die du lesen darfst.",
+      "fullFields": "Vollsicht: alle Felder (DMS_FULL oder DMS_SUCHE)",
+      "limitedFields": "nur Freigaben: Minimum-Felder plus Feldfreigaben",
+      "searchAllowed": "Suche erlaubt (DMS_SUCHE)",
+      "searchNotAllowed": "keine Suche",
+      "readableFields_one": "{{count}} Feld, das du bekommst",
+      "readableFields_other": "{{count}} Felder, die du bekommst",
+      "resolvableHint": "Blau: danach darfst du auflösen. Grau: du bekommst das Feld, auflösen darfst du danach nicht. Mehr als id gibt es nur mit DMS_SUCHE, mit HOOK_FULL für Hooks oder über eine Feldfreigabe.",
+      "conditions": "Bedingungen",
+      "pageSize": "je Seite",
+      "sort": "sortieren nach",
+      "sortNone": "ohne",
+      "descending": "absteigend",
+      "run": "Auflösen",
+      "noConditions": "Mindestens eine Bedingung mit Wert: Auflösen gibt nie alles aus.",
+      "download": "Herunterladen"
+    },
+    "document": {
+      "title": "Dokument",
+      "editTitle": "Bearbeiten",
+      "id": "id",
+      "versionChain": "Versionskette",
+      "identifiers": "Kennungen: id und Versionskette",
+      "grantsSymbolLabel": "Freigaben an diesem Dokument",
+      "grantsOpen_one": "{{count}} User hat dieses Dokument per Freigabe:",
+      "grantsOpen_other": "{{count}} User haben dieses Dokument per Freigabe:",
+      "grantsCheckHint": "Kontrollblick: die guids aus userGrantedAccess, darunter ihre wirksamen Dateifreigaben im Kern DMS.",
+      "noFullText": "Tika hat keinen Text aus der Datei gelesen.",
+      "status": "Status",
+      "version": "Version",
+      "fileIndex": "Index",
+      "fileSize": "Größe",
+      "mimeType": "MIME-Typ",
+      "documentLanguage": "Sprache",
+      "downloadCount": "Downloads",
+      "createdAt": "erstellt",
+      "uploadedAt": "hochgeladen",
+      "lastChangedAt": "zuletzt geändert",
+      "description": "Beschreibung",
+      "fileName": "Dateiname",
+      "fileNameHint": "wird wie beim Upload normalisiert: klein, Umlaute aufgelöst, nur a–z, 0–9, _ und -",
+      "fileSubClass": "Dateiart",
+      "fileSubClassWarning": "Die Dateiart bestimmt, wer dieses Dokument sehen und ändern darf. Ein Wechsel schreibt die Zugriffsrechte neu und kann die Datei für andere unsichtbar machen.",
+      "fileSubClassChange": "Wechsel zu {{key}}: Die Zugriffsrechte des Dokuments werden beim Speichern aus dieser Dateiart neu geschrieben.",
+      "fullText_one": "Volltext ({{count}} Wort)",
+      "fullText_other": "Volltext ({{count}} Wörter)",
+      "accessRights": "Zugriffsrechte",
+      "noWriteAcl": "Für dieses Dokument fehlt dir das Schreibrecht (writeAcl), es lässt sich nur ansehen.",
+      "view": "{{name}} ansehen",
+      "details": "Details zu {{name}}",
+      "download": "{{name}} herunterladen",
+      "edit": "{{name}} bearbeiten",
+      "grant": "{{name}} freigeben",
+      "delete": "{{name}} löschen",
+      "deleteTitle": "Dokument löschen",
+      "deleteQuestion": "Soll <strong>{{name}}</strong> wirklich gelöscht werden? Das Dokument bekommt den Status DELETED und verschwindet aus jeder Liste, die Datei bleibt erhalten."
+    },
+    "language": {
+      "pickerLabel": "Sprache des Dokuments",
+      "none": "keine Sprache"
+    },
+    "viewer": {
+      "title": "Viewer",
+      "noViewer": "Für diesen Dateityp gibt es keinen Viewer, die Datei lässt sich nur herunterladen.",
+      "showNativeSize": "Klick: in voller Größe zeigen (1:1)",
+      "fitAgain": "Klick: wieder einpassen"
+    },
+    "batch": {
+      "title": "Dateien hochladen",
+      "intro": "Bis zu {{max}} Dateien auf einmal. Dateiart, Hooks und Internetfreigabe gelten für alle, Index und Beschreibung je Datei. Jede Datei wird beim Ablegen geprüft: Endung, und ob dieselben Bytes schon im DMS liegen.",
+      "isPublic": "ohne Anmeldung sichtbar (isPublic)",
+      "dropzone": "Dateien hierher ziehen oder klicken, höchstens {{max}}",
+      "empty": "noch keine Dateien im Stapel",
+      "count": "{{count}} von {{max}} Dateien im Stapel",
+      "upload_one": "{{count}} Datei hochladen",
+      "upload_other": "{{count}} Dateien hochladen",
+      "uploading": "lädt hoch",
+      "progress": "Datei {{number}} von {{total}} · {{name}} · {{percent}} % übertragen",
+      "indexPlaceholder": "z. B. idx 3 oder A",
+      "remove": "{{name}} aus dem Stapel entfernen",
+      "toastRunning": "Upload läuft",
+      "toastDone": "Upload fertig",
+      "toastSummary": "{{done}} hochgeladen, {{failed}} fehlgeschlagen",
+      "columns": {
+        "state": "Zustand",
+        "fileSubClass": "Art",
+        "file": "Datei",
+        "index": "Index",
+        "language": "Sprache",
+        "description": "Beschreibung"
+      },
+      "state": {
+        "checking": "prüft",
+        "new": "neu",
+        "merge": "ergänzt Hooks",
+        "exists": "andere Dateiart",
+        "deleted": "gelöscht",
+        "extension": "Endung gesperrt",
+        "error": "ungeprüft",
+        "failed": "fehlgeschlagen"
+      },
+      "done": {
+        "CREATED": "hochgeladen",
+        "MERGED": "Hooks ergänzt"
+      },
+      "reason": {
+        "exists": "Dieselben Bytes liegen schon unter der Dateiart {{key}}. Die Dateiart wechselt nur das Bearbeiten.",
+        "deleted": "Dieses Dokument ist im DMS gelöscht, id {{id}}. Ein Admin kann es zurückholen.",
+        "error": "Der Browser konnte die Datei nicht prüfen (zu groß oder kein sicherer Kontext). Das Backend prüft beim Hochladen."
+      }
+    },
+    "upload": {
+      "title": "Datei hochladen und prüfen",
+      "intro": "Stufe 1, nichts wird gespeichert: Das Backend prüft die Felder gegen den Kern DMS, liest die Datei mit Tika und verwirft sie. Die Antwort zeigt, was ankam.",
+      "file": "Datei",
+      "fields": "Felder des Kerns DMS",
+      "field": "Feld",
+      "type": "Typ",
+      "value": "Wert",
+      "backendSets": "setzt das Backend",
+      "chosenAbove": "wird oben gewählt",
+      "chainLater": "nur bei einer neuen Fassung, dann schickt es das Frontend",
+      "fromFile": "aus der Datei",
+      "extensionUnknown": "Die Endung {{extension}} steht nicht im Katalog der Endungen.",
+      "extensionNotAllowed": "Die Endung {{extension}} ist bei der Dateiart {{key}} nicht freigeschaltet.",
+      "noFields": "Der Kern DMS hat keine Felder.",
+      "submit": "Nur prüfen",
+      "submitting": "lädt hoch",
+      "store": "Hochladen und speichern"
+    },
+    "result": {
+      "title": "Ergebnis",
+      "uploadTitle": "Upload",
+      "uploadStatus": "Was passiert ist",
+      "uploadStatusText": {
+        "CREATED": "neu angelegt, Datei auf dem SFTP, Dokument in Solr",
+        "MERGED": "dieselben Bytes lagen schon in dieser Dateiart, nur die Hooks kamen dazu",
+        "EXISTS": "dieselben Bytes liegen unter einer anderen Dateiart, nichts geändert"
+      },
+      "file": "Datei",
+      "contentType": "Content-Type (Browser)",
+      "fileExtension": "Endung (nach unserer Regel)",
+      "size": "Größe",
+      "orientation": "EXIF-Ausrichtung",
+      "preview": "Vorschaubild (bildVorschauBase64Png)",
+      "previewSkipped": "keine Vorschau: Die Endung hat im Katalog kein Vorschaubild.",
+      "previewFailed": "Vorschau fehlgeschlagen: {{error}}",
+      "previewSource": "Quelle (Pixel)",
+      "previewPng": "PNG",
+      "sha256": "SHA-256, später die id",
+      "stored": "gespeichert",
+      "yes": "ja",
+      "notStored": "nein, verworfen",
+      "tikaFailed": "Tika konnte die Datei nicht lesen: {{error}}",
+      "mimeType": "MIME-Typ (Tika, aus den Bytes)",
+      "createdAt": "erstellt (Tika)",
+      "modifiedAt": "geändert (Tika)",
+      "duration": "Dauer Tika",
+      "document": "Geprüfte Felder",
+      "documentEmpty": "keine Felder geschickt",
+      "hooks": "Hooks, wie geschickt",
+      "storedHooks": "Hooks des gespeicherten Dokuments",
+      "name": "Name",
+      "valueColumn": "Wert",
+      "metadata": "Tika-Metadaten",
+      "metadataEmpty": "keine Metadaten",
+      "text": "Text (Tika)",
+      "textEmpty": "kein Text",
+      "showAll": "alles zeigen",
+      "showLess": "weniger zeigen",
+      "unknown": "unbekannt",
+      "bytes_one": "{{count}} Byte",
+      "bytes_other": "{{count}} Bytes",
+      "chars_one": "{{count}} Zeichen",
+      "chars_other": "{{count}} Zeichen",
+      "ms": "{{count}} ms"
+    }
+  },
+  "grant": {
+    "title": "Freigaben",
+    "tabs": {
+      "documents": "Dateifreigaben",
+      "fields": "Feldfreigaben"
+    },
+    "common": {
+      "grantee": "Empfänger",
+      "core": "Kern",
+      "grantedBy": "freigegeben von",
+      "validUntil": "gültig bis",
+      "validUntilHint": "leer heißt unbegrenzt",
+      "unlimited": "unbegrenzt",
+      "status": "Status",
+      "revoke": "entziehen",
+      "chooseUser": "User wählen",
+      "chooseCore": "Kern wählen",
+      "expire": "Abgelaufene aufräumen",
+      "expired": "{{fieldGrants}} Feldfreigaben und {{documentGrants}} Dateifreigaben auf abgelaufen gesetzt"
+    },
+    "documents": {
+      "title": "Dateifreigaben",
+      "intro": "Kern wählen, Bedingungen setzen wie beim Auflösen, auflösen: Die Trefferliste zeigt, was du selbst siehst und damit freigeben kannst. Freigeben schreibt die guid des Empfängers in userGrantedAccess jedes Treffers, in jedem Kern gleich. Ein Schnappschuss, spätere Dokumente sind nicht dabei. Der Empfänger bekommt damit die Minimum-Felder, erweiterte Felder brauchen eine Feldfreigabe.",
+      "newTitle": "Neue Dateifreigabe",
+      "conditions": "Bedingungen",
+      "resolve": "Auflösen",
+      "noConditions": "Ohne Bedingung keine Freigabe. Diese Liste ist alles, was du selbst siehst.",
+      "noHits": "Die Bedingungen treffen kein Dokument, das du selbst siehst.",
+      "tooMany": "{{count}} Treffer, eine Freigabe braucht weniger als {{limit}}: Ein weiterer Filter muss die Treffer enger fassen.",
+      "grantableHint_one": "Freigegeben wird dieser {{count}} Treffer.",
+      "grantableHint_other": "Freigegeben werden alle {{count}} Treffer der Bedingungen, auch die auf weiteren Seiten.",
+      "grantHits": "Diese Treffer freigeben",
+      "granted_one": "{{count}} Dokument freigegeben",
+      "granted_other": "{{count}} Dokumente freigegeben",
+      "documents": "Dokumente",
+      "empty": "noch keine Dateifreigaben",
+      "count_one": "{{count}} Dateifreigabe",
+      "count_other": "{{count}} Dateifreigaben",
+      "revokeTitle": "Dateifreigabe entziehen",
+      "revokeQuestion": "Soll die Dateifreigabe für <strong>{{user}}</strong> im Kern <strong>{{core}}</strong> wirklich entzogen werden? Die guid verschwindet aus den Dokumenten dieser Freigabe ({{count}} beim Freigeben)."
+    },
+    "fields": {
+      "title": "Feldfreigaben",
+      "intro": "Ein Feld oder Hook, nach dem der Empfänger in diesem Kern auflösen darf, obwohl er weder <KERN>_SUCHE noch HOOK_FULL hat. Ein erweitertes Feld wird damit auch lesbar. Pro Kern, nicht pro Dokument. Nach id löst jeder auf, sie steht nicht zur Wahl.",
+      "newTitle": "Neue Feldfreigabe",
+      "fields": "Felder",
+      "noFields": "Für diesen User gibt es in diesem Kern kein Feld mehr, das ihm fehlt.",
+      "field": "Feld",
+      "grant": "Freigeben",
+      "granted_one": "{{count}} Feld freigegeben",
+      "granted_other": "{{count}} Felder freigegeben",
+      "empty": "noch keine Feldfreigaben",
+      "count_one": "{{count}} Feldfreigabe",
+      "count_other": "{{count}} Feldfreigaben",
+      "revokeTitle": "Feldfreigabe entziehen",
+      "revokeQuestion": "Soll die Freigabe des Feldes <strong>{{field}}</strong> im Kern <strong>{{core}}</strong> für <strong>{{user}}</strong> wirklich entzogen werden?"
+    }
+  },
+  "resolve": {
+    "addField": "Feld hinzufügen",
+    "noMoreFields": "alle Felder gewählt",
+    "hook": "Hook",
+    "valuesOf": "Werte für {{field}}, Leertaste, Tab oder Enter loggt ein",
+    "removeCondition": "{{field}} aus den Bedingungen entfernen",
+    "total_one": "{{count}} Treffer",
+    "total_other": "{{count}} Treffer",
+    "page": "Seite {{page}} von {{pages}}",
+    "previous": "zurück",
+    "next": "weiter",
+    "empty": "keine Treffer",
+    "showFields": "Felder",
+    "fieldsOf": "Felder von {{id}}",
+    "longValue_one": "{{count}} Zeichen",
+    "longValue_other": "{{count}} Zeichen",
+    "columns": {
+      "preview": "Vorschau",
+      "id": "ID"
+    }
+  },
   "solrmanager": {
+    "sync": {
+      "title": "Abgleich mit Solr",
+      "run": "Jetzt abgleichen",
+      "running": "gleicht ab",
+      "noReport": "Noch kein Abgleich gelaufen.",
+      "unreachable": "Solr nicht erreichbar: {{error}}",
+      "missingCore": "Den Kern gibt es in Solr nicht: den key in solr_cores der .env eintragen und den Container neu anlegen.",
+      "failed": "Abgleich fehlgeschlagen: {{error}}",
+      "ok": "Solr kennt alle Felder des Kerns.",
+      "fieldsInSolr": "Felder in Solr",
+      "added": "neu angelegt",
+      "replaced": "angepasst",
+      "copyFieldsAdded": "copyFields neu",
+      "onlyInSolr": "nur in Solr, nicht gelöscht",
+      "typeConflicts": "Typkonflikte, Neuaufbau nötig",
+      "syncedAt": "zuletzt",
+      "none": "keine"
+    },
+    "valueInput": {
+      "addValue": "Wert eingeben",
+      "addValueAria": "Wert für {{name}} eingeben",
+      "unset": "nicht gesetzt"
+    },
     "tabs": {
       "hooks": "Hooks",
       "hookGroups": "Hook-Gruppen",
@@ -169,6 +521,10 @@
       "newField": "neues Feld",
       "settingFor": "{{setting}} für {{name}}",
       "typeOf": "Typ von {{name}}",
+      "fieldAccess": "Zugriff",
+      "fieldAccessMinimum": "Minimum",
+      "fieldAccessAdvanced": "Erweitert",
+      "fieldAccessOf": "Zugriff von {{name}}, Klick wechselt zwischen Minimum und Erweitert",
       "empty": "keine Felder",
       "idHoverlay": "der Primärschlüssel des Kerns (uniqueKey), was hineinkommt, steht in der Beschreibung",
       "deleteTitle": "Feld löschen",
@@ -237,6 +593,14 @@
           "Legt das Feld <name>Suggested an, das jeden Wert als Präfixe ab 3 Zeichen ablegt (EdgeNGram). Solr befüllt es selbst per copyField, kein Code schreibt es. Darüber laufen die Vorschläge beim Tippen und die Filterangebote der Suche, das Feld selbst bleibt exakt.",
           "Bei Texten wortweise, bei string, long und double auf den ganzen Wert. Nicht bei boolean und date.",
           "Kostet Indexplatz: je Wert alle seine Präfixe. Der Zwilling ist nie stored und steht nicht in dieser Tabelle."
+        ]
+      },
+      "fieldAccess": {
+        "title": "Zugriff: Minimum oder Erweitert",
+        "paragraphs": [
+          "Minimum: Das Feld gehört zur Grundansicht des Kerns. Wer ein Dokument überhaupt sehen darf (readAcl, isPublic oder seine guid in userGrantedAccess), bekommt es immer, auch ohne die Rolle <KERN>_FULL. id ist immer Minimum.",
+          "Erweitert: Das Feld bekommt nur, wer die Rolle <KERN>_FULL hat oder dem es für diesen Kern einzeln freigegeben ist. Alle anderen sehen es nie, dürfen nicht danach auflösen, sortieren oder facettieren und erfahren nicht, dass es das Feld gibt.",
+          "Neue Felder sind Erweitert. Der Schalter steht nur in unserer Felddefinition, nicht in Solr: Der Abgleich ignoriert ihn, die Lesedienste bauen daraus, welche Felder sie anfordern (fl)."
         ]
       },
       "type": {

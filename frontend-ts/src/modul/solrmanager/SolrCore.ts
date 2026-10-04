@@ -26,10 +26,17 @@ export const SOLR_CORE_ID_FIELD_NAME = 'id'
 /** Das Feld cursorDate: der Fortschrittszeiger eines Reindex-Laufs, wie id in jedem Kern vom Backend angelegt */
 export const SOLR_CORE_CURSOR_DATE_FIELD_NAME = 'cursorDate'
 
+/**
+ * Das Feld userGrantedAccess: die guids der User mit Dateifreigabe, gleichwertig neben readAcl in der Dokumentgrenze.
+ * In jedem Kern vom Backend angelegt, damit sich auch Artikel freigeben lassen. Setzt nur das Backend.
+ */
+export const SOLR_CORE_USER_GRANTED_ACCESS_FIELD_NAME = 'userGrantedAccess'
+
 /** Die Felder, die jeder Kern hat: vom Backend angelegt, nicht löschbar, Typ fest (bei id auch die PK-Schalter) */
 export const SOLR_CORE_BUILT_IN_FIELD_NAMES: readonly string[] = [
   SOLR_CORE_ID_FIELD_NAME,
   SOLR_CORE_CURSOR_DATE_FIELD_NAME,
+  SOLR_CORE_USER_GRANTED_ACCESS_FIELD_NAME,
 ]
 
 // ===== Endpunkte des SolrCoreAdminController. Gelesen wird über die Stammdaten (useMasterData). =====

@@ -36,7 +36,7 @@ public class FileExtensionCollectionService {
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public FileExtensionCollection createFileExtensionCollection(String key, String displayName, SymbolShape symbolShape,
-			int listingPosition) {
+			int listingPosition, boolean documentLanguageApplies) {
 		if (!HelperInputs.isValidKey(key)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "key ist ungültig");
 		}
@@ -44,19 +44,20 @@ public class FileExtensionCollectionService {
 		if (fileExtensionCollectionRepository.existsById(key)) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "key ist bereits vergeben");
 		}
-		return fileExtensionCollectionRepository
-				.save(new FileExtensionCollection(key, displayName, symbolShape, listingPosition));
+		return fileExtensionCollectionRepository.save(
+				new FileExtensionCollection(key, displayName, symbolShape, listingPosition, documentLanguageApplies));
 	}
 
 	/** Der key bestimmt nur, welche Gruppe geändert wird, er selbst ändert sich nie. Alle anderen Felder werden ersetzt. */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public FileExtensionCollection updateFileExtensionCollection(String key, String displayName, SymbolShape symbolShape,
-			int listingPosition) {
+			int listingPosition, boolean documentLanguageApplies) {
 		FileExtensionCollection fileExtensionCollection = getFileExtensionCollectionByKey(key);
 		fileExtensionCollection.setDisplayName(displayName);
 		fileExtensionCollection.setSymbolShape(symbolShape);
 		fileExtensionCollection.setListingPosition(listingPosition);
+		fileExtensionCollection.setDocumentLanguageApplies(documentLanguageApplies);
 		return fileExtensionCollectionRepository.save(fileExtensionCollection);
 	}
 

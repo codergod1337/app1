@@ -48,6 +48,13 @@ app1:
     # Secure-Flag der Cookies. Chrome erlaubt Secure-Cookies auch auf http://localhost
     secure: true
 
+  # Solr (solr/client). Die URL endet vor dem Kernnamen, je Kern hängt der Client seinen key an. User und Passwort
+  # gelten für den Container (Basic Auth aus der security.json) und das Backend zugleich, siehe docs/backend/solr.md.
+  solr:
+    url: http://${solr_host}:${solr_port}/solr
+    user: ${solr_user}
+    pw: ${solr_pw}
+
   # Dateispeicher per SFTP (system/sftp). Alles, was den Server betrifft, kommt aus der .env: Für den Wechsel auf ein
   # NAS ändern sich nur sftp_host und sftp_host_key. Der Server muss dem User denselben root-dir zeigen.
   sftp:

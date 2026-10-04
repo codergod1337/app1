@@ -23,6 +23,11 @@ export interface FileExtensionCollection {
   /** null: Standardform */
   symbolShape: SymbolShape | null
   listingPosition: number
+  /**
+   * Haben Dateien dieser Gruppe eine Sprache (documentLanguage)? Dokumente, Videos, Anwendungsdateien ja, Bilder,
+   * Archive, CAD nein. Nur dann fragt der Upload danach, lässt das Bearbeiten sie setzen und erkennt das Backend sie.
+   */
+  documentLanguageApplies: boolean
 }
 
 // ===== Endpunkte des FileExtensionCollectionAdminController. Gelesen wird über die Stammdaten (useMasterData). =====

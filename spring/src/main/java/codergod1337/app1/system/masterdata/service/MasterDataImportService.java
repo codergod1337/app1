@@ -14,6 +14,8 @@ import codergod1337.app1.solr.field.service.SolrFieldService;
 import codergod1337.app1.solr.hook.model.SolrHook;
 import codergod1337.app1.solr.hook.model.SolrHookGroup;
 import codergod1337.app1.solr.hook.service.SolrHookGroupService;
+import codergod1337.app1.system.state.model.EntityState;
+import codergod1337.app1.system.state.service.EntityStateService;
 import codergod1337.app1.solr.hook.service.SolrHookService;
 import codergod1337.app1.system.HelperInputs;
 import codergod1337.app1.system.access.model.AccessRole;
@@ -122,6 +124,7 @@ public class MasterDataImportService {
 	private final SolrHookService solrHookService;
 	private final SolrCoreService solrCoreService;
 	private final SolrFieldService solrFieldService;
+	private final EntityStateService entityStateService;
 	private final UsersService usersService;
 	private final UsersCredentialsService usersCredentialsService;
 	private final UsersDetailsService usersDetailsService;
@@ -138,9 +141,9 @@ public class MasterDataImportService {
 			FileExtensionCollectionService fileExtensionCollectionService, FileExtensionService fileExtensionService,
 			FileSubClassService fileSubClassService, SolrHookGroupService solrHookGroupService,
 			SolrHookService solrHookService, SolrCoreService solrCoreService,
-			SolrFieldService solrFieldService, UsersService usersService, UsersCredentialsService usersCredentialsService,
-			UsersDetailsService usersDetailsService, UsersSettingsService usersSettingsService,
-			AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
+			SolrFieldService solrFieldService, EntityStateService entityStateService, UsersService usersService,
+			UsersCredentialsService usersCredentialsService, UsersDetailsService usersDetailsService,
+			UsersSettingsService usersSettingsService, AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
 			AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService,
 			MasterDataExportService masterDataExportService, JsonMapper jsonMapper, Validator validator) {
 		this.accessRoleService = accessRoleService;
@@ -152,6 +155,7 @@ public class MasterDataImportService {
 		this.solrHookService = solrHookService;
 		this.solrCoreService = solrCoreService;
 		this.solrFieldService = solrFieldService;
+		this.entityStateService = entityStateService;
 		this.usersService = usersService;
 		this.usersCredentialsService = usersCredentialsService;
 		this.usersDetailsService = usersDetailsService;
@@ -220,6 +224,7 @@ public class MasterDataImportService {
 		planSolrHooks(plan, linesBySection.get(MasterDataSection.SOLR_HOOKS));
 		planSolrCores(plan, linesBySection.get(MasterDataSection.SOLR_CORES));
 		planSolrFields(plan, linesBySection.get(MasterDataSection.SOLR_FIELDS));
+		planEntityStates(plan, linesBySection.get(MasterDataSection.ENTITY_STATES));
 		planUsers(plan, linesBySection.get(MasterDataSection.USERS));
 		planUsersDetails(plan, linesBySection.get(MasterDataSection.USERS_DETAILS));
 		planUsersSettings(plan, linesBySection.get(MasterDataSection.USERS_SETTINGS));
@@ -346,6 +351,14 @@ public class MasterDataImportService {
 				"key fehlt oder ist ungültig"));
 		plan.solrHookGroupKeys.addAll(existing.keySet());
 		plan.solrHookGroupKeys.addAll(newKeys(plan, MasterDataSection.SOLR_HOOK_GROUPS));
+	}
+
+	/** Status: normale Key-Regel. Sie verweisen auf nichts, es kann nichts wegfallen. */
+	private void planEntityStates(ImportPlan plan, List<Line> lines) {
+		Map<String, EntityState> existing = byKey(entityStateService.getAllEntityStates(), EntityState::getKey);
+		plan.rowsBySection.put(MasterDataSection.ENTITY_STATES, planKeyedRows(lines, EntityState.class,
+				EntityState::getKey, EntityState::getDisplayName, existing, HelperInputs::isValidKey,
+				"key fehlt oder ist ungültig"));
 	}
 
 	/** Hooks: der key ist ein Solr-Feldname. Gibt es ihre Gruppe weder bei uns noch im Import, kommt der Hook ohne Gruppe. */
@@ -1080,7 +1093,7 @@ public class MasterDataImportService {
 			FileExtensionCollection fileExtensionCollection = (FileExtensionCollection) row.data;
 			fileExtensionCollectionService.createFileExtensionCollection(fileExtensionCollection.getKey(),
 					fileExtensionCollection.getDisplayName(), fileExtensionCollection.getSymbolShape(),
-					fileExtensionCollection.getListingPosition());
+					fileExtensionCollection.getListingPosition(), fileExtensionCollection.isDocumentLanguageApplies());
 		}
 
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.FILE_EXTENSIONS)) {
@@ -1123,11 +1136,17 @@ public class MasterDataImportService {
 			SolrField solrField = (SolrField) row.data;
 			solrFieldService.createSolrField(solrField.getCoreKey(), solrField.getName(), solrField.getType(),
 					solrField.isIndexed(), solrField.isStored(), solrField.isMultiValued(), solrField.isDocValues(),
-					solrField.isRequired(), solrField.isSuggest(), solrField.getDescription(),
+					solrField.isRequired(), solrField.isSuggest(), solrField.getReadAccessLevel(), solrField.getDescription(),
 					solrField.getListingPosition());
 		}
 
 		String startPassword = sha256Hex(START_PASSWORD);
+		for (PlannedRow row : plan.writtenRows(MasterDataSection.ENTITY_STATES)) {
+			EntityState entityState = (EntityState) row.data;
+			entityStateService.createEntityState(entityState.getKey(), entityState.getDisplayName(),
+					entityState.getScope(), entityState.getListingPosition());
+		}
+
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.USERS)) {
 			Users users = (Users) row.data;
 			usersService.createUsers(users.getGuid(), users.getEmail(), users.getUsername(), users.getVorname(),

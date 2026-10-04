@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { KeyInput } from '../../components/KeyInput.tsx'
 import { MultilingualInput } from '../../components/MultilingualInput.tsx'
@@ -11,6 +12,7 @@ const NEW_FILE_EXTENSION_COLLECTION: FileExtensionCollection = {
   displayName: '',
   symbolShape: null,
   listingPosition: 0,
+  documentLanguageApplies: false,
 }
 
 interface FileExtensionCollectionFormProps {
@@ -36,6 +38,7 @@ export function FileExtensionCollectionForm({
   disabled,
   onSubmit,
 }: FileExtensionCollectionFormProps) {
+  const { t } = useTranslation()
   const editing = initialFileExtensionCollection !== undefined
   const [fileExtensionCollection, setFileExtensionCollection] = useState<FileExtensionCollection>(
     () => initialFileExtensionCollection ?? NEW_FILE_EXTENSION_COLLECTION,
@@ -115,6 +118,21 @@ export function FileExtensionCollectionForm({
             value={fileExtensionCollection.listingPosition}
             onChange={(event) => change('listingPosition', Number(event.target.value))}
           />
+        </div>
+        <div className="col-12">
+          <div className="form-check">
+            <input
+              id={`${formId}-document-language-applies`}
+              className="form-check-input"
+              type="checkbox"
+              checked={fileExtensionCollection.documentLanguageApplies}
+              onChange={(event) => change('documentLanguageApplies', event.target.checked)}
+            />
+            <label className="form-check-label" htmlFor={`${formId}-document-language-applies`}>
+              {t('fileextension.collection.documentLanguageApplies')}
+            </label>
+          </div>
+          <div className="form-text">{t('fileextension.collection.documentLanguageAppliesHint')}</div>
         </div>
       </fieldset>
     </form>

@@ -34,6 +34,11 @@
     "solrFieldNameRule": "starts with a letter, then letters, digits and _, does not end with _ or Suggested, not id",
     "valuesInputAria": "Enter a value, space, Tab or Enter adds it",
     "removeValue": "remove {{value}}",
+    "search": "search",
+    "noMatches": "no matches",
+    "dropzone": "drag a file here or click",
+    "dropzoneMultiple": "drag files here or click",
+    "takePhoto": "take a photo",
     "gradient": {
       "FLAT": "flat",
       "LINEAR": "gradient top → bottom",
@@ -62,7 +67,355 @@
     "rightsAr": "Rights in the token (AR)",
     "tokenNote": "The rights are in the token. If the admin changes them, the new ones apply after the next refresh."
   },
+  "home": {
+    "tiles": {
+      "admin": "Administration",
+      "solrManager": "SolrManager",
+      "dms": "DMS",
+      "grant": "Grants"
+    },
+    "entryAccessRoles": {
+      "symbolLabel": "Which ARs open this module",
+      "oneOf_one": "This AR opens the module:",
+      "oneOf_other": "One of these ARs opens the module:",
+      "missingHint": "Dimmed: you do not have that one.",
+      "insideHint": "What you may do inside is decided by further ARs in the module."
+    },
+    "noModules": "There are no modules for you here yet.",
+    "noModulesAnonymous": "There are no modules without login yet. Log in to see more."
+  },
+  "admin": {
+    "tabs": {
+      "entityStates": "States"
+    }
+  },
+  "entitystate": {
+    "title": "States",
+    "intro": "The states of all entities that need one, e.g. the documents of the DMS. The scope says where a state applies, without a scope it applies everywhere: a form offers only the states of its scope. The states a module needs itself are created at startup, what is changed here stays.",
+    "count_one": "{{count}} state",
+    "count_other": "{{count}} states",
+    "empty": "no states",
+    "deleteTitle": "Delete state",
+    "deleteQuestion": "Really delete the state <strong>{{key}}</strong>? Documents carrying it keep the key without a display name.",
+    "editTitle": "Edit state: {{key}}",
+    "editTitleNone": "Edit state",
+    "notFound": "no state chosen or not found",
+    "scope": "Scope",
+    "scopeHint": "empty: applies everywhere",
+    "everywhere": "everywhere"
+  },
+  "filesubclass": {
+    "picker": {
+      "title": "File sub class",
+      "clickToChange": "{{key}}, click to change"
+    }
+  },
+  "fileextension": {
+    "collection": {
+      "documentLanguageApplies": "Files of this group have a language",
+      "documentLanguageAppliesHint": "Documents, videos and application files yes, images, archives and CAD no. Only then does the upload ask for the language, the backend detects it from the text and editing lets you set it."
+    }
+  },
+  "dms": {
+    "tabs": {
+      "upload": "Upload",
+      "probe": "Probe",
+      "resolve": "Resolve",
+      "myGrants": "My grants"
+    },
+    "myGrants": {
+      "intro": "What is granted to you in the DMS: documents carrying your guid, and fields you may additionally resolve by. What your roles open anyway is not listed here.",
+      "documentGrantsTitle": "My document grants",
+      "fieldGrantsTitle": "My field grants",
+      "noDocumentGrants": "There is no document grant for you in the DMS.",
+      "noFieldGrants": "There is no field grant for you in the DMS.",
+      "documentsTitle_one": "{{count}} document granted to you",
+      "documentsTitle_other": "{{count}} documents granted to you"
+    },
+    "resolve": {
+      "title": "Resolve",
+      "intro": "Exact by field and value: several values of one field with OR, several fields with AND. Without a condition you get everything you may see. The hits carry only the fields you may read.",
+      "fullFields": "full sight: all fields (DMS_FULL or DMS_SUCHE)",
+      "limitedFields": "grants only: minimum fields plus field grants",
+      "searchAllowed": "search allowed (DMS_SUCHE)",
+      "searchNotAllowed": "no search",
+      "readableFields_one": "{{count}} field you get",
+      "readableFields_other": "{{count}} fields you get",
+      "resolvableHint": "Blue: you may resolve by it. Grey: you get the field, but you may not resolve by it. More than id comes only with DMS_SUCHE, with HOOK_FULL for hooks or through a field grant.",
+      "conditions": "Conditions",
+      "pageSize": "per page",
+      "sort": "sort by",
+      "sortNone": "none",
+      "descending": "descending",
+      "run": "Resolve",
+      "noConditions": "At least one condition with a value: resolving never returns everything.",
+      "download": "Download"
+    },
+    "document": {
+      "title": "Document",
+      "editTitle": "Edit",
+      "id": "id",
+      "versionChain": "version chain",
+      "identifiers": "identifiers: id and version chain",
+      "grantsSymbolLabel": "Grants on this document",
+      "grantsOpen_one": "{{count}} user has this document by grant:",
+      "grantsOpen_other": "{{count}} users have this document by grant:",
+      "grantsCheckHint": "Control view: the guids from userGrantedAccess, below them their document grants in force in the DMS core.",
+      "noFullText": "Tika read no text from the file.",
+      "status": "Status",
+      "version": "Version",
+      "fileIndex": "Index",
+      "fileSize": "Size",
+      "mimeType": "MIME type",
+      "documentLanguage": "Language",
+      "downloadCount": "Downloads",
+      "createdAt": "created",
+      "uploadedAt": "uploaded",
+      "lastChangedAt": "last changed",
+      "description": "Description",
+      "fileName": "File name",
+      "fileNameHint": "normalised as on upload: lower case, umlauts resolved, only a–z, 0–9, _ and -",
+      "fileSubClass": "File type",
+      "fileSubClassWarning": "The file type decides who may see and change this document. A change rewrites the access rights and can make the file invisible to others.",
+      "fileSubClassChange": "Change to {{key}}: the access rights of the document will be rewritten from this file type on save.",
+      "fullText_one": "Full text ({{count}} word)",
+      "fullText_other": "Full text ({{count}} words)",
+      "accessRights": "Access rights",
+      "noWriteAcl": "You lack the write right (writeAcl) for this document, it can only be viewed.",
+      "view": "view {{name}}",
+      "details": "details of {{name}}",
+      "download": "download {{name}}",
+      "edit": "edit {{name}}",
+      "grant": "grant {{name}}",
+      "delete": "delete {{name}}",
+      "deleteTitle": "Delete document",
+      "deleteQuestion": "Really delete <strong>{{name}}</strong>? The document gets the status DELETED and disappears from every list, the file is kept."
+    },
+    "language": {
+      "pickerLabel": "Document language",
+      "none": "no language"
+    },
+    "viewer": {
+      "title": "Viewer",
+      "noViewer": "There is no viewer for this file type, the file can only be downloaded.",
+      "showNativeSize": "click: show in full size (1:1)",
+      "fitAgain": "click: fit again"
+    },
+    "batch": {
+      "title": "Upload files",
+      "intro": "Up to {{max}} files at once. File sub class, hooks and public visibility apply to all, index and description per file. Each file is checked when dropped: extension, and whether the same bytes are already in the DMS.",
+      "isPublic": "visible without login (isPublic)",
+      "dropzone": "drag files here or click, at most {{max}}",
+      "empty": "no files in the batch yet",
+      "count": "{{count}} of {{max}} files in the batch",
+      "upload_one": "upload {{count}} file",
+      "upload_other": "upload {{count}} files",
+      "uploading": "uploading",
+      "progress": "file {{number}} of {{total}} · {{name}} · {{percent}} % sent",
+      "indexPlaceholder": "e.g. idx 3 or A",
+      "remove": "remove {{name}} from the batch",
+      "toastRunning": "Upload running",
+      "toastDone": "Upload finished",
+      "toastSummary": "{{done}} uploaded, {{failed}} failed",
+      "columns": {
+        "state": "State",
+        "fileSubClass": "Class",
+        "file": "File",
+        "index": "Index",
+        "language": "Language",
+        "description": "Description"
+      },
+      "state": {
+        "checking": "checking",
+        "new": "new",
+        "merge": "adds hooks",
+        "exists": "other class",
+        "deleted": "deleted",
+        "extension": "extension blocked",
+        "error": "unchecked",
+        "failed": "failed"
+      },
+      "done": {
+        "CREATED": "uploaded",
+        "MERGED": "hooks added"
+      },
+      "reason": {
+        "exists": "The same bytes already exist under the file sub class {{key}}. Only editing changes the class.",
+        "deleted": "This document is deleted in the DMS, id {{id}}. An admin can bring it back.",
+        "error": "The browser could not check the file (too large or no secure context). The backend checks on upload."
+      }
+    },
+    "upload": {
+      "title": "Upload and check a file",
+      "intro": "Stage 1, nothing is stored: the backend checks the fields against the core DMS, reads the file with Tika and discards it. The answer shows what arrived.",
+      "file": "File",
+      "fields": "Fields of the core DMS",
+      "field": "Field",
+      "type": "Type",
+      "value": "Value",
+      "backendSets": "set by the backend",
+      "chosenAbove": "chosen above",
+      "chainLater": "only for a new version, then the frontend sends it",
+      "fromFile": "from the file",
+      "extensionUnknown": "The extension {{extension}} is not in the extension catalog.",
+      "extensionNotAllowed": "The extension {{extension}} is not enabled for the file sub class {{key}}.",
+      "noFields": "The core DMS has no fields.",
+      "submit": "Check only",
+      "submitting": "uploading",
+      "store": "Upload and store"
+    },
+    "result": {
+      "title": "Result",
+      "uploadTitle": "Upload",
+      "uploadStatus": "What happened",
+      "uploadStatusText": {
+        "CREATED": "created, file on the SFTP, document in Solr",
+        "MERGED": "the same bytes were already in this file sub class, only the hooks were added",
+        "EXISTS": "the same bytes exist under another file sub class, nothing changed"
+      },
+      "file": "File",
+      "contentType": "Content-Type (browser)",
+      "fileExtension": "Extension (by our rule)",
+      "size": "Size",
+      "orientation": "EXIF orientation",
+      "preview": "Preview image (bildVorschauBase64Png)",
+      "previewSkipped": "no preview: the extension has no preview image in the catalog.",
+      "previewFailed": "preview failed: {{error}}",
+      "previewSource": "Source (pixels)",
+      "previewPng": "PNG",
+      "sha256": "SHA-256, later the id",
+      "stored": "stored",
+      "yes": "yes",
+      "notStored": "no, discarded",
+      "tikaFailed": "Tika could not read the file: {{error}}",
+      "mimeType": "MIME type (Tika, from the bytes)",
+      "createdAt": "created (Tika)",
+      "modifiedAt": "modified (Tika)",
+      "duration": "Tika duration",
+      "document": "Checked fields",
+      "documentEmpty": "no fields sent",
+      "hooks": "Hooks as sent",
+      "storedHooks": "Hooks of the stored document",
+      "name": "Name",
+      "valueColumn": "Value",
+      "metadata": "Tika metadata",
+      "metadataEmpty": "no metadata",
+      "text": "Text (Tika)",
+      "textEmpty": "no text",
+      "showAll": "show all",
+      "showLess": "show less",
+      "unknown": "unknown",
+      "bytes_one": "{{count}} byte",
+      "bytes_other": "{{count}} bytes",
+      "chars_one": "{{count}} character",
+      "chars_other": "{{count}} characters",
+      "ms": "{{count}} ms"
+    }
+  },
+  "grant": {
+    "title": "Grants",
+    "tabs": {
+      "documents": "Document grants",
+      "fields": "Field grants"
+    },
+    "common": {
+      "grantee": "Recipient",
+      "core": "Core",
+      "grantedBy": "granted by",
+      "validUntil": "valid until",
+      "validUntilHint": "empty means unlimited",
+      "unlimited": "unlimited",
+      "status": "Status",
+      "revoke": "revoke",
+      "chooseUser": "choose user",
+      "chooseCore": "choose core",
+      "expire": "Clean up expired",
+      "expired": "{{fieldGrants}} field grants and {{documentGrants}} document grants set to expired"
+    },
+    "documents": {
+      "title": "Document grants",
+      "intro": "Choose a core, set conditions as when resolving, resolve: the hit list shows what you see yourself and can therefore grant. Granting writes the recipient's guid into userGrantedAccess of every hit, the same in every core. A snapshot, later documents are not included. The recipient gets the minimum fields with it, advanced fields need a field grant.",
+      "newTitle": "New document grant",
+      "conditions": "Conditions",
+      "resolve": "Resolve",
+      "noConditions": "No grant without a condition. This list is everything you see yourself.",
+      "noHits": "The conditions match no document you see yourself.",
+      "tooMany": "{{count}} hits, a grant needs fewer than {{limit}}: a further filter must narrow the hits.",
+      "grantableHint_one": "This {{count}} hit will be granted.",
+      "grantableHint_other": "All {{count}} hits of the conditions will be granted, including those on further pages.",
+      "grantHits": "Grant these hits",
+      "granted_one": "{{count}} document granted",
+      "granted_other": "{{count}} documents granted",
+      "documents": "Documents",
+      "empty": "no document grants yet",
+      "count_one": "{{count}} document grant",
+      "count_other": "{{count}} document grants",
+      "revokeTitle": "Revoke document grant",
+      "revokeQuestion": "Really revoke the document grant for <strong>{{user}}</strong> in core <strong>{{core}}</strong>? The guid disappears from the documents of this grant ({{count}} when granted)."
+    },
+    "fields": {
+      "title": "Field grants",
+      "intro": "An advanced field the recipient may read in this core even without the role <KERN>_FULL. Per core, not per document. Minimum fields are not offered, everyone who sees a document has them.",
+      "intro": "A field or hook the recipient may resolve by in this core although they have neither <KERN>_SUCHE nor HOOK_FULL. An advanced field becomes readable with it. Per core, not per document. Everyone resolves by id, it is not on offer.",
+      "newTitle": "New field grant",
+      "fields": "Fields",
+      "noFields": "There is no field left in this core that this user lacks.",
+      "field": "Field",
+      "grant": "Grant",
+      "granted_one": "{{count}} field granted",
+      "granted_other": "{{count}} fields granted",
+      "empty": "no field grants yet",
+      "count_one": "{{count}} field grant",
+      "count_other": "{{count}} field grants",
+      "revokeTitle": "Revoke field grant",
+      "revokeQuestion": "Really revoke the grant of field <strong>{{field}}</strong> in core <strong>{{core}}</strong> for <strong>{{user}}</strong>?"
+    }
+  },
+  "resolve": {
+    "addField": "add field",
+    "noMoreFields": "all fields chosen",
+    "hook": "hook",
+    "valuesOf": "values for {{field}}, space, tab or enter commits",
+    "removeCondition": "remove {{field}} from the conditions",
+    "total_one": "{{count}} hit",
+    "total_other": "{{count}} hits",
+    "page": "page {{page}} of {{pages}}",
+    "previous": "back",
+    "next": "next",
+    "empty": "no hits",
+    "showFields": "Fields",
+    "fieldsOf": "Fields of {{id}}",
+    "longValue_one": "{{count}} character",
+    "longValue_other": "{{count}} characters",
+    "columns": {
+      "preview": "Preview",
+      "id": "ID"
+    }
+  },
   "solrmanager": {
+    "sync": {
+      "title": "Sync with Solr",
+      "run": "Sync now",
+      "running": "syncing",
+      "noReport": "No sync has run yet.",
+      "unreachable": "Solr not reachable: {{error}}",
+      "missingCore": "The core does not exist in Solr: add its key to solr_cores in the .env and recreate the container.",
+      "failed": "Sync failed: {{error}}",
+      "ok": "Solr knows all fields of the core.",
+      "fieldsInSolr": "fields in Solr",
+      "added": "added",
+      "replaced": "adjusted",
+      "copyFieldsAdded": "copyFields added",
+      "onlyInSolr": "only in Solr, not deleted",
+      "typeConflicts": "type conflicts, rebuild needed",
+      "syncedAt": "last",
+      "none": "none"
+    },
+    "valueInput": {
+      "addValue": "enter a value",
+      "addValueAria": "enter a value for {{name}}",
+      "unset": "not set"
+    },
     "tabs": {
       "hooks": "Hooks",
       "hookGroups": "Hook groups",
@@ -169,6 +522,10 @@
       "newField": "new field",
       "settingFor": "{{setting}} for {{name}}",
       "typeOf": "type of {{name}}",
+      "fieldAccess": "Access",
+      "fieldAccessMinimum": "Minimum",
+      "fieldAccessAdvanced": "Advanced",
+      "fieldAccessOf": "access of {{name}}, click switches between minimum and advanced",
       "empty": "no fields",
       "idHoverlay": "the primary key of the core (uniqueKey), what goes in is described in the description",
       "deleteTitle": "Delete field",
@@ -237,6 +594,14 @@
           "Creates the field <name>Suggested, which stores every value as prefixes from 3 characters (EdgeNGram). Solr fills it itself via copyField, no code writes it. It drives the suggestions while typing and the filter offers of the search, the field itself stays exact.",
           "Word by word for texts, on the whole value for string, long and double. Not for boolean and date.",
           "Costs index space: all prefixes of every value. The twin is never stored and does not appear in this table."
+        ]
+      },
+      "fieldAccess": {
+        "title": "Access: minimum or advanced",
+        "paragraphs": [
+          "Minimum: the field belongs to the basic view of the core. Whoever may see a document at all (readAcl, isPublic or their guid in userGrantedAccess) always gets it, even without the role <KERN>_FULL. id is always minimum.",
+          "Advanced: only users with the role <KERN>_FULL get the field, or users to whom it was granted individually for this core. Everyone else never sees it, may not resolve, sort or facet by it, and does not learn that the field exists.",
+          "New fields are advanced. The switch lives only in our field definition, not in Solr: the sync ignores it, the read services derive from it which fields they request (fl)."
         ]
       },
       "type": {

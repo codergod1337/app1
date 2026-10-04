@@ -13,6 +13,24 @@
 - Parameter heißen nach ihrem Inhalt, nie allgemein wie `input`, `data` oder `obj`. Beispiel: `newUsersData` für die Daten eines neu anzulegenden Users.
 - Wer eine Methode auslöst, steht nicht im Namen. Das ergibt sich aus dem current user (siehe `architektur.md`, Zugriffsfälle).
 
+## Klassen, Records, Enums und Felder
+
+Sprechende Benennung, und zwar MINDESTENS so präzise wie dieses Beispiel. Das ist das unterste Mindestmaß, nicht das Ziel:
+
+```java
+record SolrCoreSearchFieldDefinition(
+    List<SolrFreeTextSearchFieldWithWeight> freeTextSearchFieldsWithWeight,
+    List<String> facetValueCountFieldNames,
+    List<String> highlightSnippetSourceFieldNames,
+    String defaultSortFieldName,
+    boolean defaultSortDescending)
+```
+
+- Der Name sagt, was die Sache tut und welche Daten sie anfasst, so konkret, dass man die Javadoc nicht braucht: `SolrReadAclAndGrantedAccessCheck`, nicht `SolrReadBoundary`; `freeTextSearchFieldsWithWeight`, nicht `queryFields`; `SolrCoreSearchFieldDefinition`, nicht `SolrSearchRules`.
+- Verboten sind Oberbegriffe und Fachjargon als Name: `Boundary`, `Rules`, `Policy`, `Context`, `Info`, `Helper`, `Manager`, `Handler`, `data`, `item`, `value`, `config`.
+- Ein zusammengesetzter Name ist lang, das ist gewollt. Lieber `highlightSnippetSourceFieldNames` als `highlightFields`.
+- Ein Name, der unter dem Beispiel oben bleibt, wird nicht vorgeschlagen. Vor jedem Vorschlag jeden Namen daran messen, nicht erst nach der Rückfrage.
+
 ## Postgres-Tabellen
 
 - Alles, was zu Solr gehört (Hooks, Kerne, Felder), heißt `solr_<name>`: `solr_hook`, `solr_core`, `solr_field`. So stehen die Tabellen in DBeaver untereinander.

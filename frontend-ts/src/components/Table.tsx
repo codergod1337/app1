@@ -40,6 +40,8 @@ interface TableProps<T> {
   fixedRow?: (row: T) => boolean
   /** Breite der Aktionsspalte beim festen Layout (siehe TableColumn.width). Standard: Platz für zwei Knöpfe. */
   actionsWidth?: string
+  /** Eine zusätzliche Klasse je Zeile, z. B. für eine fertige oder gescheiterte Zeile. Das Aussehen bestimmt das Theme. */
+  rowClassName?: (row: T) => string | undefined
 }
 
 /** Der Platz des Griffs in einer festen Zeile: gleiche Breite, unsichtbar */
@@ -56,6 +58,8 @@ interface RowProps<T> {
   actions?: (row: T) => ReactNode
   /** nur in der mobilen Auflösung: Tipp auf die Zeile öffnet die Details */
   onOpenDetails?: () => void
+  /** die zusätzliche Klasse der Zeile (rowClassName) */
+  className?: string
 }
 
 /**
@@ -89,8 +93,9 @@ function RowCells<T>({ row, columns, actions, dragHandle }: RowProps<T> & { drag
 
 /** Zeile ohne Griff. In einer verschiebbaren Tabelle ist das eine feste Zeile, dann mit dem Platz für den Griff. */
 function StaticRow<T>(props: RowProps<T> & { dragHandle?: ReactNode }) {
+  const className = [props.onOpenDetails ? 'details-trigger' : '', props.className ?? ''].join(' ').trim()
   return (
-    <tr className={props.onOpenDetails ? 'details-trigger' : undefined} onClick={props.onOpenDetails}>
+    <tr className={className || undefined} onClick={props.onOpenDetails}>
       <RowCells {...props} />
     </tr>
   )
@@ -107,7 +112,11 @@ function SortableRow<T>({ id, ...props }: RowProps<T> & { id: string }) {
     <tr
       ref={ref}
       style={style}
-      className={[props.onOpenDetails ? 'details-trigger' : '', isDragging ? 'dragging' : ''].join(' ').trim() || undefined}
+      className={
+        [props.onOpenDetails ? 'details-trigger' : '', isDragging ? 'dragging' : '', props.className ?? '']
+          .join(' ')
+          .trim() || undefined
+      }
       onClick={props.onOpenDetails}
     >
       <RowCells {...props} dragHandle={dragHandle} />
@@ -130,6 +139,7 @@ export function Table<T>({
   onReorder,
   fixedRow,
   actionsWidth = '6rem',
+  rowClassName,
 }: TableProps<T>) {
   const { t } = useTranslation()
   const isMobile = useIsMobile()
@@ -172,6 +182,7 @@ export function Table<T>({
             columns: visibleColumns,
             actions,
             onOpenDetails: isMobile ? () => setDetailRow(row) : undefined,
+            className: rowClassName?.(row),
           }
           if (onReorder && !fixedRow?.(row)) {
             return <SortableRow key={rowKey(row)} id={rowKey(row)} {...rowProps} />

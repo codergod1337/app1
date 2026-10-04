@@ -265,6 +265,187 @@
     color: var(--tile-hover-text);
   }
 
+  /* Rahmen um die Kachel: Das Zeichen oben rechts liegt außerhalb des Links und klickt nicht mit */
+  .tile-frame {
+    position: relative;
+  }
+
+  .tile-corner {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.5rem;
+  }
+
+  /* das i: dezent, deutlicher beim Zeigen auf die Kachel, Fragezeichen-Cursor wie bei einer Erklärung */
+  .tile-corner-hint {
+    display: inline-flex;
+    font-size: 0.85rem;
+    color: var(--tile-text);
+    opacity: 0.45;
+    cursor: help;
+  }
+
+  .tile-frame:hover .tile-corner-hint,
+  .tile-corner-hint:focus-visible {
+    opacity: 1;
+  }
+
+  /* Inhalt des Hoverlays zur Kachel: der Satz, die AR als Badges, die Hinweise */
+  .tile-entry-access-roles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .tile-entry-access-roles-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  /* eine AR, die der User nicht hat */
+  .tile-entry-access-role-missing {
+    opacity: 0.4;
+  }
+
+  /* ===== DMS-Dokument: Infobox, Kennungen, Abschnitte (nach DmsInfoBox und DmsDetails der Vorlage) ===== */
+  /* Das Feststehende ganz oben, mehrspaltig im dezenten Rahmen: Er trennt es von dem, was darunter kommt, ohne Überschrift */
+  .dms-infobox {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 0.15rem 1.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: var(--contentbox-radius);
+  }
+
+  .dms-infobox-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .dms-infobox-line > span:first-child {
+    min-width: 9rem;
+    opacity: 0.7;
+  }
+
+  /* Die technischen Kennungen (id, Versionskette) nur im Hoverlay am Schlüssel neben dem Namen: Man braucht sie zum
+     Nachschlagen, nicht beim Lesen */
+  .dms-identifiers-symbol {
+    display: inline-flex;
+    font-size: 0.85rem;
+    opacity: 0.5;
+    cursor: help;
+  }
+
+  .dms-identifiers-symbol:hover,
+  .dms-identifiers-symbol:focus-visible {
+    opacity: 1;
+  }
+
+  .dms-identifiers {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    font-size: 0.75rem;
+  }
+
+  .dms-identifiers code {
+    font-size: inherit;
+    overflow-wrap: anywhere;
+  }
+
+  /* Der Kontrollblick des Admins: Symbol und Zahl der User mit Freigabe an diesem Dokument, neben dem Dateinamen */
+  .dms-grants-symbol {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    font-size: 0.85rem;
+    cursor: help;
+  }
+
+  .dms-grants-count {
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+
+  .dms-section-divider {
+    margin: 0;
+    border: none;
+    border-top: 1px solid var(--contentbox-border);
+    opacity: 1;
+  }
+
+  /* Ein Aufklapper ohne Knopf-Optik: Pfeil und Beschriftung, wie der acl-aufklapper der Vorlage */
+  .dms-collapsible {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    align-self: flex-start;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: 0.875rem;
+    opacity: 0.8;
+    cursor: pointer;
+  }
+
+  .dms-collapsible:hover {
+    opacity: 1;
+  }
+
+  .dms-preview-image {
+    align-self: flex-start;
+    max-width: 12rem;
+    max-height: 12rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: var(--contentbox-radius);
+  }
+
+  /* Der Volltext aus Tika: mehrere tausend Wörter, deshalb ein eigener Rollbereich, kleiner gesetzt: Man sucht darin, man liest ihn nicht */
+  .dms-full-text {
+    max-height: 14rem;
+    overflow-y: auto;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: var(--contentbox-radius);
+    font-size: 0.72rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    scrollbar-width: thin;
+  }
+
+  /* ===== Sprache eines DMS-Dokuments: Flagge mit Namen im Hoverlay, Auswahl als Reihe von Flaggen ===== */
+  .document-language-flag {
+    display: inline-flex;
+  }
+
+  .document-language-flag .fi {
+    width: 1.5rem;
+    line-height: 1.125rem;
+    border-radius: 2px;
+  }
+
+  .document-language-picker {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  /* „keine Sprache“ in der Reihe der Flaggen: ein Strich in Flaggenbreite */
+  .document-language-none {
+    width: 1.75rem;
+    justify-content: center;
+    font-weight: 700;
+    line-height: 1.125rem;
+  }
+
   /* ===== Hoverlay: nur Lage und Ebene, das Aussehen bestimmt das Theme ===== */
   .hoverlay-anchor {
     display: inline-flex;
@@ -2257,5 +2438,158 @@
   .table > thead {
     --bs-table-bg: var(--table-header-bg);
     --bs-table-color: var(--table-header-text);
+  }
+
+  /* DMS-Upload: der Text aus Tika, Umbrüche wie im Text, begrenzt hoch, scrollt */
+  .dms-text-preview {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 24rem;
+    overflow: auto;
+    margin: 0;
+  }
+
+  /* DMS-Upload: das Vorschaubild in seiner echten Größe, der Grund dahinter (Schachbrett) kommt aus dem Theme */
+  .dms-preview-image {
+    display: block;
+    width: 200px;
+    height: 200px;
+    flex: none;
+  }
+
+  /* ===== DMS-Stapelmaske: der ablaufende Balken einer fertigen Zeile, bis sie verschwindet. Farben aus dem Theme ===== */
+  .dms-upload-countdown {
+    display: block;
+    height: 3px;
+    margin-top: 0.3rem;
+    overflow: hidden;
+    border-radius: 2px;
+  }
+
+  .dms-upload-countdown-bar {
+    display: block;
+    height: 100%;
+    transform-origin: left center;
+    animation: dms-upload-countdown linear forwards;
+  }
+
+  @keyframes dms-upload-countdown {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+
+  /* ===== Dropzone für Dateien (FileDropzone): die Zone, darunter der Kamera-Knopf. Farben bestimmt das Theme ===== */
+  .file-dropzone-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .file-dropzone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 6rem;
+    padding: 1.5rem 1rem;
+    border-width: 2px;
+    border-style: dashed;
+    border-radius: var(--contentbox-radius);
+    background: none;
+    color: inherit;
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .file-dropzone:disabled {
+    cursor: not-allowed;
+  }
+
+  /* mindestens 44px hoch: darunter trifft ein Daumen nicht mehr zuverlässig, am Telefon ist der Knopf das Werkzeug */
+  .file-dropzone-camera {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+    border-width: 2px;
+    border-style: solid;
+    border-radius: var(--contentbox-radius);
+    background: none;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .file-dropzone-camera:disabled {
+    cursor: not-allowed;
+  }
+
+  /* ===== Dateiart-Auswahl (FileSubClassPicker): Kacheln mit Symbol, Nummer und Name. Farben bestimmt das Theme ===== */
+  .file-sub-class-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .file-sub-class-picker-title {
+    font-size: 0.85em;
+  }
+
+  .file-sub-class-picker-search {
+    max-width: 20rem;
+  }
+
+  .file-sub-class-picker-empty {
+    font-size: 0.85em;
+    opacity: 0.75;
+  }
+
+  .file-sub-class-picker-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  /* Die Kachel ist ein Knopf ohne Knopf-Optik: nur Symbol, Nummer und Name, der Rahmen erscheint beim Zeigen und bei der Wahl */
+  .file-sub-class-picker-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    width: 6.5rem;
+    padding: 0.4rem 0.2rem;
+    border: 1px solid transparent;
+    border-radius: var(--contentbox-radius);
+    background: none;
+    color: inherit;
+    font-size: 0.75rem;
+    line-height: 1.15;
+    text-align: center;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+
+  .file-sub-class-picker-tile:disabled {
+    cursor: not-allowed;
+  }
+
+  .file-sub-class-picker-tile .file-sub-class-symbol {
+    min-width: 2.25rem;
+    height: 2.25rem;
+    font-size: 2rem;
+  }
+
+  /* Die Positionsnummer vor dem Namen ordnet nur ein. Tabellenziffern, damit ein- und zweistellige gleich breit sind */
+  .file-sub-class-picker-position {
+    margin-right: 0.3rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.6;
   }
 }

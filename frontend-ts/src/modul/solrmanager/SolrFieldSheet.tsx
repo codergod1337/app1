@@ -12,7 +12,11 @@ import { positionsByKey } from '../../components/positions.ts'
 import { isValidSolrFieldName } from '../../components/solrFieldNameRule.ts'
 import { SolrFieldNameInput } from '../../components/SolrFieldNameInput.tsx'
 import { Table, type TableColumn } from '../../components/Table.tsx'
-import { SOLR_CORE_BUILT_IN_FIELD_NAMES, SOLR_CORE_ID_FIELD_NAME } from './SolrCore.ts'
+import {
+  SOLR_CORE_BUILT_IN_FIELD_NAMES,
+  SOLR_CORE_ID_FIELD_NAME,
+  SOLR_CORE_USER_GRANTED_ACCESS_FIELD_NAME,
+} from './SolrCore.ts'
 import {
   changeSolrFieldPositions,
   createSolrField,
@@ -21,13 +25,20 @@ import {
   SOLR_FIELD_SETTINGS,
   SOLR_FIELD_TYPES,
   SOLR_ID_FIELD_FIXED_SETTINGS,
+  SOLR_USER_GRANTED_ACCESS_FIELD_FIXED_SETTINGS,
   updateSolrField,
   type SolrField,
   type SolrFieldData,
   type SolrFieldSetting,
   type SolrFieldType,
 } from './SolrField.ts'
-import { solrFieldDescriptionHint, solrFieldIdHint, solrFieldSettingHint, solrFieldTypeHint } from './solrFieldHints.tsx'
+import {
+  solrFieldAccessHint,
+  solrFieldDescriptionHint,
+  solrFieldIdHint,
+  solrFieldSettingHint,
+  solrFieldTypeHint,
+} from './solrFieldHints.tsx'
 
 /** So lange nach dem letzten Tippen in einem Textfeld wird gewartet, dann gespeichert */
 const TEXT_SAVE_DELAY_MS = 600
@@ -44,12 +55,23 @@ function isIdRow(row: SheetRow): boolean {
   return row.kind === 'field' && row.field.name === SOLR_CORE_ID_FIELD_NAME
 }
 
-/** Die Zeile eines festen Feldes (id, cursorDate): jeder Kern hat es, der Typ steht fest, löschen geht nicht */
+/** Die Zeile eines festen Feldes (id, cursorDate, userGrantedAccess): jeder Kern hat es, der Typ steht fest, löschen geht nicht */
 function isBuiltInRow(row: SheetRow): boolean {
   return row.kind === 'field' && SOLR_CORE_BUILT_IN_FIELD_NAMES.includes(row.field.name)
 }
 
-/** Die leere Zeile unten: indexed und stored an, der Rest aus */
+/** Die Schalter, die bei einem festen Feld nicht umgelegt werden dürfen: bei id die PK-Schalter, bei userGrantedAccess die der Dokumentgrenze */
+function fixedSettingsOf(row: SheetRow): readonly SolrFieldSetting[] {
+  if (isIdRow(row)) {
+    return SOLR_ID_FIELD_FIXED_SETTINGS
+  }
+  if (row.kind === 'field' && row.field.name === SOLR_CORE_USER_GRANTED_ACCESS_FIELD_NAME) {
+    return SOLR_USER_GRANTED_ACCESS_FIELD_FIXED_SETTINGS
+  }
+  return []
+}
+
+/** Die leere Zeile unten: indexed und stored an, der Rest aus, Zugriff Erweitert */
 function emptySolrFieldData(coreKey: string): SolrFieldData {
   return {
     coreKey,
@@ -61,6 +83,7 @@ function emptySolrFieldData(coreKey: string): SolrFieldData {
     docValues: false,
     required: false,
     suggest: false,
+    readAccessLevel: 'ADVANCED_FULL_SIGHT_OR_FIELD_GRANT',
     description: null,
     listingPosition: 0,
   }
@@ -87,10 +110,14 @@ interface SolrFieldSheetProps {
  * Statusspalte zeigt, ob eine Zeile gerade gespeichert wird, gespeichert ist oder einen Fehler hat. Die Reihenfolge
  * ändert sich per Drag and Drop am Griff, die leere Zeile unten legt ein neues Feld an.
  *
- * Hier steht jedes normale Feld des Kerns, auch die festen, die jeder Kern hat: id und cursorDate. Bei beiden steht der
- * Typ fest und löschen geht nicht. id ist der Primärschlüssel, immer an Position 1 und nicht verschiebbar, die Spalte ID
- * zeigt dort den Schlüssel, und die PK-Schalter (indexed, required, multiValued) stehen fest. Alles andere ist frei. Was
- * in id hineinkommt, steht in seiner Beschreibung. Die Beschreibung jedes Feldes liegt zusätzlich als Hoverlay am Namen.
+ * Hier steht jedes normale Feld des Kerns, auch die festen, die jeder Kern hat: id, cursorDate und userGrantedAccess.
+ * Bei allen steht der Typ fest und löschen geht nicht. id ist der Primärschlüssel, immer an Position 1 und nicht
+ * verschiebbar, die Spalte ID zeigt dort den Schlüssel, und die PK-Schalter (indexed, required, multiValued) stehen
+ * fest. Alles andere ist frei. Was in id hineinkommt, steht in seiner Beschreibung. Die Beschreibung jedes Feldes liegt
+ * zusätzlich als Hoverlay am Namen.
+ *
+ * Die Spalte Zugriff ist ein Umschaltknopf je Zeile: Minimum (die Grundansicht, jeder, der das Dokument sehen darf)
+ * oder Erweitert (nur mit <KERN>_FULL oder Feld-Freigabe). id ist immer Minimum, das Backend erzwingt es.
  *
  * Der Aufrufer gibt key={coreKey} mit: Beim Wechsel des Kerns wird die Tabelle neu aufgebaut und vergisst Entwürfe.
  */
@@ -289,7 +316,7 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved }: SolrF
             className="form-check-input"
             type="checkbox"
             aria-label={t('solrmanager.sheet.settingFor', { setting: header, name: nameOf(row) })}
-            disabled={creating || unavailable || (isIdRow(row) && SOLR_ID_FIELD_FIXED_SETTINGS.includes(setting))}
+            disabled={creating || unavailable || fixedSettingsOf(row).includes(setting)}
             checked={data[setting]}
             onChange={(event) => change(row, { [setting]: event.target.checked })}
           />
@@ -351,6 +378,31 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved }: SolrF
     },
     ...SOLR_FIELD_SETTINGS.map(({ setting, label }) => settingColumn(setting, label)),
     {
+      header: t('solrmanager.sheet.fieldAccess'),
+      headerHint: solrFieldAccessHint(t),
+      unimportant: true,
+      cell: (row) => {
+        const minimum = dataOf(row).readAccessLevel === 'MINIMUM_SET_EVERY_READER'
+        return (
+          <button
+            type="button"
+            id={`${idOf(row)}-readAccessLevel`}
+            className="button-other"
+            aria-label={t('solrmanager.sheet.fieldAccessOf', { name: nameOf(row) })}
+            // id ist immer Minimum, das Backend erzwingt es
+            disabled={creating || isIdRow(row)}
+            onClick={() =>
+              change(row, {
+                readAccessLevel: minimum ? 'ADVANCED_FULL_SIGHT_OR_FIELD_GRANT' : 'MINIMUM_SET_EVERY_READER',
+              })
+            }
+          >
+            {minimum ? t('solrmanager.sheet.fieldAccessMinimum') : t('solrmanager.sheet.fieldAccessAdvanced')}
+          </button>
+        )
+      },
+    },
+    {
       header: t('solrmanager.sheet.description'),
       unimportant: true,
       cell: (row) => (
@@ -379,7 +431,7 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved }: SolrF
         emptyText={t('solrmanager.sheet.empty')}
         actions={(row) => {
           if (isBuiltInRow(row)) {
-            // id und cursorDate hat jeder Kern, das Backend lehnt das Löschen ohnehin ab
+            // id, cursorDate und userGrantedAccess hat jeder Kern, das Backend lehnt das Löschen ohnehin ab
             return null
           }
           return row.kind === 'field' ? (

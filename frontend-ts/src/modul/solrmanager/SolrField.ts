@@ -32,6 +32,16 @@ export type SolrFieldSetting = 'indexed' | 'stored' | 'multiValued' | 'docValues
  */
 export const SOLR_ID_FIELD_FIXED_SETTINGS: readonly SolrFieldSetting[] = ['indexed', 'multiValued', 'required']
 
+/**
+ * Was am Feld userGrantedAccess feststeht: string, indexed, multiValued, nie required, sonst fände die Dokumentgrenze
+ * nichts. Das Backend lehnt jede Änderung daran ab und löscht das Feld nicht.
+ */
+export const SOLR_USER_GRANTED_ACCESS_FIELD_FIXED_SETTINGS: readonly SolrFieldSetting[] = [
+  'indexed',
+  'multiValued',
+  'required',
+]
+
 /** Die Erklärungen dazu stehen in solrFieldHints.tsx, fürs Hoverlay am Spaltenkopf */
 export const SOLR_FIELD_SETTINGS: { setting: SolrFieldSetting; label: string }[] = [
   { setting: 'indexed', label: 'indexed' },
@@ -41,6 +51,14 @@ export const SOLR_FIELD_SETTINGS: { setting: SolrFieldSetting; label: string }[]
   { setting: 'required', label: 'required' },
   { setting: 'suggest', label: 'suggest' },
 ]
+
+/**
+ * Wer ein Feld beim Lesen bekommt (SolrFieldReadAccessLevel.java). MINIMUM_SET_EVERY_READER: die Grundansicht, jeder,
+ * der das Dokument sehen darf. ADVANCED_FULL_SIGHT_OR_FIELD_GRANT: nur mit Vollsicht (<KERN>_FULL oder <KERN>_SUCHE)
+ * oder mit einer Feldfreigabe für diesen Kern. Nur in unserer Felddefinition, nie in Solr. Neue Felder sind Erweitert,
+ * id ist immer Minimum.
+ */
+export type SolrFieldReadAccessLevel = 'MINIMUM_SET_EVERY_READER' | 'ADVANCED_FULL_SIGHT_OR_FIELD_GRANT'
 
 /**
  * Ein normales Feld eines Kerns, wie es das Backend liefert (SolrField.java). Es gibt genau zwei Arten von
@@ -61,6 +79,8 @@ export interface SolrField {
   required: boolean
   /** ein Zwilling <name>Suggested mit copyField, nicht bei jedem Typ */
   suggest: boolean
+  /** Minimum oder Erweitert: wer das Feld beim Lesen bekommt, der Umschaltknopf im Sheet */
+  readAccessLevel: SolrFieldReadAccessLevel
   /** mehrsprachiges JSON: wozu das Feld da ist und welche Daten hinein gehören */
   description: string | null
   /** Reihenfolge in der Tabelle des Kerns */

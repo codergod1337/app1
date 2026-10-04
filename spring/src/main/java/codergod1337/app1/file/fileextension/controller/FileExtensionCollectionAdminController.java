@@ -39,7 +39,8 @@ public class FileExtensionCollectionAdminController {
 			@Valid @RequestBody FileExtensionCollection newFileExtensionCollectionData) {
 		return fileExtensionCollectionService.createFileExtensionCollection(newFileExtensionCollectionData.getKey(),
 				newFileExtensionCollectionData.getDisplayName(), newFileExtensionCollectionData.getSymbolShape(),
-				newFileExtensionCollectionData.getListingPosition());
+				newFileExtensionCollectionData.getListingPosition(),
+				newFileExtensionCollectionData.isDocumentLanguageApplies());
 	}
 
 	/** Alle Felder. Der key im Body bestimmt, welche Gruppe geändert wird, er selbst ändert sich nie. */
@@ -48,7 +49,8 @@ public class FileExtensionCollectionAdminController {
 			@Valid @RequestBody FileExtensionCollection changedFileExtensionCollectionData) {
 		return fileExtensionCollectionService.updateFileExtensionCollection(changedFileExtensionCollectionData.getKey(),
 				changedFileExtensionCollectionData.getDisplayName(), changedFileExtensionCollectionData.getSymbolShape(),
-				changedFileExtensionCollectionData.getListingPosition());
+				changedFileExtensionCollectionData.getListingPosition(),
+				changedFileExtensionCollectionData.isDocumentLanguageApplies());
 	}
 
 	/**

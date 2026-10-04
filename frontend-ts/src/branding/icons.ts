@@ -16,16 +16,29 @@ export const icons = {
   fileSubClassAcl: { pack: 'bootstrap', id: 'file-earmark-lock' },
   accessRoleCollectionAccessRoles: { pack: 'bootstrap', id: 'ui-checks-grid' },
   masterData: { pack: 'bootstrap', id: 'database-gear' },
+  entityStates: { pack: 'bootstrap', id: 'flag-fill' },
   solrManager: { pack: 'bootstrap', id: 'hdd-network-fill' },
+  dms: { pack: 'bootstrap', id: 'folder2-open' },
   // wie die Hooks-Spalte im Dokumente-Tab der Vorlage
   solrHooks: { pack: 'bootstrap', id: 'diagram-3' },
   solrHookGroups: { pack: 'bootstrap', id: 'tags' },
   solrCores: { pack: 'bootstrap', id: 'hdd-stack' },
+  /** das Modul Freigaben: Dateifreigaben und Feldfreigaben je Kern */
+  grant: { pack: 'bootstrap', id: 'person-check-fill' },
+  documentGrants: { pack: 'bootstrap', id: 'file-earmark-check' },
+  fieldGrants: { pack: 'bootstrap', id: 'list-check' },
+  /** Auflösen: exakt nach Feld und Wert */
+  resolve: { pack: 'bootstrap', id: 'funnel-fill' },
+  /** das Auge: eine Datei im Viewer ansehen */
+  view: { pack: 'bootstrap', id: 'eye-fill' },
+  /** die Daten zu einem Dokument */
+  details: { pack: 'bootstrap', id: 'info-circle-fill' },
   /** der Primärschlüssel eines Kerns: das Feld id, der uniqueKey in Solr */
   documentId: { pack: 'bootstrap', id: 'key' },
   search: { pack: 'bootstrap', id: 'search' },
   download: { pack: 'bootstrap', id: 'download' },
   upload: { pack: 'bootstrap', id: 'upload' },
+  camera: { pack: 'bootstrap', id: 'camera-fill' },
   add: { pack: 'bootstrap', id: 'plus-lg' },
   back: { pack: 'bootstrap', id: 'arrow-left' },
   edit: { pack: 'bootstrap', id: 'pencil-fill' },
@@ -41,6 +54,8 @@ export const icons = {
   close: { pack: 'bootstrap', id: 'x-lg' },
   drag: { pack: 'bootstrap', id: 'grip-vertical' },
   expand: { pack: 'bootstrap', id: 'chevron-down' },
+  /** der zugeklappte Aufklapper, Gegenstück zu expand */
+  collapsed: { pack: 'bootstrap', id: 'chevron-right' },
   copy: { pack: 'bootstrap', id: 'copy' },
   calendar: { pack: 'bootstrap', id: 'calendar3' },
   session: { pack: 'bootstrap', id: 'display' },

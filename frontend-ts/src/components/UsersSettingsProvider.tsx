@@ -81,7 +81,7 @@ export function UsersSettingsProvider({ children }: { children: ReactNode }) {
 
   /** Erst lokal, damit es sofort gilt, dann speichern */
   const changeSetting = useCallback(
-    async (key: string, value: string) => {
+    async (key: string, value: string, keepalive = false) => {
       if (usersGuid === null) {
         return
       }
@@ -90,7 +90,7 @@ export function UsersSettingsProvider({ children }: { children: ReactNode }) {
         next.set(key, value)
         return { usersGuid, settings: next }
       })
-      await changeOwnUsersSettings(key, value)
+      await changeOwnUsersSettings(key, value, keepalive)
     },
     [usersGuid],
   )

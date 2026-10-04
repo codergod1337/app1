@@ -79,6 +79,16 @@ public class SolrField {
 	@ColumnDefault("false")
 	private boolean suggest;
 
+	/**
+	 * Minimum oder Erweitert: wer das Feld beim Lesen bekommt ({@link SolrFieldReadAccessLevel}). Nur in dieser Tabelle,
+	 * nie in Solr. Neue Felder sind Erweitert, id ist immer Minimum, das erzwingt der Service.
+	 */
+	@NotNull
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 40)
+	@ColumnDefault("'ADVANCED_FULL_SIGHT_OR_FIELD_GRANT'")
+	private SolrFieldReadAccessLevel readAccessLevel = SolrFieldReadAccessLevel.ADVANCED_FULL_SIGHT_OR_FIELD_GRANT;
+
 	/** Mehrsprachiges JSON: wozu das Feld da ist und welche Daten hinein gehören. */
 	@Column(columnDefinition = "text")
 	private String description;
@@ -92,10 +102,10 @@ public class SolrField {
 	protected SolrField() {
 	}
 
-	/** Admin und Import: jedes Feld außer id. */
+	/** Admin und Import: jedes Feld außer id. readAccessLevel null heißt Erweitert. */
 	public SolrField(String coreKey, String name, SolrFieldType type, boolean indexed, boolean stored,
-			boolean multiValued, boolean docValues, boolean required, boolean suggest, String description,
-			int listingPosition) {
+			boolean multiValued, boolean docValues, boolean required, boolean suggest,
+			SolrFieldReadAccessLevel readAccessLevel, String description, int listingPosition) {
 		this.coreKey = coreKey;
 		this.name = name;
 		this.type = type;
@@ -105,6 +115,8 @@ public class SolrField {
 		this.docValues = docValues;
 		this.required = required;
 		this.suggest = suggest;
+		this.readAccessLevel = readAccessLevel != null ? readAccessLevel
+				: SolrFieldReadAccessLevel.ADVANCED_FULL_SIGHT_OR_FIELD_GRANT;
 		this.description = description;
 		this.listingPosition = listingPosition;
 	}
@@ -175,6 +187,16 @@ public class SolrField {
 
 	public void setSuggest(boolean suggest) {
 		this.suggest = suggest;
+	}
+
+	/** Nie null: Eine alte Zeile ohne Wert oder ein Import ohne das Feld gilt als Erweitert. */
+	public SolrFieldReadAccessLevel getReadAccessLevel() {
+		return readAccessLevel != null ? readAccessLevel : SolrFieldReadAccessLevel.ADVANCED_FULL_SIGHT_OR_FIELD_GRANT;
+	}
+
+	public void setReadAccessLevel(SolrFieldReadAccessLevel readAccessLevel) {
+		this.readAccessLevel = readAccessLevel != null ? readAccessLevel
+				: SolrFieldReadAccessLevel.ADVANCED_FULL_SIGHT_OR_FIELD_GRANT;
 	}
 
 	public String getDescription() {

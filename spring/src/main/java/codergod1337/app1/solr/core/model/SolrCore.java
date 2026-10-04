@@ -71,8 +71,16 @@ public class SolrCore {
 	 */
 	public static final String CURSOR_DATE_FIELD_NAME = "cursorDate";
 
+	/**
+	 * Das Feld userGrantedAccess: die guids der User, denen das Dokument per Dateifreigabe geöffnet ist
+	 * (SolrDocumentGrantedDocsPerCore). Steht gleichwertig neben readAcl in der Dokumentgrenze: Allein am Dokument ist
+	 * ablesbar, wer es sehen darf. In jedem Kern, damit sich auch Artikel freigeben lassen. Setzt nur das Backend.
+	 */
+	public static final String USER_GRANTED_ACCESS_FIELD_NAME = "userGrantedAccess";
+
 	/** Die Felder, die jeder Kern hat: mit dem Kern angelegt, beim Start nachgezogen, nicht löschbar, Typ fest */
-	public static final Set<String> BUILT_IN_FIELD_NAMES = Set.of(ID_FIELD_NAME, CURSOR_DATE_FIELD_NAME);
+	public static final Set<String> BUILT_IN_FIELD_NAMES = Set.of(ID_FIELD_NAME, CURSOR_DATE_FIELD_NAME,
+			USER_GRANTED_ACCESS_FIELD_NAME);
 
 	public String getKey() {
 		return key;

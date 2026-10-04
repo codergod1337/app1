@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { AccessRole } from '../modul/accessrole/AccessRole.ts'
 import type { AccessRoleCollection } from '../modul/accessrolecollection/AccessRoleCollection.ts'
+import type { EntityState } from '../modul/entitystate/EntityState.ts'
 import type { FileExtension } from '../modul/fileextension/FileExtension.ts'
 import type { FileExtensionCollection } from '../modul/fileextension/FileExtensionCollection.ts'
 import type { FileSubClass } from '../modul/filesubclass/FileSubClass.ts'
@@ -29,6 +30,8 @@ export interface MasterDataState {
   solrCores: SolrCore[] | null
   /** null, solange sie beim Start laden. Alle Kerne, sortiert nach Kern, listingPosition und name */
   solrFields: SolrField[] | null
+  /** null, solange sie beim Start laden */
+  entityStates: EntityState[] | null
   errorMessage: string | null
   /** neu laden, z. B. nachdem ein Admin eine AR, ARC, Dateiart oder einen Hook angelegt, geändert, verschoben oder gelöscht hat */
   reloadMasterData: () => void

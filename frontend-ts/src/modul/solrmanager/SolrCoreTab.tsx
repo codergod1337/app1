@@ -10,6 +10,7 @@ import { SolrCoreEmblem } from './SolrCoreEmblem.tsx'
 import { SolrFieldSheet } from './SolrFieldSheet.tsx'
 import { groupSolrHooks } from './SolrHook.ts'
 import { SolrHookCatalog } from './SolrHookCatalog.tsx'
+import { SolrSyncStatus } from './SolrSyncStatus.tsx'
 
 /**
  * Der Tab eines Kerns unter /solrmanager/<key>: das Emblem, darunter alle Felder des Kerns wie in einer
@@ -54,6 +55,11 @@ export function SolrCoreTab() {
         <div className="d-flex flex-column gap-3">
           <div>
             <SolrCoreEmblem solrCore={solrCore} language={language} />
+          </div>
+          <div>
+            <h3 className="h6 mb-2">{t('solrmanager.sync.title')}</h3>
+            {/* key: beim Wechsel des Kerns den Bericht des neuen holen */}
+            <SolrSyncStatus key={coreKey} coreKey={coreKey} />
           </div>
           <div>
             <h3 className="h6 mb-2">{t('solrmanager.cores.core.fields')}</h3>

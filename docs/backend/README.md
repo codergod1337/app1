@@ -23,9 +23,11 @@ codergod1337.app1
     user/         Users, UsersCredentials, UsersDetails, UsersSettings
     access/       AccessRole, AccessRoleCollection und ihre Zuordnung zu Usern
     masterdata/   Export und Import der Stammdaten
+    state/        EntityState: Status für alle Entities, die einen brauchen, mit Bereich (scope)
     sftp/         Dateispeicher
   file/           Dateiarten und Endungen (FileSubClass, FileExtension)
-  solr/           SolrManager: Hooks, Hook-Gruppen, Kerne, Felder. Tabellen heißen solr_*
+  solr/           SolrManager: Hooks, Hook-Gruppen, Kerne, Felder. Tabellen heißen solr_*; document/ prüft Dokumente gegen die Felder
+  dms/            DMS: Upload in den Kern DMS, Tika liest die Datei, Vorschaubild für Bilder. Stufe 1: nur prüfen, nichts speichern
 ```
 
 Jedes Paket ist aufgeteilt in `controller/`, `service/`, `repository/` und `model/`. In `model/` liegen Entities, Enums und, wo nötig, DTOs.

@@ -17,6 +17,7 @@ public enum MasterDataSection {
 	SOLR_HOOKS("solr-hooks.jsonl"),
 	SOLR_CORES("solr-cores.jsonl"),
 	SOLR_FIELDS("solr-fields.jsonl"),
+	ENTITY_STATES("entity-states.jsonl"),
 	USERS("users.jsonl"),
 	USERS_DETAILS("users-details.jsonl"),
 	USERS_SETTINGS("users-settings.jsonl"),

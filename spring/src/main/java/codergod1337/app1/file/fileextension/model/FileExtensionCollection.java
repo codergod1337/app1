@@ -45,16 +45,27 @@ public class FileExtensionCollection {
 	@ColumnDefault("0")
 	private int listingPosition;
 
+	/**
+	 * Hat eine Datei dieser Gruppe eine Sprache (Vorgabe 2026-10-03)? Dokumente, Videos und Anwendungsdateien ja, Bilder,
+	 * Archive und CAD nein. Nur dann fragt der Upload danach, lässt das Bearbeiten sie setzen und erkennt das Backend sie
+	 * aus dem Text, den Tika liefert. Sonst bleibt documentLanguage im Dokument leer, auch wenn ein Client etwas schickt.
+	 */
+	@Column(nullable = false)
+	@ColumnDefault("false")
+	private boolean documentLanguageApplies;
+
 	/** Für JPA und Jackson. */
 	protected FileExtensionCollection() {
 	}
 
 	/** Admin und Import: jedes Feld. */
-	public FileExtensionCollection(String key, String displayName, SymbolShape symbolShape, int listingPosition) {
+	public FileExtensionCollection(String key, String displayName, SymbolShape symbolShape, int listingPosition,
+			boolean documentLanguageApplies) {
 		this.key = key;
 		this.displayName = displayName;
 		this.symbolShape = symbolShape;
 		this.listingPosition = listingPosition;
+		this.documentLanguageApplies = documentLanguageApplies;
 	}
 
 	public String getKey() {
@@ -83,6 +94,14 @@ public class FileExtensionCollection {
 
 	public void setListingPosition(int listingPosition) {
 		this.listingPosition = listingPosition;
+	}
+
+	public boolean isDocumentLanguageApplies() {
+		return documentLanguageApplies;
+	}
+
+	public void setDocumentLanguageApplies(boolean documentLanguageApplies) {
+		this.documentLanguageApplies = documentLanguageApplies;
 	}
 
 }

@@ -25,9 +25,9 @@ export function getOwnUsersSettings() {
   return request<UsersSettings[]>('GET', USERS_SETTINGS_PATH)
 }
 
-/** Einen eigenen Wert setzen, die Zeile entsteht beim ersten Setzen */
-export function changeOwnUsersSettings(key: string, value: string) {
-  return request<UsersSettings>('PUT', USERS_SETTINGS_PATH, { key, value })
+/** Einen eigenen Wert setzen, die Zeile entsteht beim ersten Setzen. keepalive: auch noch beim Verlassen der Seite. */
+export function changeOwnUsersSettings(key: string, value: string, keepalive = false) {
+  return request<UsersSettings>('PUT', USERS_SETTINGS_PATH, { key, value }, { keepalive })
 }
 
 /** Einen eigenen Wert entfernen, danach gilt wieder der Standard des Frontends */
