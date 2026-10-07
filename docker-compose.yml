@@ -62,6 +62,9 @@ services:
     environment:
       # Heap der JVM, nicht der Speicher des Containers. Reicht für den Anfang, bei großen Kernen erhöhen.
       SOLR_HEAP: 1g
+      # Obergrenze der Klauseln je Abfrage für den ganzen Knoten. Die solrconfig.xml eines Kerns kann sie nicht
+      # überschreiten, deshalb stehen beide auf 3000 (User 2026-10-07, docs/backend/solr.md).
+      SOLR_OPTS: -Dsolr.max.booleanClauses=3000
       SOLR_ADMIN_USER: ${solr_user}
       SOLR_ADMIN_PW: ${solr_pw}
       SOLR_CORES: ${solr_cores}

@@ -6,6 +6,8 @@ import codergod1337.app1.file.fileextension.service.FileExtensionCollectionServi
 import codergod1337.app1.file.fileextension.service.FileExtensionService;
 import codergod1337.app1.file.filesubclass.model.FileSubClass;
 import codergod1337.app1.file.filesubclass.service.FileSubClassService;
+import codergod1337.app1.graph.mail.model.GraphMailTemplate;
+import codergod1337.app1.graph.mail.service.GraphMailTemplateService;
 import codergod1337.app1.solr.SolrFieldName;
 import codergod1337.app1.solr.core.model.SolrCore;
 import codergod1337.app1.solr.core.service.SolrCoreService;
@@ -125,6 +127,7 @@ public class MasterDataImportService {
 	private final SolrCoreService solrCoreService;
 	private final SolrFieldService solrFieldService;
 	private final EntityStateService entityStateService;
+	private final GraphMailTemplateService graphMailTemplateService;
 	private final UsersService usersService;
 	private final UsersCredentialsService usersCredentialsService;
 	private final UsersDetailsService usersDetailsService;
@@ -141,7 +144,8 @@ public class MasterDataImportService {
 			FileExtensionCollectionService fileExtensionCollectionService, FileExtensionService fileExtensionService,
 			FileSubClassService fileSubClassService, SolrHookGroupService solrHookGroupService,
 			SolrHookService solrHookService, SolrCoreService solrCoreService,
-			SolrFieldService solrFieldService, EntityStateService entityStateService, UsersService usersService,
+			SolrFieldService solrFieldService, EntityStateService entityStateService,
+			GraphMailTemplateService graphMailTemplateService, UsersService usersService,
 			UsersCredentialsService usersCredentialsService, UsersDetailsService usersDetailsService,
 			UsersSettingsService usersSettingsService, AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
 			AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService,
@@ -156,6 +160,7 @@ public class MasterDataImportService {
 		this.solrCoreService = solrCoreService;
 		this.solrFieldService = solrFieldService;
 		this.entityStateService = entityStateService;
+		this.graphMailTemplateService = graphMailTemplateService;
 		this.usersService = usersService;
 		this.usersCredentialsService = usersCredentialsService;
 		this.usersDetailsService = usersDetailsService;
@@ -225,6 +230,7 @@ public class MasterDataImportService {
 		planSolrCores(plan, linesBySection.get(MasterDataSection.SOLR_CORES));
 		planSolrFields(plan, linesBySection.get(MasterDataSection.SOLR_FIELDS));
 		planEntityStates(plan, linesBySection.get(MasterDataSection.ENTITY_STATES));
+		planGraphMailTemplates(plan, linesBySection.get(MasterDataSection.GRAPH_MAIL_TEMPLATES));
 		planUsers(plan, linesBySection.get(MasterDataSection.USERS));
 		planUsersDetails(plan, linesBySection.get(MasterDataSection.USERS_DETAILS));
 		planUsersSettings(plan, linesBySection.get(MasterDataSection.USERS_SETTINGS));
@@ -358,6 +364,19 @@ public class MasterDataImportService {
 		Map<String, EntityState> existing = byKey(entityStateService.getAllEntityStates(), EntityState::getKey);
 		plan.rowsBySection.put(MasterDataSection.ENTITY_STATES, planKeyedRows(lines, EntityState.class,
 				EntityState::getKey, EntityState::getDisplayName, existing, HelperInputs::isValidKey,
+				"key fehlt oder ist ungültig"));
+	}
+
+	/**
+	 * Mailvorlagen: normale Key-Regel. Sie verweisen auf nichts. Dass je Typ nur eine Vorlage erlaubt ist und die
+	 * Platzhalter zum Typ passen, prüft der GraphMailTemplateService beim Schreiben; eine Vorlage, deren Typ hier
+	 * schon belegt ist, scheitert dann mit 409 und rollt den Import zurück.
+	 */
+	private void planGraphMailTemplates(ImportPlan plan, List<Line> lines) {
+		Map<String, GraphMailTemplate> existing = byKey(graphMailTemplateService.getAllGraphMailTemplates(),
+				GraphMailTemplate::getKey);
+		plan.rowsBySection.put(MasterDataSection.GRAPH_MAIL_TEMPLATES, planKeyedRows(lines, GraphMailTemplate.class,
+				GraphMailTemplate::getKey, GraphMailTemplate::getDisplayName, existing, HelperInputs::isValidKey,
 				"key fehlt oder ist ungültig"));
 	}
 
@@ -1136,8 +1155,8 @@ public class MasterDataImportService {
 			SolrField solrField = (SolrField) row.data;
 			solrFieldService.createSolrField(solrField.getCoreKey(), solrField.getName(), solrField.getType(),
 					solrField.isIndexed(), solrField.isStored(), solrField.isMultiValued(), solrField.isDocValues(),
-					solrField.isRequired(), solrField.isSuggest(), solrField.getReadAccessLevel(), solrField.getDescription(),
-					solrField.getListingPosition());
+					solrField.isRequired(), solrField.isSuggest(), solrField.getReadAccessLevel(),
+					solrField.getClientWriteRule(), solrField.getDescription(), solrField.getListingPosition());
 		}
 
 		String startPassword = sha256Hex(START_PASSWORD);
@@ -1145,6 +1164,14 @@ public class MasterDataImportService {
 			EntityState entityState = (EntityState) row.data;
 			entityStateService.createEntityState(entityState.getKey(), entityState.getDisplayName(),
 					entityState.getScope(), entityState.getListingPosition());
+		}
+
+		for (PlannedRow row : plan.writtenRows(MasterDataSection.GRAPH_MAIL_TEMPLATES)) {
+			GraphMailTemplate graphMailTemplate = (GraphMailTemplate) row.data;
+			graphMailTemplateService.createGraphMailTemplate(graphMailTemplate.getKey(), graphMailTemplate.getType(),
+					graphMailTemplate.getDisplayName(), graphMailTemplate.getDescription(),
+					graphMailTemplate.getSubject(), graphMailTemplate.getHtmlBody(),
+					graphMailTemplate.getListingPosition());
 		}
 
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.USERS)) {

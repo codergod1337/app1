@@ -14,6 +14,10 @@ Der Suchindex. Jeder Kern des SolrManagers (Postgres, Tabelle `solr_core`) ist e
 
 Die Startkette in der Compose macht bei jedem Start drei Dinge: Kernordner anlegen, `security.json` schreiben, Solr starten. Im Docker-Netz heißt der Container zusätzlich `solrhost`, weil Java keinen Unterstrich im Hostnamen akzeptiert; das Backend auf dem Pi spricht später `http://solrhost:8983/solr` an.
 
+### Klauselgrenze
+
+`maxBooleanClauses` steht auf 3000 statt 1024 (User 2026-10-07): Jedes Suchwort läuft über jedes Feld der qf samt Suggested-Zwilling, mit vielen Hooks sind das schnell dreißig Klauseln je Wort, und ein Fehler von Solr mitten in einer Suche ist nicht beabsichtigt. Zwei Stellen, beide 3000: `SOLR_OPTS=-Dsolr.max.booleanClauses=3000` in der Compose ist die Grenze des Knotens, `<maxBooleanClauses>3000</maxBooleanClauses>` in der `solrconfig.xml` des Basis-Configsets die des Kerns; die des Kerns kann die des Knotens nicht überschreiten. Ein Kern, dessen Ordner schon existiert, behält seine Kopie der `solrconfig.xml`: dort den Wert von Hand auf 3000 setzen (`docker_mounts/solr/data/<key>/conf/solrconfig.xml`) und den Container neu starten, oder den Kern neu aufbauen. Die Suchmaske nimmt ohnehin höchstens sechs Suchwörter an, dieselbe Zahl wie das Backend.
+
 ### Wie ein Kern entsteht
 
 Ein Kern hat drei Schichten:
@@ -32,7 +36,7 @@ Was im Basis-Schema steht und warum:
 |-------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
 | Feldtypen `string`, `boolean`, `plong`, `pdouble`, `pdate`, `text_minimal`, `text_word`, `text_words`, `text_suggest`, `code_suggest` | der Katalog `SolrFieldType` im Backend wählt nur daraus, die Namen stehen dort fest                                            |
 | `id` (string, indexed, stored, required)                                                                                      | der `uniqueKey` muss beim Anlegen des Kerns existieren. stored, docValues, Beschreibung und Position zieht das Backend aus Postgres nach |
-| `_version_` (plong, nur docValues)                                                                                            | Optimistic Concurrency: kommt mit jedem gelesenen Dokument, geht als Bedingung mit zurück                                       |
+| `_version_` (plong, nur docValues)                                                                                            | Solrs eigener Zähler je Dokument. Kommt mit jedem gelesenen Dokument als Text zum Client, wird nie geschrieben und nie verglichen (2026-10-07) |
 | `_root_` (string, indexed)                                                                                                    | für geschachtelte Dokumente, ungenutzt, Solr erwartet es                                                                       |
 
 `cursorDate` und `userGrantedAccess` stehen nicht im Basis-Schema: Sie sind eingebaute Felder aus Postgres wie `id` und kommen über die Schema-API.

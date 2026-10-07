@@ -19,7 +19,8 @@ import {
 import { getAllUsers, type Users } from '../users/Users.ts'
 import { useDocumentGrantPrefill } from './DocumentGrantPrefill.ts'
 import {
-  expireGrants,
+  documentGrantAdminPathOf,
+  expireDocumentGrants,
   getAllDocumentGrants,
   grantDocumentsToUsers,
   previewGrantableDocumentsPage,
@@ -39,11 +40,14 @@ import {
 const PREVIEW_PAGE_SIZE = 25
 
 /**
- * Tab „Dateifreigaben“, kernunabhängig: Kern wählen, exakte Feldwerte setzen wie beim Auflösen, auflösen. Die
- * Trefferliste zeigt, was der Freigebende sieht und ändern darf, also freigeben kann. Erst dann Empfänger und Ablauf,
- * und „Diese Treffer freigeben“ schreibt die guid in jeden Treffer der Bedingungen, auch auf weiteren Seiten, und legt
- * die Registerzeile an. Nur mit Bedingung und mit weniger als 500 Treffern, sonst muss ein weiterer Filter die Treffer
- * enger fassen. Darunter das Register, neueste zuerst, entziehen nur bei aktiven Zeilen. Gelöscht wird nichts.
+ * Tab „Dateifreigaben“: Kern wählen, exakte Feldwerte setzen wie beim Auflösen, auflösen. Die Trefferliste zeigt, was
+ * der Freigebende schreiben darf, also freigeben kann. Erst dann Empfänger und Ablauf, und „Diese Treffer freigeben“
+ * schreibt die guid in jeden Treffer der Bedingungen, auch auf weiteren Seiten, und legt die Registerzeile an. Nur mit
+ * Bedingung und mit weniger als 500 Treffern, sonst muss ein weiterer Filter die Treffer enger fassen. Darunter das
+ * Register aller Kerne, neueste zuerst, entziehen nur bei aktiven Zeilen. Gelöscht wird nichts.
+ *
+ * Setzen, Entziehen und Ablauf laufen je Kern über dessen eigenen Endpunkt (Vorgabe 2026-10-07): Ein Kern ohne
+ * Freigabe-Service lässt sich hier nur ansehen, nicht freigeben.
  *
  * Kommt der Tab mit einer Vorbelegung (DocumentGrantPrefill im Router-State, z. B. von der Dokumentseite des DMS mit
  * Kern und id), stehen Kern und Bedingungen schon drin und das Auflösen läuft von selbst, sobald die Stammdaten da sind.
@@ -103,8 +107,10 @@ export function DocumentGrantsPerCoreTab() {
     coreKey === '' ? [] : exactResolveFieldsOfCore(solrFields ?? [], solrHooks ?? [], coreKey)
   const fieldValuesForBackend = exactResolveFieldValuesForBackend(fields, fieldValuesByFieldName)
   const hasConditions = Object.keys(fieldValuesForBackend).length > 0
+  // je Kern sein eigener Freigabe-Service; ohne den gibt es hier nur das Register zu sehen
+  const coreHasGrantService = coreKey !== '' && documentGrantAdminPathOf(coreKey) !== null
   // ohne Bedingung kein Auflösen: Es gäbe alles aus, das Backend lehnt es ebenso ab
-  const canResolve = !busy && coreKey !== '' && hasConditions
+  const canResolve = !busy && coreHasGrantService && hasConditions
   const canGrant = !busy && preview !== null && preview.grantAllowed && granteeUsersGuid !== ''
 
   function labelOf(field: SolrExactResolveField): string {
@@ -146,9 +152,8 @@ export function DocumentGrantsPerCoreTab() {
     setBusy(true)
     setFormErrorMessage(null)
     setFormInfo(null)
-    grantDocumentsToUsers({
+    grantDocumentsToUsers(coreKey, {
       granteeUsersGuid,
-      coreKey,
       fieldValuesByFieldName: fieldValuesForBackend,
       validUntil: validUntilLocalInputToIso(validUntil),
     })
@@ -166,25 +171,21 @@ export function DocumentGrantsPerCoreTab() {
 
   // die Vorbelegung auflösen, einmal, sobald die Felder des Kerns bekannt sind, damit die Werte ihren Typ bekommen
   useEffect(() => {
-    if (prefillPreviewPending && coreKey !== '' && solrFields !== null && solrHooks !== null && !busy) {
+    if (prefillPreviewPending && coreHasGrantService && solrFields !== null && solrHooks !== null && !busy) {
       setPrefillPreviewPending(false)
       runPreview(0)
     }
     // runPreview liest den Stand dieses Zeichnens, mehr Abhängigkeiten liefen ins Leere
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefillPreviewPending, coreKey, solrFields, solrHooks, busy])
+  }, [prefillPreviewPending, coreHasGrantService, solrFields, solrHooks, busy])
 
+  /** Der Ablauf der Dateifreigaben des gewählten Kerns, über dessen eigenen Endpunkt */
   function runExpiry() {
     setBusy(true)
     setExpiryInfo(null)
-    expireGrants()
+    expireDocumentGrants(coreKey)
       .then(({ data }) => {
-        setExpiryInfo(
-          t('grant.common.expired', {
-            fieldGrants: data.expiredFieldGrants,
-            documentGrants: data.expiredDocumentGrants,
-          }),
-        )
+        setExpiryInfo(t('grant.documents.expired', { count: data.expiredDocumentGrants, core: coreKey }))
         loadGrants()
       })
       .catch((error: unknown) =>
@@ -298,6 +299,9 @@ export function DocumentGrantsPerCoreTab() {
             </select>
           </div>
         </div>
+        {coreKey !== '' && !coreHasGrantService && (
+          <p className="text-warning">{t('grant.documents.noGrantServiceForCore', { core: coreKey })}</p>
+        )}
         <p className="mb-2">
           <strong>{t('grant.documents.conditions')}</strong>
         </p>
@@ -306,7 +310,7 @@ export function DocumentGrantsPerCoreTab() {
           fieldValuesByFieldName={fieldValuesByFieldName}
           onChange={changeFieldValues}
           labelOf={labelOf}
-          disabled={busy || coreKey === ''}
+          disabled={busy || !coreHasGrantService}
         />
 
         {preview !== null && verdict !== null && (
@@ -366,8 +370,8 @@ export function DocumentGrantsPerCoreTab() {
       <ContentBox
         title={t('grant.documents.title')}
         actions={
-          <button type="button" className="button-other" disabled={busy} onClick={runExpiry}>
-            {t('grant.common.expire')}
+          <button type="button" className="button-other" disabled={busy || !coreHasGrantService} onClick={runExpiry}>
+            {t('grant.documents.expire', { core: coreKey })}
           </button>
         }
         footer={listFooter}
@@ -380,7 +384,8 @@ export function DocumentGrantsPerCoreTab() {
             detailTitle={(grant) => `${usersDisplayLabel(users, grant.granteeUsersGuid)} · ${grant.coreKey}`}
             emptyText={t('grant.documents.empty')}
             actions={(grant) =>
-              isGrantInForce(grant) ? (
+              // entziehen geht nur über den Service des Kerns, den die Zeile trägt
+              isGrantInForce(grant) && documentGrantAdminPathOf(grant.coreKey) !== null ? (
                 <DeleteButton label={t('grant.common.revoke')} onClick={() => setGrantToRevoke(grant)} />
               ) : null
             }
@@ -391,7 +396,7 @@ export function DocumentGrantsPerCoreTab() {
       <DeletePopup
         open={grantToRevoke !== null}
         title={t('grant.documents.revokeTitle')}
-        onConfirm={() => revokeDocumentGrant(grantToRevoke?.id ?? 0)}
+        onConfirm={() => revokeDocumentGrant(grantToRevoke?.coreKey ?? '', grantToRevoke?.id ?? 0)}
         onDeleted={loadGrants}
         onClose={() => setGrantToRevoke(null)}
       >

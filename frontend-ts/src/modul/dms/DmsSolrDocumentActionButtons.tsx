@@ -16,9 +16,9 @@ import {
   dmsSolrDocumentEditPath,
   dmsSolrDocumentPath,
   dmsSolrDocumentViewerPath,
+  STATUS_FIELD_NAME,
 } from './Dms.ts'
 import { hasDmsViewer } from './dmsViewerByFileExtension.ts'
-import { STATUS_FIELD_NAME } from './DmsFields.ts'
 import type { DmsSolrDocument } from './DmsSolrDocumentFacts.tsx'
 
 interface DmsSolrDocumentActionButtonsProps {

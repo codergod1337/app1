@@ -20,6 +20,7 @@ app1/
     solr/            Basis-Configset für die Solr-Kerne
     docs/            diese Doku
   docker_mounts/     ein Ordner pro Container (postgres, sftp, solr), nicht in Git
+  secrets/           Schlüssel und Zertifikate, z. B. secrets/entra für Microsoft Graph, nicht in Git
 ```
 
 Die Compose erwartet `docker_mounts` neben `gitfiles`. Das Repo wird deshalb in einen Ordner namens `gitfiles` geklont. Der Name des Ordners darüber ist egal.

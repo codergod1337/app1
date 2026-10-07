@@ -2,6 +2,7 @@ import { request } from '../../api/client.ts'
 import i18n from '../../branding/i18n.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { translate } from '../../components/multilingual.ts'
+import { SEARCH_PATH, searchPrefillStateOf, type SearchPrefillState } from '../search/Search.ts'
 import type { SolrFieldSetting, SolrFieldType } from './SolrField.ts'
 import type { SolrHookGroup } from './SolrHookGroup.ts'
 
@@ -79,13 +80,23 @@ export function solrHookGroupLabel(solrHookGroup: SolrHookGroup | null, language
  */
 export const ARTICLE_NUMBER_HOOK_KEYS: readonly string[] = ['artikelNummer', 'masterArtikelNummer']
 
+/** Wohin ein Hook-Wert führt: der Pfad und, für die Suche, die Vorbelegung als Router-State */
+export interface SolrHookValueLink {
+  to: string
+  state?: SearchPrefillState
+}
+
 /**
  * Wohin ein Hook-Wert führt, nach hookWeg der Vorlage: eine hauseigene Artikelnummer in ihre Mappe, nicht in die Suche,
- * denn zu ihr gibt es genau einen Ort. Alles andere geht später in die Suche mit sich selbst als Filter, bis es die
- * Suche gibt null, also kein Link.
+ * denn zu ihr gibt es genau einen Ort. Alles andere geht in die Suche mit sich selbst als Filter, denn eine
+ * Kundennummer hat keine Mappe, sie hat Fundstellen in mehreren Kernen. Die Vorbelegung reist als Router-State, nie
+ * in der Adresse.
  */
-export function solrHookValuePath(hookKey: string, value: string): string | null {
-  return ARTICLE_NUMBER_HOOK_KEYS.includes(hookKey) ? `/artikel/${encodeURIComponent(value)}` : null
+export function solrHookValueLink(hookKey: string, value: string): SolrHookValueLink {
+  if (ARTICLE_NUMBER_HOOK_KEYS.includes(hookKey)) {
+    return { to: `/artikel/${encodeURIComponent(value)}` }
+  }
+  return { to: SEARCH_PATH, state: searchPrefillStateOf([{ fieldName: hookKey, value }]) }
 }
 
 /** In Solr ist jeder Hook in jedem Kern dasselbe Feld: ein string, der exakte Wert (SolrHook.java, FIELD_TYPE) */

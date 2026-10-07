@@ -1,14 +1,99 @@
 import { request, upload, type UploadProgress } from '../../api/client.ts'
-import type { SolrAdvancedFieldGrantAccessPerCore, SolrDocumentGrantedDocsPerCore } from '../grant/Grant.ts'
+import type {
+  SolrAdvancedFieldGrantAccessPerCore,
+  SolrDocumentGrantedDocsPerCore,
+  SolrHookGrantAccess,
+} from '../grant/Grant.ts'
+import type { SearchRequest, SearchResultPage, SearchSuggestResult } from '../search/Search.ts'
+import { SOLR_CORE_BUILT_IN_FIELD_NAMES } from '../solrmanager/SolrCore.ts'
+import { isClientAllowedToSetOnCreate, type SolrField } from '../solrmanager/SolrField.ts'
 
 /** Die AR, die das DMS-Modul sichtbar und den Upload erlaubt macht. Das Backend prüft dieselbe. */
 export const DMS_ACCESS_ROLE_KEY = 'DMS'
 
-/** Der Kern des DMS im SolrManager (DmsUploadService.CORE_KEY). Seine Felder aus den Stammdaten sind die Maske. */
+/** Die AR der Suche im Kern DMS, dazu immer DMS. Ohne sie 403 vor Solr, auch für den Admin. */
+export const DMS_SEARCH_ACCESS_ROLE_KEY = 'DMS_SUCHE'
+
+/** Der Kern des DMS im SolrManager (DmsSolrDocumentFieldNames.CORE_KEY). Seine Felder aus den Stammdaten sind die Maske. */
 export const DMS_CORE_KEY = 'DMS'
+
+// ===== Die Felder des Kerns DMS, mit denen die Masken rechnen (DmsSolrDocumentFieldNames.java) =====
 
 /** Das eine Feld des Kerns, das die Dateiart trägt: in der Maske eine Auswahl aus den Dateiarten, kein freier Text */
 export const FILE_SUB_CLASS_FIELD_NAME = 'fileSubClassKey'
+
+/**
+ * versionChain: Nur im Sonderfall „neue Fassung“ schickt das Frontend die Kette der Originaldatei mit, nie der User
+ * von Hand. Bei einer neuen Datei bleibt das Feld leer, das Backend vergibt beim Speichern eine zufällige UUID.
+ */
+export const VERSION_CHAIN_FIELD_NAME = 'versionChain'
+
+/** fileSizeBytes liest das Frontend aus der gewählten Datei und schickt es mit, das Backend prüft es gegen die Datei */
+export const FILE_SIZE_FIELD_NAME = 'fileSizeBytes'
+
+/**
+ * status: in Solr ein string, die Werte sind die EntityStates des Bereichs DMS aus den Stammdaten (DmsStateService
+ * legt sie beim Start an). Später wählt ihn der User nicht mehr, die Masken je Fall setzen ihn.
+ */
+export const STATUS_FIELD_NAME = 'status'
+export const DMS_STATE_SCOPE = 'DMS'
+
+/** Das Feld der Sprache im Kern DMS, in Solr ein string mit dem ISO-639-1-Code */
+export const DOCUMENT_LANGUAGE_FIELD_NAME = 'documentLanguage'
+
+/**
+ * Solrs _version_, der Zähler je Dokument, den Solr bei jedem Schreiben selbst setzt. Kommt mit jeder Leseantwort als
+ * Text, weil die Zahl 19 Stellen hat und JavaScript sie verfälschen würde. Nur Anzeige, später die Revision; beim
+ * Schreiben schickt die Maske ihn nie mit.
+ */
+export const SOLR_VERSION_FIELD_NAME = '_version_'
+
+/** Wie die Upload-Maske ein Feld des Kerns DMS anbietet */
+export type DmsFieldInput = 'backend' | 'chain' | 'fileSize' | 'fileSubClass' | 'status' | 'free'
+
+/**
+ * Was ein Feld in der Upload-Maske ist, aus der Schreibregel der Felddefinition (Vorgabe 2026-10-07): BACKEND_ONLY und
+ * die eingebauten Felder stehen gesperrt in der Liste, die Sonderfelder haben ihre eigene Eingabe, der Rest ist frei.
+ */
+export function dmsFieldInput(solrField: SolrField): DmsFieldInput {
+  if (!isClientAllowedToSetOnCreate(solrField.clientWriteRule) || SOLR_CORE_BUILT_IN_FIELD_NAMES.includes(solrField.name)) {
+    return 'backend'
+  }
+  switch (solrField.name) {
+    case VERSION_CHAIN_FIELD_NAME:
+      return 'chain'
+    case FILE_SIZE_FIELD_NAME:
+      return 'fileSize'
+    case FILE_SUB_CLASS_FIELD_NAME:
+      return 'fileSubClass'
+    case STATUS_FIELD_NAME:
+      return 'status'
+    default:
+      return 'free'
+  }
+}
+
+/** Bytes lesbar: 1,2 MB statt 1234567. Infobox, Trefferzeile der Suche. */
+export function readableBytes(value: unknown): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return ''
+  }
+  const units = ['B', 'kB', 'MB', 'GB']
+  let amount = value
+  let unit = 0
+  while (amount >= 1000 && unit < units.length - 1) {
+    amount /= 1000
+    unit += 1
+  }
+  return `${unit === 0 ? amount : amount.toFixed(1)} ${units[unit]}`
+}
+
+/** Die Endung nach derselben Regel wie im Backend (DmsUploadService.extensionOf): nach dem letzten Punkt, klein. Ohne Punkt leer. */
+export function fileExtensionOf(fileName: string): string {
+  const dot = fileName.lastIndexOf('.')
+  return dot < 0 || dot === fileName.length - 1 ? '' : fileName.slice(dot + 1).toLowerCase()
+}
+
 
 /** Was Tika fand (DmsUploadService.TikaOutcome), oder warum nicht: ok false mit error, dann ist der Rest leer */
 export interface DmsTikaOutcome {
@@ -61,20 +146,27 @@ export interface DmsUploadProbe {
 }
 
 /**
- * Was der Upload tat (DmsUploadService.UploadStatus): CREATED neu angelegt, MERGED dieselben Bytes lagen schon in dieser
- * Dateiart und bekamen nur die Hooks dazu, EXISTS sie liegen unter einer anderen Dateiart, nichts geändert.
+ * Was der Upload tat (DmsUploadService.UploadStatus): CREATED neu angelegt (neue Datei oder neue Fassung), MERGED
+ * dieselben Bytes lagen schon in dieser Dateiart und bekamen Hooks und Beschreibung dazu, EXISTS sie liegen unter einer
+ * anderen Dateiart oder mit einem Status ohne Merge, nichts geändert.
  */
 export type DmsUploadStatus = 'CREATED' | 'MERGED' | 'EXISTS'
 
-/** Das Ergebnis des Uploads: was passiert ist, die id, das Dokument wie es jetzt in Solr steht, dazu die Probe */
+/**
+ * Das Ergebnis des Uploads: was passiert ist, die id, das Dokument mit der Lesegrenze des Users (null bei EXISTS und
+ * wenn er es nicht sehen darf, denn Anlegen braucht kein Lesen), dazu die Probe
+ */
 export interface DmsUploadResult {
   status: DmsUploadStatus
   id: string
-  document: Record<string, unknown>
+  document: Record<string, unknown> | null
   probe: DmsUploadProbe
 }
 
-/** Gibt es diese Bytes schon im DMS? Mit id, Dateiart und Status des vorhandenen Dokuments. */
+/**
+ * Der Existenzcheck (DmsSolrDocumentExistenceCheck.java): Gibt es diese Bytes schon im DMS? Nur id, Dateiart und
+ * Status, ohne Rechteprüfung. Merge nur bei gleicher Dateiart und Status ACTIVE oder ARCHIVED.
+ */
 export interface DmsExistence {
   exists: boolean
   id: string | null
@@ -162,6 +254,43 @@ export function dmsFileDownloadUrl(id: string): string {
   return `/api/rest/v1/dms/download/${id}`
 }
 
+// ===== Endpunkt des DmsSearchController: die Suche im Kern DMS =====
+
+/**
+ * Die Felder, nach denen die Suche im DMS exakt filtert (DmsSearchService.EXACT_FILTER_FIELD_NAMES), dazu jeder Hook
+ * aus den Stammdaten. Ein Chip auf ein anderes Feld wird vom Backend überlesen, nicht abgelehnt.
+ */
+export const DMS_SEARCH_EXACT_FILTER_FIELD_NAMES: readonly string[] = [
+  FILE_SUB_CLASS_FIELD_NAME,
+  'fileIndex',
+  'fileName',
+  VERSION_CHAIN_FIELD_NAME,
+  'fileExtension',
+  'mimeType',
+  DOCUMENT_LANGUAGE_FIELD_NAME,
+  'uploader',
+  STATUS_FIELD_NAME,
+  'isPublic',
+  'id',
+]
+
+/** Die Datumsfelder, für die die Suche einen Zeitraum nimmt (DmsSearchService.DATE_RANGE_FILTER_FIELD_NAMES) */
+export const DMS_SEARCH_DATE_RANGE_FILTER_FIELD_NAMES: readonly string[] = [
+  'documentCreatedAt',
+  'documentUploadedAt',
+  'lastChangedAt',
+]
+
+/** Die Suche: Tür DMS und DMS_SUCHE, Status ACTIVE oder ARCHIVED, alle Felder außer dem Volltext, mit Treffergrund */
+export function searchDmsDocuments(searchRequest: SearchRequest) {
+  return request<SearchResultPage>('POST', '/api/rest/v1/dms/search', searchRequest)
+}
+
+/** Die Vervollständigung beim Tippen: dieselbe Tür, Treffer über die Suggested-Zwillinge und die Filterangebote. Seite und Größe ignoriert das Backend. */
+export function suggestDmsDocuments(searchRequest: SearchRequest) {
+  return request<SearchSuggestResult>('POST', '/api/rest/v1/dms/search/suggest', searchRequest)
+}
+
 // ===== Endpunkte des DmsSolrDocumentController: ein einzelnes Dokument lesen und ändern =====
 
 /**
@@ -174,26 +303,14 @@ export interface DmsSolrDocumentForClient {
 }
 
 /**
- * Was die Bearbeiten-Maske schickt (DmsSolrDocumentEditRequest.java). Fehlt ein Feld, bleibt es unverändert, ein leerer
- * Text leert es. Hooks: je Hook-Key die Werteliste, eine leere Liste leert den Hook, ein fehlender Hook bleibt.
+ * Der Patch der Bearbeiten-Maske (DmsSolrDocumentPatchRequest.java, Vorgabe 2026-10-07): nur die Felder, die sich
+ * geändert haben, je Feld der Endwert, wie er jetzt sein soll, Hooks flach als fertige Liste. null, ein leerer Text oder
+ * eine leere Liste leert das Feld. Felder, die der Client nicht ändern darf, ignoriert das Backend.
  */
-export interface DmsSolrDocumentEditData {
+export interface DmsSolrDocumentPatchData {
   id: string
-  fileName?: string
-  fileIndex?: string
-  fileDescription?: string
-  /** ISO 8601 oder ein Tag JJJJ-MM-TT */
-  documentCreatedAt?: string
-  fileSubClassKey?: string
-  hookValuesByHookKey?: Record<string, string[]>
-  /** ein Status des Bereichs DMS, DELETED ist das weiche Löschen */
-  status?: string
-  /** ein Code aus DmsDocumentLanguage.ts, leer löscht; nur in Endungsgruppen mit Sprache, sonst 400 */
-  documentLanguage?: string
+  fieldValuesByFieldName: Record<string, unknown>
 }
-
-/** Das Feld der Sprache im Kern DMS, in Solr ein string mit dem ISO-639-1-Code */
-export const DOCUMENT_LANGUAGE_FIELD_NAME = 'documentLanguage'
 
 /**
  * Die Freigaben, die ein ADMIN zu einem Dokument sieht (DmsSolrDocumentGrantsForClient.java): die guids in
@@ -212,10 +329,12 @@ export function getDmsSolrDocumentGrants(id: string) {
 
 // ===== Endpunkte des DmsCurrentUsersGrantsController: der Tab „Meine Freigaben“ =====
 
-/** Was dem current user im DMS freigegeben ist (DmsCurrentUsersGrantsForClient.java), Register mit allen Status */
+/** Was dem current user freigegeben ist (DmsCurrentUsersGrantsForClient.java), Register mit allen Status */
 export interface DmsCurrentUsersGrantsForClient {
   documentGrants: SolrDocumentGrantedDocsPerCore[]
   fieldGrants: SolrAdvancedFieldGrantAccessPerCore[]
+  /** serverweit, nicht nur im DMS */
+  hookGrants: SolrHookGrantAccess[]
   /** guid → Anzeigename, für „freigegeben von“ */
   usersDisplayNameByGuid: Record<string, string>
 }
@@ -233,8 +352,13 @@ export function getDmsSolrDocument(id: string) {
   return request<DmsSolrDocumentForClient>('GET', `/api/rest/v1/dms/solr-document/${id}`)
 }
 
-export function editDmsSolrDocument(editData: DmsSolrDocumentEditData) {
-  return request<DmsSolrDocumentForClient>('PUT', '/api/rest/v1/dms/solr-document', editData)
+export function patchDmsSolrDocument(patchData: DmsSolrDocumentPatchData) {
+  return request<DmsSolrDocumentForClient>('PATCH', '/api/rest/v1/dms/solr-document', patchData)
+}
+
+/** Weiches Löschen: Status DELETED, die Datei bleibt. */
+export function softDeleteDmsSolrDocument(id: string) {
+  return request<DmsSolrDocumentForClient>('DELETE', '/api/rest/v1/dms/solr-document', { id })
 }
 
 /** Die Seiten eines Dokuments: Details, Bearbeiten, Viewer. In der URL steht nur die id. */

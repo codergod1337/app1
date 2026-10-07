@@ -39,8 +39,8 @@ public class SolrFieldAdminController {
 		return solrFieldService.createSolrField(newSolrFieldData.getCoreKey(), newSolrFieldData.getName(),
 				newSolrFieldData.getType(), newSolrFieldData.isIndexed(), newSolrFieldData.isStored(),
 				newSolrFieldData.isMultiValued(), newSolrFieldData.isDocValues(), newSolrFieldData.isRequired(),
-				newSolrFieldData.isSuggest(), newSolrFieldData.getReadAccessLevel(), newSolrFieldData.getDescription(),
-				newSolrFieldData.getListingPosition());
+				newSolrFieldData.isSuggest(), newSolrFieldData.getReadAccessLevel(), newSolrFieldData.getClientWriteRule(),
+				newSolrFieldData.getDescription(), newSolrFieldData.getListingPosition());
 	}
 
 	/** Die id im Body bestimmt, welches Feld geändert wird. Kern und name ändern sich nie. */
@@ -49,8 +49,8 @@ public class SolrFieldAdminController {
 		return solrFieldService.updateSolrField(changedSolrFieldData.getId(), changedSolrFieldData.getType(),
 				changedSolrFieldData.isIndexed(), changedSolrFieldData.isStored(), changedSolrFieldData.isMultiValued(),
 				changedSolrFieldData.isDocValues(), changedSolrFieldData.isRequired(), changedSolrFieldData.isSuggest(),
-				changedSolrFieldData.getReadAccessLevel(), changedSolrFieldData.getDescription(),
-				changedSolrFieldData.getListingPosition());
+				changedSolrFieldData.getReadAccessLevel(), changedSolrFieldData.getClientWriteRule(),
+				changedSolrFieldData.getDescription(), changedSolrFieldData.getListingPosition());
 	}
 
 	/**

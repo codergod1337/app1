@@ -36,6 +36,9 @@ app1:
   login:
     # so lange gilt eine 2FA-Wartezeile (Aktivierungslink)
     two-factor-validity: 10m
+    # die Seite hinter dem Aktivierungslink in der 2FA-Mail. Der Bestätigungs-Token hängt hinter einem # dahinter, den
+    # Teil schickt ein Browser nie an einen Server. Beim Entwickeln der Vite-Server, später die öffentliche Adresse.
+    confirm-url: ${frontend_url}/login/confirm
     # so viele Sitzungen (Geräte) darf ein User gleichzeitig haben
     max-sessions: 3
   refresh:
@@ -54,6 +57,24 @@ app1:
     url: http://${solr_host}:${solr_port}/solr
     user: ${solr_user}
     pw: ${solr_pw}
+
+  # Microsoft Graph (Paket graph), siehe docs/backend/graph.md. Alles aus der .env, die Schlüsseldateien liegen
+  # außerhalb des Repos in app1/secrets/entra. Leer heißt: kein Zugriff auf Graph, das Backend startet trotzdem.
+  graph:
+    # die Identität des Backends gegenüber Entra: App-only mit Zertifikat statt Client-Secret (graph/entra)
+    entra:
+      tenant-id: ${entra_tenant_id:}
+      client-id: ${entra_client_id:}
+      private-key-path: ${entra_private_key_path:}
+      certificate-path: ${entra_certificate_path:}
+      # so lange darf der Token-Abruf dauern, danach 503
+      request-timeout: 10s
+    # der Mailversand (graph/mail): Vorlagen pflegt der Admin im GraphManager
+    mail:
+      # das Postfach, in dessen Namen das System selbst verschickt, z. B. die 2FA-Mail
+      system-sender-address: ${graph_mail_sender:}
+      # so lange darf ein Aufruf von Graph dauern, danach 503
+      request-timeout: 10s
 
   # Dateispeicher per SFTP (system/sftp). Alles, was den Server betrifft, kommt aus der .env: Für den Wechsel auf ein
   # NAS ändern sich nur sftp_host und sftp_host_key. Der Server muss dem User denselben root-dir zeigen.

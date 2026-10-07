@@ -1,9 +1,9 @@
 package codergod1337.app1.dms.controller;
 
+import codergod1337.app1.dms.model.DmsExactFieldValueResolveRequest;
+import codergod1337.app1.dms.model.DmsResolvedDocumentsPage;
 import codergod1337.app1.dms.service.DmsExactFieldValueResolveService;
 import codergod1337.app1.solr.access.model.SolrCurrentUserReadAndWriteAccessForCore.SolrCurrentUserCoreAccessForClient;
-import codergod1337.app1.solr.document.model.SolrExactFieldValueResolveRequest;
-import codergod1337.app1.solr.document.service.SolrExactFieldValueResolveService.SolrResolvedDocumentsPage;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,10 +35,10 @@ public class DmsExactFieldValueResolveController {
 		return dmsExactFieldValueResolveService.currentUserDmsAccessForClient();
 	}
 
-	/** Auflösen. Ohne fieldValuesByFieldName kommt alles, was der User sehen darf, Seite für Seite. */
+	/** Auflösen, mindestens eine Bedingung mit Wert ist Pflicht: Auflösen gibt nie alles aus. */
 	@PostMapping("/resolve")
-	public SolrResolvedDocumentsPage resolveDmsDocumentsPageByExactFieldValues(
-			@RequestBody SolrExactFieldValueResolveRequest resolveRequest) {
+	public DmsResolvedDocumentsPage resolveDmsDocumentsPageByExactFieldValues(
+			@RequestBody DmsExactFieldValueResolveRequest resolveRequest) {
 		if (resolveRequest == null) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "der Body fehlt");
 		}
@@ -46,7 +46,7 @@ public class DmsExactFieldValueResolveController {
 				&& !resolveRequest.fieldValuesByFieldName().isObject()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fieldValuesByFieldName ist kein JSON-Objekt");
 		}
-		return dmsExactFieldValueResolveService.resolveDmsDocumentsPageByExactFieldValues(resolveRequest);
+		return dmsExactFieldValueResolveService.resolveDmsSolrDocumentsPageForResolveTab(resolveRequest);
 	}
 
 }

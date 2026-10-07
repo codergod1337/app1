@@ -8,7 +8,6 @@ import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,7 +20,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Der User-Weg zu {@link Users}: jeder nur bei sich selbst. Alles, was der Admin darf, steht im
- * {@link UsersAdminController}.
+ * {@link UsersAdminController}. Löschen gehört dazu: Ein User kann sein Konto nicht selbst löschen, auch nicht weich
+ * (Entschieden 2026-10-07).
  */
 @RestController
 @RequestMapping("/api/rest/v1/users")
@@ -80,31 +80,6 @@ public class UsersController {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "guid ist keine gültige guid");
 		}
 		return usersService.getUsersByGuid(UUID.fromString(guidText));
-	}
-
-	/**
-	 * Der User löscht sich selbst, aber nur weich: Status DELETED, die Zeile bleibt, anmelden geht nicht mehr. Zur
-	 * Bestätigung das eigene Passwort (SHA-256 aus dem Browser). 200 mit dem User, 400 bei ungültiger Eingabe oder
-	 * falschem Passwort, 403 bei fremder guid.
-	 */
-	@DeleteMapping
-	public Users softDeleteUsers(@RequestBody Map<String, Object> usersToDelete) {
-		String guidText = usersToDelete.get("guid") instanceof String guidValue ? guidValue : null;
-		if (!HelperInputs.isValidGuid(guidText)) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "guid fehlt oder ist keine gültige guid");
-		}
-		UUID guid = UUID.fromString(guidText);
-
-		if (!guid.equals(currentUsersProvider.getCurrentUsersGuid())) {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "nur der eigene User darf gelöscht werden");
-		}
-
-		String password = usersToDelete.get("password") instanceof String passwordValue ? passwordValue : null;
-		if (!HelperInputs.isValidSha256Hex(password)) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "password fehlt oder ist kein SHA-256");
-		}
-
-		return usersService.softDeleteUsers(guid, password);
 	}
 
 }

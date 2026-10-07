@@ -145,22 +145,6 @@ public class UsersService {
 	}
 
 	/**
-	 * Der User löscht sich selbst: Nur der Status wird DELETED, die Zeile bleibt (soft delete). Das Passwort (SHA-256
-	 * aus dem Browser) muss stimmen, sonst 400. Danach enden alle Sitzungen, anmelden geht nicht mehr. Endgültig
-	 * löschen kann nur der Admin.
-	 */
-	@Transactional
-	public Users softDeleteUsers(UUID guid, String password) {
-		Users users = getUsersByGuid(guid);
-		if (!usersCredentialsService.isUsersCredentialsPasswordValid(guid, password)) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "das Passwort stimmt nicht");
-		}
-		users.setStatus("DELETED");
-		endAllUsersSessions(guid);
-		return usersRepository.save(users);
-	}
-
-	/**
 	 * Nur Admin: ändert die guid eines Users. Die ID lässt sich in JPA nicht ändern, deshalb wird der User unter der
 	 * neuen guid neu angelegt und der alte gelöscht. Zugangsdaten, Einstellungen und Details ziehen über ihren eigenen
 	 * Service mit um, der Status bleibt.

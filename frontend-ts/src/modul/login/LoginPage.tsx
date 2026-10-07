@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { ContentBox } from '../../components/ContentBox.tsx'
-import { claimLogin, startLogin, type Login2faTokens } from './Session.ts'
+import { claimLogin, confirmLogin, startLogin, type Login2faPollToken } from './Session.ts'
 import { useSession } from './sessionContext.ts'
 
 const FORM_ID = 'login-form'
@@ -15,9 +15,10 @@ export interface LoginState {
 type LoginPhase = 'form' | 'waiting' | 'done'
 
 /**
- * Die Anmeldung mit 2FA: E-Mail und Passwort, dann der Aktivierungslink, dann holt diese Seite die Sitzung im
- * Sekundentakt ab und springt zurück, wo man herkam. Bis es Mailversand gibt, steht der Aktivierungslink hier auf der
- * Seite. Der Token steht darin hinter dem #: Diesen Teil schickt der Browser nie an einen Server.
+ * Die Anmeldung mit 2FA: E-Mail und Passwort, dann geht die Mail mit Aktivierungslink und Token an den User, dann holt
+ * diese Seite die Sitzung im Sekundentakt ab und springt zurück, wo man herkam. Bestätigen geht auf zwei Wegen: der
+ * Link öffnet die ConfirmLoginPage im neuen Fenster, oder der Token aus der Mail wird hier eingefügt. Im Link steht
+ * der Token hinter dem #: Diesen Teil schickt der Browser nie an einen Server.
  */
 export function LoginPage() {
   const { loggedIn, reloadSession } = useSession()
@@ -26,8 +27,11 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [phase, setPhase] = useState<LoginPhase>('form')
-  const [loginTokens, setLoginTokens] = useState<Login2faTokens | null>(null)
+  const [loginStart, setLoginStart] = useState<Login2faPollToken | null>(null)
   const [sending, setSending] = useState(false)
+  // der Token aus der Mail, von Hand eingefügt statt über den Link
+  const [confirmationToken, setConfirmationToken] = useState('')
+  const [confirming, setConfirming] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   // Ein Abholen kann länger als eine Sekunde dauern: nie zwei gleichzeitig
   const claimRunning = useRef(false)
@@ -45,7 +49,7 @@ export function LoginPage() {
     setErrorMessage(null)
     startLogin(email, password)
       .then((result) => {
-        setLoginTokens(result.data)
+        setLoginStart(result.data)
         setPassword('')
         setPhase('waiting')
       })
@@ -56,10 +60,10 @@ export function LoginPage() {
 
   // Im Sekundentakt abholen, solange gewartet wird
   useEffect(() => {
-    if (phase !== 'waiting' || loginTokens === null) {
+    if (phase !== 'waiting' || loginStart === null) {
       return
     }
-    const pollToken = loginTokens.pollToken
+    const pollToken = loginStart.pollToken
     const interval = setInterval(() => {
       if (claimRunning.current) {
         return
@@ -76,7 +80,7 @@ export function LoginPage() {
         .catch((error: unknown) => {
           // Wartezeile abgelaufen oder unbekannt: zurück zum Formular
           setErrorMessage(error instanceof Error ? error.message : 'Unbekannter Fehler')
-          setLoginTokens(null)
+          setLoginStart(null)
           setPhase('form')
         })
         .finally(() => {
@@ -84,11 +88,23 @@ export function LoginPage() {
         })
     }, 1000)
     return () => clearInterval(interval)
-  }, [phase, loginTokens, reloadSession])
+  }, [phase, loginStart, reloadSession])
 
   function cancelLogin() {
-    setLoginTokens(null)
+    setLoginStart(null)
+    setConfirmationToken('')
     setPhase('form')
+  }
+
+  /** Der eingefügte Token: derselbe Endpunkt wie der Link. Danach holt der nächste Takt die Sitzung ab. */
+  function submitConfirmationToken(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setConfirming(true)
+    setErrorMessage(null)
+    confirmLogin(confirmationToken.trim())
+      .then(() => setConfirmationToken(''))
+      .catch((error: unknown) => setErrorMessage(error instanceof Error ? error.message : 'Unbekannter Fehler'))
+      .finally(() => setConfirming(false))
   }
 
   const footer = (
@@ -148,19 +164,29 @@ export function LoginPage() {
                 </fieldset>
               </form>
             )}
-            {phase === 'waiting' && loginTokens !== null && (
+            {phase === 'waiting' && loginStart !== null && (
               <>
                 <p>
                   <span className="spinner-border spinner-border-sm me-2" role="status" aria-label="wartet" />
                   Warte auf die Bestätigung …
                 </p>
-                {/* Bis es Mailversand gibt: der Link, der sonst in der Mail stünde. Öffnet ein neues Fenster, dieses wartet. */}
-                <p className="mb-0">
-                  Solange es keinen Mailversand gibt, steht der Link hier:{' '}
-                  <a href={`/login/confirm#${loginTokens.confirmationToken}`} target="_blank" rel="noreferrer">
-                    Aktivierungslink
-                  </a>
+                <p>
+                  Eine E-Mail ist unterwegs an <strong>{email}</strong>. Öffne den Link darin, oder füge den Code aus
+                  der Mail hier ein. Dieses Fenster meldet sich dann von selbst an.
                 </p>
+                <form className="d-flex gap-2" onSubmit={submitConfirmationToken}>
+                  <input
+                    className="form-control"
+                    autoComplete="one-time-code"
+                    placeholder="Code aus der Mail"
+                    aria-label="Code aus der Mail"
+                    value={confirmationToken}
+                    onChange={(event) => setConfirmationToken(event.target.value)}
+                  />
+                  <button type="submit" className="button-save" disabled={confirming || confirmationToken.trim() === ''}>
+                    Bestätigen
+                  </button>
+                </form>
               </>
             )}
             {phase === 'done' && (

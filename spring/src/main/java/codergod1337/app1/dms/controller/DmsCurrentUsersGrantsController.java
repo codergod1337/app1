@@ -2,8 +2,8 @@ package codergod1337.app1.dms.controller;
 
 import codergod1337.app1.dms.model.DmsCurrentUsersGrantsForClient;
 import codergod1337.app1.dms.model.DmsGrantedDocumentsPageRequest;
+import codergod1337.app1.dms.model.DmsResolvedDocumentsPage;
 import codergod1337.app1.dms.service.DmsCurrentUsersGrantsService;
-import codergod1337.app1.solr.document.service.SolrExactFieldValueResolveService.SolrResolvedDocumentsPage;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -32,7 +32,7 @@ public class DmsCurrentUsersGrantsController {
 
 	/** Die Dokumente, die dem current user freigegeben sind, seitenweise. Body optional: page, size. */
 	@PostMapping("/documents")
-	public SolrResolvedDocumentsPage resolveDocumentsPageGrantedToCurrentUser(
+	public DmsResolvedDocumentsPage resolveDocumentsPageGrantedToCurrentUser(
 			@RequestBody(required = false) DmsGrantedDocumentsPageRequest pageRequest) {
 		return dmsCurrentUsersGrantsService.resolveDocumentsPageGrantedToCurrentUser(
 				pageRequest == null ? null : pageRequest.page(), pageRequest == null ? null : pageRequest.size());

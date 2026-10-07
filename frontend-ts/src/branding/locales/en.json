@@ -65,14 +65,17 @@
     "noPosition": "no position",
     "positionArc": "Position (ARC)",
     "rightsAr": "Rights in the token (AR)",
-    "tokenNote": "The rights are in the token. If the admin changes them, the new ones apply after the next refresh."
+    "tokenNote": "The rights are in the token. If the admin changes them, the new ones apply after the next refresh.",
+    "search": "Search"
   },
   "home": {
     "tiles": {
       "admin": "Administration",
       "solrManager": "SolrManager",
       "dms": "DMS",
-      "grant": "Grants"
+      "grant": "Grants",
+      "graph": "GraphManager",
+      "search": "Search"
     },
     "entryAccessRoles": {
       "symbolLabel": "Which ARs open this module",
@@ -127,8 +130,10 @@
       "intro": "What is granted to you in the DMS: documents carrying your guid, and fields you may additionally resolve by. What your roles open anyway is not listed here.",
       "documentGrantsTitle": "My document grants",
       "fieldGrantsTitle": "My field grants",
+      "hookGrantsTitle": "My hook grants (in every core)",
       "noDocumentGrants": "There is no document grant for you in the DMS.",
       "noFieldGrants": "There is no field grant for you in the DMS.",
+      "noHookGrants": "There is no hook grant for you.",
       "documentsTitle_one": "{{count}} document granted to you",
       "documentsTitle_other": "{{count}} documents granted to you"
     },
@@ -316,7 +321,8 @@
     "title": "Grants",
     "tabs": {
       "documents": "Document grants",
-      "fields": "Field grants"
+      "fields": "Field grants",
+      "hooks": "Hook grants"
     },
     "common": {
       "grantee": "Recipient",
@@ -330,11 +336,14 @@
       "chooseUser": "choose user",
       "chooseCore": "choose core",
       "expire": "Clean up expired",
-      "expired": "{{fieldGrants}} field grants and {{documentGrants}} document grants set to expired"
+      "expired": "{{hookGrants}} hook grants and {{fieldGrants}} field grants set to expired"
     },
     "documents": {
       "title": "Document grants",
-      "intro": "Choose a core, set conditions as when resolving, resolve: the hit list shows what you see yourself and can therefore grant. Granting writes the recipient's guid into userGrantedAccess of every hit, the same in every core. A snapshot, later documents are not included. The recipient gets the minimum fields with it, advanced fields need a field grant.",
+      "intro": "Choose a core, set conditions as when resolving, resolve: the hit list shows what you may write yourself and can therefore grant. Granting writes the recipient's guid into userGrantedAccess of every hit, per core through its own grant service. A snapshot, later documents are not included. The recipient gets the minimum fields with it, advanced fields need a field grant.",
+      "noGrantServiceForCore": "The core {{core}} has no grant service yet. Only the register can be viewed here.",
+      "expire": "Clean up expired in {{core}}",
+      "expired": "{{count}} document grants in core {{core}} set to expired",
       "newTitle": "New document grant",
       "conditions": "Conditions",
       "resolve": "Resolve",
@@ -355,8 +364,7 @@
     },
     "fields": {
       "title": "Field grants",
-      "intro": "An advanced field the recipient may read in this core even without the role <KERN>_FULL. Per core, not per document. Minimum fields are not offered, everyone who sees a document has them.",
-      "intro": "A field or hook the recipient may resolve by in this core although they have neither <KERN>_SUCHE nor HOOK_FULL. An advanced field becomes readable with it. Per core, not per document. Everyone resolves by id, it is not on offer.",
+      "intro": "A field the recipient may resolve by in this core although they do not have <KERN>_SUCHE. An advanced field becomes readable with it. Per core, not per document. Everyone resolves by id, it is not on offer. Hooks are granted in the tab Hook grants, in every core at once.",
       "newTitle": "New field grant",
       "fields": "Fields",
       "noFields": "There is no field left in this core that this user lacks.",
@@ -369,6 +377,22 @@
       "count_other": "{{count}} field grants",
       "revokeTitle": "Revoke field grant",
       "revokeQuestion": "Really revoke the grant of field <strong>{{field}}</strong> in core <strong>{{core}}</strong> for <strong>{{user}}</strong>?"
+    },
+    "hooks": {
+      "title": "Hook grants",
+      "intro": "A hook the recipient may resolve by although they do not have HOOK_FULL. Applies in every core where they have the door <KERN>, because every core carries all hooks. The hook becomes readable with it. The button at the top right of the register cleans up expired hook and field grants; document grants expire per core in the tab Document grants.",
+      "newTitle": "New hook grant",
+      "hooks": "Hooks",
+      "noHooks": "There is no hook left that this user lacks.",
+      "hook": "Hook",
+      "grant": "Grant",
+      "granted_one": "{{count}} hook granted",
+      "granted_other": "{{count}} hooks granted",
+      "empty": "no hook grants yet",
+      "count_one": "{{count}} hook grant",
+      "count_other": "{{count}} hook grants",
+      "revokeTitle": "Revoke hook grant",
+      "revokeQuestion": "Really revoke the grant of hook <strong>{{hook}}</strong> for <strong>{{user}}</strong>?"
     }
   },
   "resolve": {
@@ -390,6 +414,99 @@
     "columns": {
       "preview": "Preview",
       "id": "ID"
+    }
+  },
+  "search": {
+    "title": "Search",
+    "intro": "One search box for every core you hold the search role for. Searching starts at three characters or with a filter. A leading + makes a word mandatory, a leading - excludes it. With fsc. you pick a file sub class as a filter.",
+    "placeholder": "search, e.g. 4711 or +drawing -old",
+    "words_one": "{{count}} of {{max}} search words",
+    "words_other": "{{count}} of {{max}} search words",
+    "cores": {
+      "DMS": "DMS"
+    },
+    "allCores": "all cores",
+    "noCores": "There is no core you may search.",
+    "running": "searching",
+    "hint": {
+      "NO_SEARCH_WORD_AND_NO_FILTER": "Enter at least {{min}} characters or set a filter, without either nothing is searched.",
+      "TOO_MANY_SEARCH_WORDS": "At most {{max}} search words: shorten the input or set filters."
+    },
+    "filters": {
+      "chooseField": "choose field",
+      "hooks": "Hooks",
+      "fieldsOfCore": "Fields {{core}}",
+      "dateFields": "Date range",
+      "value": "value",
+      "from": "from",
+      "to": "to",
+      "add": "Set filter",
+      "addValue": "Set {{field}} {{value}} as filter",
+      "remove": "Remove filter {{field}} {{value}}",
+      "removeDateRange": "Remove date range {{field}}",
+      "open": "open"
+    },
+    "fsc": {
+      "hint": "Pick a file sub class: click or Enter sets it as a filter, Escape cancels."
+    },
+    "results": {
+      "moreThanReachable": "More than {{reachable}} hits cannot be paged, narrow the search."
+    },
+    "offers": {
+      "title": "Suggestions:",
+      "tabHint": "Tab sets the first suggestion"
+    },
+    "matched": {
+      "fullText": "Full text"
+    }
+  },
+  "graph": {
+    "title": "GraphManager",
+    "tabs": {
+      "mailTemplates": "Mail templates",
+      "testMail": "Test mail"
+    },
+    "testMail": {
+      "title": "Send a test mail",
+      "intro": "An email through Microsoft Graph without a template: sender, recipient, subject and body by hand. The sender must be a mailbox in the tenant. Use this to check certificate, permission and a sender mailbox without starting a login.",
+      "from": "From (mailbox, only the part before the @)",
+      "to": "To",
+      "subject": "Subject",
+      "htmlBody": "Body (HTML)",
+      "send": "Send",
+      "sentAt": "sent at {{time}}",
+      "sentToast": "Test mail sent"
+    },
+    "mailTemplates": {
+      "title": "Mail templates",
+      "intro": "The templates of the emails the system sends through Microsoft Graph. There is exactly one template per template type. Subject and body are kept per language and carry placeholders like {users.vorname}, which are replaced by the real values when sending. If a type has no template, the backend creates one with default texts at startup.",
+      "count_one": "{{count}} mail template",
+      "count_other": "{{count}} mail templates",
+      "empty": "no mail templates",
+      "deleteTitle": "Delete mail template",
+      "deleteQuestion": "Do you really want to delete the template <strong>{{key}}</strong>? At the next startup the backend recreates the default texts for its type.",
+      "editTitle": "Edit mail template: {{key}}",
+      "editTitleNone": "Edit mail template",
+      "notFound": "no mail template chosen or not found",
+      "columns": {
+        "type": "Type",
+        "subject": "Subject",
+        "updatedAt": "changed"
+      },
+      "form": {
+        "type": "Template type",
+        "subject": "Subject",
+        "htmlBody": "Body (HTML)",
+        "placeholders": "Placeholders",
+        "placeholdersHint": "A click copies the placeholder to the clipboard. When sending, it is replaced by the real value.",
+        "placeholderCopied": "Placeholder copied",
+        "preview": "Preview",
+        "previewHint": "This is how the email looks in the chosen language with sample values.",
+        "previewSubject": "Subject"
+      },
+      "types": {
+        "LOGIN_2FA": "Confirm login (2FA)"
+      }
     }
   },
   "solrmanager": {
@@ -526,6 +643,13 @@
       "fieldAccessMinimum": "Minimum",
       "fieldAccessAdvanced": "Advanced",
       "fieldAccessOf": "access of {{name}}, click switches between minimum and advanced",
+      "clientWriteRule": "Write rule",
+      "clientWriteRuleOf": "write rule of {{name}}, click switches between backend, on create only and client",
+      "clientWriteRules": {
+        "BACKEND_ONLY": "Backend",
+        "CLIENT_SETS_ONCE": "on create only",
+        "CLIENT_SETS_AND_CHANGES": "Client"
+      },
       "empty": "no fields",
       "idHoverlay": "the primary key of the core (uniqueKey), what goes in is described in the description",
       "deleteTitle": "Delete field",
@@ -602,6 +726,15 @@
           "Minimum: the field belongs to the basic view of the core. Whoever may see a document at all (readAcl, isPublic or their guid in userGrantedAccess) always gets it, even without the role <KERN>_FULL. id is always minimum.",
           "Advanced: only users with the role <KERN>_FULL get the field, or users to whom it was granted individually for this core. Everyone else never sees it, may not resolve, sort or facet by it, and does not learn that the field exists.",
           "New fields are advanced. The switch lives only in our field definition, not in Solr: the sync ignores it, the read services derive from it which fields they request (fl)."
+        ]
+      },
+      "clientWriteRule": {
+        "title": "Write rule: who sets the field",
+        "paragraphs": [
+          "Backend: never from the client. The write service of the core sets the field itself, e.g. sftpPath, readAcl, writeAcl, uploader. A backend field has no delete button, because the backend needs it.",
+          "On create only: the client passes the field with the upload, afterwards it is ignored, e.g. versionChain, fileSizeBytes.",
+          "Client: the client sets the field on create and changes it on edit, e.g. fileDescription, status, every hook.",
+          "If the client sends a field it may not set, it is ignored, not rejected. The backend sets its fields after the client's. New fields are backend, the built-in ones always. The switch lives only in our field definition, not in Solr."
         ]
       },
       "type": {

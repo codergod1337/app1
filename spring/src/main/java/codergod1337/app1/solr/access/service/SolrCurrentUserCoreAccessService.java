@@ -3,12 +3,11 @@ package codergod1337.app1.solr.access.service;
 import codergod1337.app1.solr.access.model.SolrCurrentUserReadAndWriteAccessForCore;
 import codergod1337.app1.solr.core.model.SolrCore;
 import codergod1337.app1.solr.core.service.SolrCoreService;
-import codergod1337.app1.solr.document.service.SolrDocumentService;
-import codergod1337.app1.solr.document.service.SolrDocumentService.SolrQueriedDocumentsPage;
 import codergod1337.app1.solr.field.model.SolrField;
 import codergod1337.app1.solr.field.model.SolrFieldReadAccessLevel;
 import codergod1337.app1.solr.field.service.SolrFieldService;
 import codergod1337.app1.solr.grant.service.SolrAdvancedFieldGrantAccessPerCoreService;
+import codergod1337.app1.solr.grant.service.SolrHookGrantAccessService;
 import codergod1337.app1.solr.hook.model.SolrHook;
 import codergod1337.app1.solr.hook.service.SolrHookService;
 import codergod1337.app1.system.security.CurrentUsersProvider;
@@ -16,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.apache.solr.client.solrj.request.SolrQuery;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -42,15 +40,16 @@ import org.springframework.web.server.ResponseStatusException;
  * </ul>
  *
  * Schreiben heißt: Metadaten eines Dokuments ändern, ein neues anlegen oder ein vorhandenes mergen. Vor jedem
- * Schreibvorgang an einem Dokument, in jedem Kern, muss writeAcl eine AR des Users enthalten, sonst wird nichts
- * geschrieben (requireWriteAclMatchOfCurrentUserForDocument). Vollsicht gibt kein Schreibrecht. In einem Kern ohne
- * writeAcl schreibt kein User.
+ * Schreibvorgang an einem vorhandenen Dokument, in jedem Kern, muss writeAcl eine AR des Users enthalten, sonst wird
+ * nichts geschrieben. Den Check macht die Lesemechanik mit dem Schreib-fq von hier (requireWriteAclMatch), dieser
+ * Service rechnet nur und liest nie aus Solr (Vorgabe 2026-10-07). Vollsicht gibt kein Schreibrecht, Schreiben
+ * impliziert kein Lesen. In einem Kern ohne writeAcl schreibt kein User.
  *
  * Felder: Mit Vollsicht alle Felder und Hooks. Ohne nur die Minimum-Felder plus die Feldfreigaben des Users für diesen
  * Kern. Hooks stehen nicht im Sheet, ohne Vollsicht sieht ein User einen Hook nur über eine Feldfreigabe.
  *
- * Noch geraten statt erklärt: Ob ein Kern readAcl und writeAcl hat, liest dieser Service am Vorhandensein der Felder ab.
- * Das löst der Steckbrief je Kern ab (SolrReadAclAndGrantedAccessCheck, SolrGrantedAccessCheck, SolrWriteAclCheck).
+ * Ob ein Kern readAcl und writeAcl hat, liest dieser Service am Vorhandensein der Felder ab. Die Namen der Felder, mit
+ * denen das Backend rechnet, stehen hart im Code (Vorgabe 2026-10-07), fehlt eins, fliegen Fehler.
  */
 @Service
 public class SolrCurrentUserCoreAccessService {
@@ -73,17 +72,17 @@ public class SolrCurrentUserCoreAccessService {
 	private final SolrFieldService solrFieldService;
 	private final SolrHookService solrHookService;
 	private final SolrAdvancedFieldGrantAccessPerCoreService advancedFieldGrantService;
-	private final SolrDocumentService solrDocumentService;
+	private final SolrHookGrantAccessService hookGrantService;
 	private final CurrentUsersProvider currentUsersProvider;
 
 	public SolrCurrentUserCoreAccessService(SolrCoreService solrCoreService, SolrFieldService solrFieldService,
 			SolrHookService solrHookService, SolrAdvancedFieldGrantAccessPerCoreService advancedFieldGrantService,
-			SolrDocumentService solrDocumentService, CurrentUsersProvider currentUsersProvider) {
+			SolrHookGrantAccessService hookGrantService, CurrentUsersProvider currentUsersProvider) {
 		this.solrCoreService = solrCoreService;
 		this.solrFieldService = solrFieldService;
 		this.solrHookService = solrHookService;
 		this.advancedFieldGrantService = advancedFieldGrantService;
-		this.solrDocumentService = solrDocumentService;
+		this.hookGrantService = hookGrantService;
 		this.currentUsersProvider = currentUsersProvider;
 	}
 
@@ -104,9 +103,12 @@ public class SolrCurrentUserCoreAccessService {
 				|| accessRoleKeys.contains(coreKey + FULL_ROLE_SUFFIX);
 		boolean everyHookResolvable = freeTextSearchAllowed || accessRoleKeys.contains(HOOK_FULL_ROLE_KEY);
 		UUID usersGuid = currentUsersProvider.getCurrentUsersGuid();
-		// Feldfreigaben zählen, solange der User nicht suchen darf: auch mit _FULL, denn _FULL löst nicht auf
+		// Freigaben zählen, solange der User nicht suchen darf: auch mit _FULL, denn _FULL löst nicht auf.
+		// Feldfreigaben je Kern, Hook-Freigaben serverweit (Vorgabe 2026-10-07).
 		Set<String> grantedFieldNames = freeTextSearchAllowed ? Set.of()
 				: advancedFieldGrantService.activeGrantedAdvancedFieldNamesOfUsersInCore(usersGuid, coreKey);
+		Set<String> grantedHookKeys = everyHookResolvable ? Set.of()
+				: hookGrantService.activeGrantedHookKeysOfUsers(usersGuid);
 
 		List<SolrField> solrFields = solrFieldService.getSolrFieldsByCoreKey(coreKey);
 		List<String> readableFieldAndHookNames = new ArrayList<>();
@@ -119,14 +121,14 @@ public class SolrCurrentUserCoreAccessService {
 				continue;
 			}
 			readableFieldAndHookNames.add(solrField.getName());
-			boolean resolvable = SolrDocumentService.ID_FIELD_NAME.equals(solrField.getName()) || freeTextSearchAllowed
+			boolean resolvable = SolrCore.ID_FIELD_NAME.equals(solrField.getName()) || freeTextSearchAllowed
 					|| granted;
 			if (resolvable && solrField.isIndexed()) {
 				exactResolveAllowedFieldAndHookNames.add(solrField.getName());
 			}
 		}
 		for (SolrHook solrHook : solrHookService.getAllSolrHooks()) {
-			boolean resolvable = everyHookResolvable || grantedFieldNames.contains(solrHook.getKey());
+			boolean resolvable = everyHookResolvable || grantedHookKeys.contains(solrHook.getKey());
 			if (everyFieldAndHookReadable || resolvable) {
 				readableFieldAndHookNames.add(solrHook.getKey());
 			}
@@ -140,37 +142,6 @@ public class SolrCurrentUserCoreAccessService {
 				List.copyOf(exactResolveAllowedFieldAndHookNames),
 				readAclAndGrantedAccessFilterQueries(solrFields, accessRoleKeys, usersGuid, everyFieldAndHookReadable),
 				writeAclFilterQueries(solrFields, accessRoleKeys));
-	}
-
-	/**
-	 * Vor jedem Schreibvorgang an einem vorhandenen Dokument: Findet die Abfrage mit id, Leseprüfung und Schreibprüfung
-	 * das Dokument, darf der User schreiben. Sonst 403, mit derselben Meldung, ob es das Dokument nicht gibt oder er es
-	 * nicht ändern darf. Neue Dokumente prüft der Service des Kerns gegen die Regel, aus der writeAcl entsteht (im DMS
-	 * die Schreibrolle der Dateiart).
-	 */
-	public void requireWriteAclMatchOfCurrentUserForDocument(String coreKey, String id) {
-		if (!hasWriteAclMatchOfCurrentUserForDocument(coreKey, id)) {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "kein Schreibrecht an diesem Dokument");
-		}
-	}
-
-	/**
-	 * Dieselbe Prüfung als Antwort statt als Abbruch: für die Detailansicht, die dem Client sagt, ob Bearbeiten
-	 * angeboten wird. Anzeige, kein Schutz: Jeder Schreibweg prüft selbst noch einmal mit require….
-	 */
-	public boolean hasWriteAclMatchOfCurrentUserForDocument(String coreKey, String id) {
-		SolrCurrentUserReadAndWriteAccessForCore access = readAndWriteAccessOfCurrentUserForCore(coreKey);
-		SolrQuery query = new SolrQuery(SolrDocumentService.ID_FIELD_NAME + ":" + ClientUtils.escapeQueryChars(id));
-		for (String filterQuery : access.readAclAndGrantedAccessFilterQueries()) {
-			query.addFilterQuery(filterQuery);
-		}
-		for (String filterQuery : access.writeAclFilterQueries()) {
-			query.addFilterQuery(filterQuery);
-		}
-		query.setFields(SolrDocumentService.ID_FIELD_NAME);
-		query.setRows(0);
-		SolrQueriedDocumentsPage page = solrDocumentService.queryDocumentsPage(coreKey, query);
-		return page.totalFound() == 1;
 	}
 
 	/**

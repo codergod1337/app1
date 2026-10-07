@@ -23,10 +23,14 @@ export const icons = {
   solrHooks: { pack: 'bootstrap', id: 'diagram-3' },
   solrHookGroups: { pack: 'bootstrap', id: 'tags' },
   solrCores: { pack: 'bootstrap', id: 'hdd-stack' },
+  /** das Modul GraphManager: Microsoft Graph, Mailvorlagen und später die Postfächer */
+  graph: { pack: 'bootstrap', id: 'microsoft' },
+  mailTemplates: { pack: 'bootstrap', id: 'envelope-paper' },
   /** das Modul Freigaben: Dateifreigaben und Feldfreigaben je Kern */
   grant: { pack: 'bootstrap', id: 'person-check-fill' },
   documentGrants: { pack: 'bootstrap', id: 'file-earmark-check' },
   fieldGrants: { pack: 'bootstrap', id: 'list-check' },
+  hookGrants: { pack: 'bootstrap', id: 'link-45deg' },
   /** Auflösen: exakt nach Feld und Wert */
   resolve: { pack: 'bootstrap', id: 'funnel-fill' },
   /** das Auge: eine Datei im Viewer ansehen */
@@ -36,6 +40,10 @@ export const icons = {
   /** der Primärschlüssel eines Kerns: das Feld id, der uniqueKey in Solr */
   documentId: { pack: 'bootstrap', id: 'key' },
   search: { pack: 'bootstrap', id: 'search' },
+  /** ein Filter der Suche, der Trichter ohne Füllung, anders als resolve */
+  filter: { pack: 'bootstrap', id: 'funnel' },
+  /** der Volltext eines Dokuments, z. B. als Treffergrund */
+  fullText: { pack: 'bootstrap', id: 'file-text' },
   download: { pack: 'bootstrap', id: 'download' },
   upload: { pack: 'bootstrap', id: 'upload' },
   camera: { pack: 'bootstrap', id: 'camera-fill' },

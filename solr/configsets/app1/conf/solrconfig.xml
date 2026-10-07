@@ -40,7 +40,10 @@
     </updateHandler>
 
     <query>
-        <maxBooleanClauses>1024</maxBooleanClauses>
+        <!-- 3000 statt 1024 (User 2026-10-07): Jedes Suchwort läuft über jedes Feld der qf samt Suggested-Zwilling, mit
+             vielen Hooks sind das schnell dreißig Klauseln je Wort. Wirkt nur bis zur Grenze des Knotens
+             (solr.max.booleanClauses in der Compose), beide stehen auf 3000. -->
+        <maxBooleanClauses>3000</maxBooleanClauses>
         <filterCache size="512" initialSize="512" autowarmCount="0"/>
         <queryResultCache size="512" initialSize="512" autowarmCount="0"/>
         <documentCache size="512" initialSize="512" autowarmCount="0"/>

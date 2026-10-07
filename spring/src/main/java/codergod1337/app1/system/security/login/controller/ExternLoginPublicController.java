@@ -4,7 +4,7 @@ import codergod1337.app1.system.HelperInputs;
 import codergod1337.app1.system.security.login.SessionCookies;
 import codergod1337.app1.system.security.login.model.Area;
 import codergod1337.app1.system.security.login.model.IssuedSession;
-import codergod1337.app1.system.security.login.model.Login2faTokens;
+import codergod1337.app1.system.security.login.model.Login2faPollToken;
 import codergod1337.app1.system.security.login.service.LoginService;
 import java.util.Map;
 import java.util.Optional;
@@ -33,11 +33,11 @@ public class ExternLoginPublicController {
 	}
 
 	/**
-	 * Schritt 1: email und Passwort als SHA-256. Bis es Mailversand gibt, kommt der Bestätigungs-Token in der Antwort
-	 * mit, das Frontend zeigt ihn als Aktivierungslink. 200, 400 bei ungültiger Eingabe, 401.
+	 * Schritt 1: email und Passwort als SHA-256. Die 2FA-Mail mit Link und Token geht an den User, zurück kommt nur
+	 * der Abholschein. 200, 400 bei ungültiger Eingabe, 401, 503 wenn die Mail nicht verschickt werden konnte.
 	 */
 	@PostMapping("/start")
-	public Login2faTokens startLogin(@RequestBody Map<String, Object> loginData) {
+	public Login2faPollToken startLogin(@RequestBody Map<String, Object> loginData) {
 		String email = loginData.get("email") instanceof String emailValue ? emailValue : null;
 		if (email == null || email.isBlank()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "email fehlt");

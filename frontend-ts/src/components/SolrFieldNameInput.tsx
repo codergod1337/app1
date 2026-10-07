@@ -8,6 +8,8 @@ interface SolrFieldNameInputProps {
   onChange: (fieldName: string) => void
   required?: boolean
   disabled?: boolean
+  /** gleich den Cursor hineinsetzen, z. B. in der neuen Zeile eines Sheets */
+  autoFocus?: boolean
 }
 
 /**
@@ -15,7 +17,14 @@ interface SolrFieldNameInputProps {
  * zeigt die Regel an, solange der Name noch nicht gültig ist, z. B. weil er auf _ endet.
  * Ungültig lässt sich das Formular nicht abschicken.
  */
-export function SolrFieldNameInput({ id, value, onChange, required = false, disabled = false }: SolrFieldNameInputProps) {
+export function SolrFieldNameInput({
+  id,
+  value,
+  onChange,
+  required = false,
+  disabled = false,
+  autoFocus = false,
+}: SolrFieldNameInputProps) {
   const { t } = useTranslation()
   const input = useRef<HTMLInputElement>(null)
   const invalid = value !== '' && !isValidSolrFieldName(value)
@@ -36,6 +45,8 @@ export function SolrFieldNameInput({ id, value, onChange, required = false, disa
         disabled={disabled}
         maxLength={SOLR_FIELD_NAME_MAX_LENGTH}
         autoComplete="off"
+        // eslint-disable-next-line jsx-a11y/no-autofocus -- die neue Zeile eines Sheets, der User hat sie gerade angefordert
+        autoFocus={autoFocus}
         spellCheck={false}
         value={value}
         onChange={(event) => onChange(toSolrFieldNameCharacters(event.target.value))}

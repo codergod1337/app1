@@ -89,6 +89,17 @@ public class SolrField {
 	@ColumnDefault("'ADVANCED_FULL_SIGHT_OR_FIELD_GRANT'")
 	private SolrFieldReadAccessLevel readAccessLevel = SolrFieldReadAccessLevel.ADVANCED_FULL_SIGHT_OR_FIELD_GRANT;
 
+	/**
+	 * Wer das Feld setzt ({@link SolrFieldClientWriteRule}): Client beim Anlegen und Bearbeiten, Client nur beim
+	 * Anlegen, oder nur das Backend. Nur in dieser Tabelle, nie in Solr. Neue Felder sind BACKEND_ONLY, die eingebauten
+	 * immer, das erzwingt der Service.
+	 */
+	@NotNull
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 40)
+	@ColumnDefault("'BACKEND_ONLY'")
+	private SolrFieldClientWriteRule clientWriteRule = SolrFieldClientWriteRule.BACKEND_ONLY;
+
 	/** Mehrsprachiges JSON: wozu das Feld da ist und welche Daten hinein gehören. */
 	@Column(columnDefinition = "text")
 	private String description;
@@ -102,10 +113,11 @@ public class SolrField {
 	protected SolrField() {
 	}
 
-	/** Admin und Import: jedes Feld außer id. readAccessLevel null heißt Erweitert. */
+	/** Admin und Import: jedes Feld außer id. readAccessLevel null heißt Erweitert, clientWriteRule null heißt BACKEND_ONLY. */
 	public SolrField(String coreKey, String name, SolrFieldType type, boolean indexed, boolean stored,
 			boolean multiValued, boolean docValues, boolean required, boolean suggest,
-			SolrFieldReadAccessLevel readAccessLevel, String description, int listingPosition) {
+			SolrFieldReadAccessLevel readAccessLevel, SolrFieldClientWriteRule clientWriteRule, String description,
+			int listingPosition) {
 		this.coreKey = coreKey;
 		this.name = name;
 		this.type = type;
@@ -117,6 +129,7 @@ public class SolrField {
 		this.suggest = suggest;
 		this.readAccessLevel = readAccessLevel != null ? readAccessLevel
 				: SolrFieldReadAccessLevel.ADVANCED_FULL_SIGHT_OR_FIELD_GRANT;
+		this.clientWriteRule = clientWriteRule != null ? clientWriteRule : SolrFieldClientWriteRule.BACKEND_ONLY;
 		this.description = description;
 		this.listingPosition = listingPosition;
 	}
@@ -197,6 +210,15 @@ public class SolrField {
 	public void setReadAccessLevel(SolrFieldReadAccessLevel readAccessLevel) {
 		this.readAccessLevel = readAccessLevel != null ? readAccessLevel
 				: SolrFieldReadAccessLevel.ADVANCED_FULL_SIGHT_OR_FIELD_GRANT;
+	}
+
+	/** Nie null: Eine alte Zeile ohne Wert oder ein Import ohne das Feld gilt als BACKEND_ONLY. */
+	public SolrFieldClientWriteRule getClientWriteRule() {
+		return clientWriteRule != null ? clientWriteRule : SolrFieldClientWriteRule.BACKEND_ONLY;
+	}
+
+	public void setClientWriteRule(SolrFieldClientWriteRule clientWriteRule) {
+		this.clientWriteRule = clientWriteRule != null ? clientWriteRule : SolrFieldClientWriteRule.BACKEND_ONLY;
 	}
 
 	public String getDescription() {

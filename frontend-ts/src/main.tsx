@@ -34,16 +34,22 @@ import { NewUsersTab } from './modul/admin/NewUsersTab.tsx'
 import { UsersAccessRoleCollectionMatrixTab } from './modul/admin/UsersAccessRoleCollectionMatrixTab.tsx'
 import { UsersTab } from './modul/admin/UsersTab.tsx'
 import { Dms } from './modul/dms/Dms.tsx'
-import { DMS_ACCESS_ROLE_KEY } from './modul/dms/Dms.ts'
+import { DMS_ACCESS_ROLE_KEY, DMS_SEARCH_ACCESS_ROLE_KEY } from './modul/dms/Dms.ts'
 import { DmsExactResolveTab } from './modul/dms/DmsExactResolveTab.tsx'
 import { DmsMyGrantsTab } from './modul/dms/DmsMyGrantsTab.tsx'
 import { DmsSolrDocumentPage } from './modul/dms/DmsSolrDocumentPage.tsx'
 import { DmsSolrDocumentViewerPage } from './modul/dms/DmsSolrDocumentViewerPage.tsx'
 import { DmsUploadBatchTab } from './modul/dms/DmsUploadBatchTab.tsx'
 import { DmsUploadTab } from './modul/dms/DmsUploadTab.tsx'
+import { EditGraphMailTemplateTab } from './modul/graph/EditGraphMailTemplateTab.tsx'
+import { GraphMailTemplatesTab } from './modul/graph/GraphMailTemplatesTab.tsx'
+import { GraphMailTestSendTab } from './modul/graph/GraphMailTestSendTab.tsx'
+import { GraphManager } from './modul/graph/GraphManager.tsx'
+import { NewGraphMailTemplateTab } from './modul/graph/NewGraphMailTemplateTab.tsx'
 import { AdvancedFieldGrantsPerCoreTab } from './modul/grant/AdvancedFieldGrantsPerCoreTab.tsx'
 import { DocumentGrantsPerCoreTab } from './modul/grant/DocumentGrantsPerCoreTab.tsx'
 import { Grant } from './modul/grant/Grant.tsx'
+import { HookGrantsTab } from './modul/grant/HookGrantsTab.tsx'
 import { Home } from './modul/home/Home.tsx'
 import { ConfirmLoginPage } from './modul/login/ConfirmLoginPage.tsx'
 import { LoginPage } from './modul/login/LoginPage.tsx'
@@ -52,6 +58,7 @@ import { EditProfileUsers } from './modul/profile/EditProfileUsers.tsx'
 import { EditProfileUsersDetails } from './modul/profile/EditProfileUsersDetails.tsx'
 import { Profile } from './modul/profile/Profile.tsx'
 import { ProfileOverview } from './modul/profile/ProfileOverview.tsx'
+import { Search } from './modul/search/Search.tsx'
 import { EditSolrCoreTab } from './modul/solrmanager/EditSolrCoreTab.tsx'
 import { EditSolrHookGroupTab } from './modul/solrmanager/EditSolrHookGroupTab.tsx'
 import { EditSolrHookTab } from './modul/solrmanager/EditSolrHookTab.tsx'
@@ -145,6 +152,21 @@ const router = createBrowserRouter([
         ],
       },
       {
+        path: 'graph',
+        element: (
+          <RequireLogin accessRoleKey={ADMIN_ACCESS_ROLE_KEY}>
+            <GraphManager />
+          </RequireLogin>
+        ),
+        children: [
+          { index: true, element: <Navigate to="mailtemplates" replace /> },
+          { path: 'mailtemplates', element: <GraphMailTemplatesTab /> },
+          { path: 'mailtemplates/new', element: <NewGraphMailTemplateTab /> },
+          { path: 'mailtemplates/edit', element: <EditGraphMailTemplateTab /> },
+          { path: 'testmail', element: <GraphMailTestSendTab /> },
+        ],
+      },
+      {
         path: 'dms',
         element: (
           <RequireLogin accessRoleKey={DMS_ACCESS_ROLE_KEY}>
@@ -164,6 +186,16 @@ const router = createBrowserRouter([
         ],
       },
       {
+        // die Suche über alle Kerne. Die Route verlangt die Such-Rolle des ersten Kerns, welche Kerne der User
+        // durchsucht, entscheidet die Maske je Kern aus seinen Rollen
+        path: 'search',
+        element: (
+          <RequireLogin accessRoleKey={DMS_SEARCH_ACCESS_ROLE_KEY}>
+            <Search />
+          </RequireLogin>
+        ),
+      },
+      {
         // Freigaben vorerst nur für ADMIN, später eine eigene AR
         path: 'grant',
         element: (
@@ -175,6 +207,7 @@ const router = createBrowserRouter([
           { index: true, element: <Navigate to="documents" replace /> },
           { path: 'documents', element: <DocumentGrantsPerCoreTab /> },
           { path: 'fields', element: <AdvancedFieldGrantsPerCoreTab /> },
+          { path: 'hooks', element: <HookGrantsTab /> },
         ],
       },
     ],

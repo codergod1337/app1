@@ -3,6 +3,8 @@ package codergod1337.app1.system.masterdata.service;
 import codergod1337.app1.file.fileextension.service.FileExtensionCollectionService;
 import codergod1337.app1.file.fileextension.service.FileExtensionService;
 import codergod1337.app1.file.filesubclass.service.FileSubClassService;
+import codergod1337.app1.graph.mail.model.GraphMailTemplate;
+import codergod1337.app1.graph.mail.service.GraphMailTemplateService;
 import codergod1337.app1.solr.core.service.SolrCoreService;
 import codergod1337.app1.solr.field.model.SolrField;
 import codergod1337.app1.solr.field.service.SolrFieldService;
@@ -65,7 +67,8 @@ public class MasterDataExportService {
 			UsersDetails.class, Set.of("pwUnsuccessfull"),
 			UsersSettings.class, Set.of("id"),
 			AccessRoleUsersAssignment.class, Set.of("id"),
-			SolrField.class, Set.of("id"));
+			SolrField.class, Set.of("id"),
+			GraphMailTemplate.class, Set.of("createdAt", "updatedAt"));
 
 	private static final TypeReference<LinkedHashMap<String, Object>> LINE_TYPE = new TypeReference<>() {
 	};
@@ -80,6 +83,7 @@ public class MasterDataExportService {
 	private final SolrCoreService solrCoreService;
 	private final SolrFieldService solrFieldService;
 	private final EntityStateService entityStateService;
+	private final GraphMailTemplateService graphMailTemplateService;
 	private final UsersService usersService;
 	private final UsersDetailsService usersDetailsService;
 	private final UsersSettingsService usersSettingsService;
@@ -93,7 +97,8 @@ public class MasterDataExportService {
 			FileExtensionCollectionService fileExtensionCollectionService, FileExtensionService fileExtensionService,
 			FileSubClassService fileSubClassService, SolrHookGroupService solrHookGroupService,
 			SolrHookService solrHookService, SolrCoreService solrCoreService,
-			SolrFieldService solrFieldService, EntityStateService entityStateService, UsersService usersService,
+			SolrFieldService solrFieldService, EntityStateService entityStateService,
+			GraphMailTemplateService graphMailTemplateService, UsersService usersService,
 			UsersDetailsService usersDetailsService, UsersSettingsService usersSettingsService,
 			AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
 			AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService,
@@ -108,6 +113,7 @@ public class MasterDataExportService {
 		this.solrCoreService = solrCoreService;
 		this.solrFieldService = solrFieldService;
 		this.entityStateService = entityStateService;
+		this.graphMailTemplateService = graphMailTemplateService;
 		this.usersService = usersService;
 		this.usersDetailsService = usersDetailsService;
 		this.usersSettingsService = usersSettingsService;
@@ -192,6 +198,7 @@ public class MasterDataExportService {
 		case SOLR_CORES -> solrCoreService.getAllSolrCores();
 		case SOLR_FIELDS -> solrFieldService.getAllSolrFields();
 		case ENTITY_STATES -> entityStateService.getAllEntityStates();
+		case GRAPH_MAIL_TEMPLATES -> graphMailTemplateService.getAllGraphMailTemplates();
 		case USERS -> usersService.getAllUsers();
 		case USERS_DETAILS -> usersDetailsService.getAllUsersDetails();
 		case USERS_SETTINGS -> usersSettingsService.getAllUsersSettings();

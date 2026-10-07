@@ -6,6 +6,7 @@ import type { LanguageCode } from '../../branding/languages.ts'
 import { useLanguage } from '../../components/languageContext.ts'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { DeleteButton } from '../../components/DeleteButton.tsx'
+import { DeletePopup } from '../../components/DeletePopup.tsx'
 import { EditButton } from '../../components/EditButton.tsx'
 import { entityStatusName } from '../../components/entityStatus.ts'
 import { Hoverlay } from '../../components/Hoverlay.tsx'
@@ -15,9 +16,14 @@ import { translate } from '../../components/multilingual.ts'
 import type { OriginState } from '../../components/Origin.ts'
 import { PasswordButton } from '../../components/PasswordButton.tsx'
 import { AccessRoleBadge } from '../accessrole/AccessRoleBadge.tsx'
+import {
+  endAllCurrentUsersSessions,
+  endCurrentUsersSession,
+  getCurrentUsersSessions,
+  type UsersSessionForClient,
+} from '../login/Session.ts'
 import { useSession } from '../login/sessionContext.ts'
 import { ChangeUsersPasswordPopup } from '../users/ChangeUsersPasswordPopup.tsx'
-import { SoftDeleteUsersPopup } from '../users/SoftDeleteUsersPopup.tsx'
 import { getUsersByGuid } from '../users/Users.ts'
 import { getUsersDetailsByUsersGuid } from '../users/UsersDetails.ts'
 import { ProfileGuestbook } from './ProfileGuestbook.tsx'
@@ -65,22 +71,30 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
+/** Zeitpunkte der Sitzungen, einheitlich kurz */
+function formatSessionTime(isoTime: string) {
+  return new Date(isoTime).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })
+}
+
 /**
- * Das eigene Profil: oben der Profilkopf, darunter links Kontakt, Konto und Sicherheit, rechts „Über mich“, die Rechte
- * und das Gästebuch. Bearbeitet wird je Entity auf einer eigenen Seite (Users oder UsersDetails).
+ * Das eigene Profil: oben der Profilkopf, darunter links Kontakt, Konto, Sicherheit und Sitzungen, rechts „Über
+ * mich“, die Rechte und das Gästebuch. Bearbeitet wird je Entity auf einer eigenen Seite (Users oder UsersDetails).
  */
 export function ProfileOverview() {
   const navigate = useNavigate()
-  const { sessionInfo } = useSession()
+  const { sessionInfo, reloadSession } = useSession()
   const { accessRoles } = useMasterData()
   const usersGuid = sessionInfo?.usersGuid ?? ''
   const loadUsers = useCallback(() => getUsersByGuid(usersGuid), [usersGuid])
   const { data: users, errorMessage: usersErrorMessage } = useLoad(loadUsers)
   const loadUsersDetails = useCallback(() => getUsersDetailsByUsersGuid(usersGuid), [usersGuid])
   const { data: usersDetails, errorMessage: usersDetailsErrorMessage } = useLoad(loadUsersDetails)
+  const { data: sessions, errorMessage: sessionsErrorMessage, reload: reloadSessions } = useLoad(getCurrentUsersSessions)
   const [language, setLanguage] = useState<LanguageCode>(useLanguage().language)
   const [changingPassword, setChangingPassword] = useState(false)
-  const [deletingUsers, setDeletingUsers] = useState(false)
+  // Sicherheitsabfragen vor dem Beenden: null bzw. false, solange keine offen ist
+  const [sessionToEnd, setSessionToEnd] = useState<UsersSessionForClient | null>(null)
+  const [endingAllSessions, setEndingAllSessions] = useState(false)
 
   // Die AR kommen aus dem Token, Namen und Farben aus den Stammdaten
   const ownAccessRoles = accessRoles?.filter((accessRole) => sessionInfo?.accessRoleKeys.includes(accessRole.key)) ?? null
@@ -204,7 +218,8 @@ export function ProfileOverview() {
           </div>
 
           <div className="profile-box-security">
-            <ContentBox title="Sicherheit" footer="Passwortwechsel und Löschen beenden alle Sitzungen, auch diese.">
+            {/* Nur das Passwort: Ein Konto löscht allein der Admin, nie der User selbst. */}
+            <ContentBox title="Sicherheit" footer="Ein Passwortwechsel beendet alle Sitzungen, auch diese.">
               <div className="profile-security">
                 <div className="profile-security-row">
                   <span className="profile-security-text">
@@ -213,16 +228,58 @@ export function ProfileOverview() {
                   </span>
                   <PasswordButton label="Passwort ändern" onClick={() => setChangingPassword(true)} />
                 </div>
-                <div className="profile-danger-zone">
-                  <span className="profile-security-text">
-                    <strong>Konto löschen</strong>
-                    <span className="small">Dein Konto wird deaktiviert. Anmelden geht danach nicht mehr.</span>
-                  </span>
-                  <DeleteButton label="Konto löschen" onClick={() => setDeletingUsers(true)}>
-                    Löschen
-                  </DeleteButton>
-                </div>
               </div>
+            </ContentBox>
+          </div>
+
+          <div className="profile-box-sessions">
+            <ContentBox
+              title={
+                <>
+                  Sitzungen {sessions !== null && <span className="profile-count-chip">{sessions.length}</span>}
+                </>
+              }
+              footer={
+                sessionsErrorMessage !== null ? (
+                  <span className="text-danger">{sessionsErrorMessage}</span>
+                ) : (
+                  'Ein Platz je Gerät. Beendest du dieses Fenster oder alle Sitzungen, landest du auf der Anmeldung.'
+                )
+              }
+            >
+              {sessions === null && sessionsErrorMessage === null && loadingSpinner}
+              {sessions !== null && sessions.length === 0 && <p className="mb-0">Keine Sitzungen.</p>}
+              {sessions !== null && sessions.length > 0 && (
+                <div className="profile-security">
+                  {sessions.map((session) => (
+                    <div key={session.sessionNumber} className="profile-security-row">
+                      <span className="profile-security-text">
+                        <strong>
+                          Platz {session.sessionNumber}
+                          {session.current && ' · dieses Fenster'}
+                        </strong>
+                        <span className="small">
+                          {session.area} · angemeldet seit {formatSessionTime(session.loggedInSince)} · zuletzt erneuert{' '}
+                          {formatSessionTime(session.lastRefreshedAt)} ({session.refreshCount}-mal) · läuft ab{' '}
+                          {formatSessionTime(session.expiresAt)}
+                        </span>
+                      </span>
+                      <DeleteButton label={`Platz ${session.sessionNumber} beenden`} onClick={() => setSessionToEnd(session)}>
+                        Beenden
+                      </DeleteButton>
+                    </div>
+                  ))}
+                  <div className="profile-danger-zone">
+                    <span className="profile-security-text">
+                      <strong>Alle Sitzungen beenden</strong>
+                      <span className="small">Auf allen Geräten, auch hier. Fremde Fenster fliegen sofort.</span>
+                    </span>
+                    <DeleteButton label="Alle Sitzungen beenden" onClick={() => setEndingAllSessions(true)}>
+                      Alle beenden
+                    </DeleteButton>
+                  </div>
+                </div>
+              )}
             </ContentBox>
           </div>
         </div>
@@ -279,7 +336,33 @@ export function ProfileOverview() {
       </div>
 
       <ChangeUsersPasswordPopup open={changingPassword} usersGuid={usersGuid} onClose={() => setChangingPassword(false)} />
-      <SoftDeleteUsersPopup open={deletingUsers} usersGuid={usersGuid} onClose={() => setDeletingUsers(false)} />
+      <DeletePopup
+        open={sessionToEnd !== null}
+        title="Sitzung beenden"
+        onConfirm={() => endCurrentUsersSession(sessionToEnd?.sessionNumber ?? 0)}
+        onDeleted={() => {
+          // die eigene: Die Cookies sind weg, die Sitzung neu laden führt zur Anmeldung. Eine fremde: nur die Liste
+          if (sessionToEnd?.current) {
+            reloadSession()
+          } else {
+            reloadSessions()
+          }
+        }}
+        onClose={() => setSessionToEnd(null)}
+      >
+        Soll <strong>Platz {sessionToEnd?.sessionNumber}</strong>
+        {sessionToEnd?.current ? ' (dieses Fenster)' : ''} wirklich beendet werden? Das Gerät muss sich danach neu anmelden.
+      </DeletePopup>
+      <DeletePopup
+        open={endingAllSessions}
+        title="Alle Sitzungen beenden"
+        onConfirm={endAllCurrentUsersSessions}
+        onDeleted={reloadSession}
+        onClose={() => setEndingAllSessions(false)}
+      >
+        Sollen wirklich <strong>alle Sitzungen</strong> beendet werden, auch dieses Fenster? Du landest danach auf der
+        Anmeldung, alle anderen Geräte sofort auch.
+      </DeletePopup>
     </div>
   )
 }

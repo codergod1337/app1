@@ -3,3 +3,7 @@
 
 # Testdaten, z. B. alte Exporte: enthalten echte Namen und E-Mails
 /demo_data/
+
+# Schlüssel und Zertifikate liegen in app1/secrets neben gitfiles, also außerhalb des Repos.
+# Der Eintrag ist nur das Sicherheitsnetz, falls der Ordner doch einmal hier landet.
+/secrets/

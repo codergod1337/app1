@@ -17,14 +17,17 @@ import { SolrFieldValueInput } from '../solrmanager/SolrFieldValueInput.tsx'
 import { SolrHookFields, type SolrHookValuesByKey } from '../solrmanager/SolrHookFields.tsx'
 import {
   DMS_CORE_KEY,
+  DMS_STATE_SCOPE,
+  dmsFieldInput,
+  FILE_SIZE_FIELD_NAME,
   FILE_SUB_CLASS_FIELD_NAME,
+  fileExtensionOf,
   probeDmsUpload,
   uploadDmsFile,
   type DmsUploadProbe,
   type DmsUploadResult,
 } from './Dms.ts'
 import { entityStatesOfScope } from '../entitystate/EntityState.ts'
-import { DMS_STATE_SCOPE, dmsFieldInput, FILE_SIZE_FIELD_NAME, fileExtensionOf } from './DmsFields.ts'
 import { DmsUploadProbeResult } from './DmsUploadProbeResult.tsx'
 
 const FORM_ID = 'dms-upload-form'
@@ -35,8 +38,8 @@ const FORM_ID = 'dms-upload-form'
  * Feld gegen die Felddefinition und nennt jede Beanstandung. Gespeichert wird nichts, die Antwort zeigt, was ankam und
  * was Tika in der Datei fand. Masken je Fall, die Felder ausblenden und vorbelegen, kommen später darüber.
  *
- * Was ein Feld in der Maske ist, sagt DmsFields: Die Felder des Backends stehen gesperrt in der Liste, versionChain
- * bleibt leer (nur eine neue Fassung schickt die Kette mit), fileSizeBytes liest die Maske aus der Datei, status ist
+ * Was ein Feld in der Maske ist, sagt die Schreibregel der Felddefinition (dmsFieldInput): Die Felder des Backends
+ * stehen gesperrt in der Liste, versionChain bleibt leer (nur eine neue Fassung schickt die Kette mit), fileSizeBytes liest die Maske aus der Datei, status ist
  * eine feste Liste. Die Dateiart wird über den Kacheln der Dateiart-Auswahl gewählt (FileSubClassPicker, alle
  * Dateiarten), ihre Zeile in der Liste zeigt nur die Wahl. Die Datei kommt über die Dropzone (ziehen, klicken, am
  * Telefon die Kamera), alles andere ist freie Eingabe.
@@ -136,7 +139,7 @@ export function DmsUploadTab() {
     const id = `dms-upload-${solrField.name}`
     const current = values[solrField.name]
     const currentText = typeof current === 'string' ? current : ''
-    switch (dmsFieldInput(solrField.name)) {
+    switch (dmsFieldInput(solrField)) {
       case 'backend':
         return <input id={id} className="form-control form-control-sm" disabled placeholder={t('dms.upload.backendSets')} />
       case 'chain':
@@ -306,12 +309,14 @@ export function DmsUploadTab() {
               </dd>
             </div>
           </dl>
-          {/* die Hooks, wie sie jetzt in Solr stehen: bei MERGED die vereinigten, über das Hook-Modul */}
-          <SolrHookFields
-            hooks={solrHookValuesOf(uploadResult.document, solrHooks ?? [])}
-            language={language}
-            title={t('dms.result.storedHooks')}
-          />
+          {/* die Hooks, wie sie jetzt in Solr stehen: bei MERGED die vereinigten, über das Hook-Modul. Ohne Dokument darf der User es nicht lesen. */}
+          {uploadResult.document !== null && (
+            <SolrHookFields
+              hooks={solrHookValuesOf(uploadResult.document, solrHooks ?? [])}
+              language={language}
+              title={t('dms.result.storedHooks')}
+            />
+          )}
         </ContentBox>
       )}
       {probe !== null && <DmsUploadProbeResult probe={probe} language={language} />}

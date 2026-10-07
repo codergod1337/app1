@@ -6,6 +6,7 @@ import { ContentBox } from '../../components/ContentBox.tsx'
 import { useLanguage } from '../../components/languageContext.ts'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
+import { NewEntityButton } from '../../components/NewEntityButton.tsx'
 import { SolrCoreEmblem } from './SolrCoreEmblem.tsx'
 import { SolrFieldSheet } from './SolrFieldSheet.tsx'
 import { groupSolrHooks } from './SolrHook.ts'
@@ -25,6 +26,8 @@ export function SolrCoreTab() {
   const { coreKey = '' } = useParams()
   const { solrCores, solrHooks, solrHookGroups, solrFields, errorMessage, reloadMasterData } = useMasterData()
   const [language, setLanguage] = useState<LanguageCode>(useLanguage().language)
+  // Das Plus im Kopf der Box öffnet unten im Sheet die leere Zeile für ein neues Feld
+  const [newFieldRowOpen, setNewFieldRowOpen] = useState(false)
   const solrCore = solrCores?.find((candidate) => candidate.key === coreKey) ?? null
   const coreFields = solrFields?.filter((solrField) => solrField.coreKey === coreKey) ?? null
 
@@ -48,6 +51,13 @@ export function SolrCoreTab() {
           ? `${translate(solrCore.displayName) || solrCore.key} (${solrCore.key})`
           : t('solrmanager.cores.core.title', { key: coreKey })
       }
+      actions={
+        <NewEntityButton
+          entity="SolrField"
+          disabled={solrCore === null || coreFields === null || newFieldRowOpen}
+          onClick={() => setNewFieldRowOpen(true)}
+        />
+      }
       footer={footer}
       language={{ value: language, onChange: setLanguage }}
     >
@@ -70,6 +80,8 @@ export function SolrCoreTab() {
               solrFields={coreFields}
               language={language}
               onSaved={reloadMasterData}
+              newRowOpen={newFieldRowOpen}
+              onNewRowClose={() => setNewFieldRowOpen(false)}
             />
           </div>
           <div>

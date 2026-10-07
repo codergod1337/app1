@@ -7,6 +7,8 @@ import { Icon } from '../components/Icon.tsx'
 import { useOrigin } from '../components/Origin.ts'
 import type { LoginState } from '../modul/login/LoginPage.tsx'
 import { useSession } from '../modul/login/sessionContext.ts'
+import { SEARCH_PATH } from '../modul/search/Search.ts'
+import { searchCoresOf } from '../modul/search/searchCores.ts'
 import { LanguageMenu } from './LanguageMenu.tsx'
 import { OwnAccessRoleCollection } from './OwnAccessRoleCollection.tsx'
 import { UserMenu } from './UserMenu.tsx'
@@ -29,9 +31,11 @@ export function Header() {
   const origin = useOrigin()
   const navigate = useNavigate()
   const location = useLocation()
-  const { sessionInfo, nextRefreshAt } = useSession()
+  const { sessionInfo, nextRefreshAt, hasAccessRole } = useSession()
   const [now, setNow] = useState(() => Date.now())
   const countdown = nextRefreshAt !== null ? formatCountdown(nextRefreshAt, now) : null
+  /** die Lupe wie in der Vorlage: nur für den, der mindestens einen Kern durchsuchen darf */
+  const canSearch = searchCoresOf(hasAccessRole).length > 0
 
   // Sekundentakt für den Countdown, nur solange ein Refresh geplant ist
   useEffect(() => {
@@ -60,6 +64,11 @@ export function Header() {
         </Link>
       )}
       <div className="header-session">
+        {canSearch && (
+          <Link className="button-other" to={SEARCH_PATH} aria-label={t('layout.search')}>
+            <Icon name="search" />
+          </Link>
+        )}
         <LanguageMenu />
         {sessionInfo?.loggedIn === true && (
           <>

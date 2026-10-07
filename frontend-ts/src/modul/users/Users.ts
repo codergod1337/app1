@@ -1,5 +1,4 @@
 import { request } from '../../api/client.ts'
-import { sha256Hex } from '../../components/sha256Hex.ts'
 
 /** Ein User, wie ihn das Backend liefert (Users.java). */
 export interface Users {
@@ -44,14 +43,6 @@ export function getUsersByGuid(guid: string) {
 /** Der User ändert username, vorname und nachname. email, serviceAccount und status bleiben. */
 export function updateUsersNames(guid: string, changedUsersNamesData: UsersNamesData) {
   return request<Users>('PUT', USERS_PATH, { guid, ...changedUsersNamesData })
-}
-
-/**
- * Der User löscht sich selbst, aber nur weich: Status DELETED, anmelden geht danach nicht mehr. Zur Bestätigung das
- * eigene Passwort, es geht nur als SHA-256 hinaus.
- */
-export async function softDeleteUsers(guid: string, password: string) {
-  return request<Users>('DELETE', USERS_PATH, { guid, password: await sha256Hex(password) })
 }
 
 // ===== Endpunkte des UsersAdminController =====

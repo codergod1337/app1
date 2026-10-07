@@ -529,6 +529,20 @@
     overflow-wrap: anywhere;
   }
 
+  /* Senkrechter Spaltenkopf (TableColumn.verticalHeader): von unten nach oben gelesen, die Spalte bleibt schmal */
+  .data-table th.th-vertical {
+    vertical-align: bottom;
+    text-align: center;
+  }
+
+  .data-table .th-vertical-text {
+    display: inline-block;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    line-height: 1;
+  }
+
   /* ===== Aktionsspalte ganz rechts in Tabellen (Bearbeiten, Löschen) ===== */
   .actions-cell {
     width: 1%;
@@ -2591,5 +2605,235 @@
     margin-right: 0.3rem;
     font-variant-numeric: tabular-nums;
     opacity: 0.6;
+  }
+
+  /*
+   * ===== Suche =====
+   * Die Suchmaske über alle Kerne nach der Vorlage: die Filter als Chips, ein großes Eingabefeld, die Kernschalter im
+   * Kopf der Box, darunter je Kern seine Treffer. Eine Trefferzeile: Symbol oder Vorschaubild links, Name und Fakten in
+   * der Mitte, die Aktionen rechts. Die Markierung der Fundstellen ist das mark von Bootstrap.
+   */
+  .search-input {
+    font-size: 1.15rem;
+  }
+
+  .search-words {
+    font-size: 0.8rem;
+    opacity: 0.7;
+  }
+
+  .search-words-exceeded {
+    color: var(--danger-text);
+    opacity: 1;
+  }
+
+  .search-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  /* Ein Filter auf ein normales Feld: Pille in den Farben des Boxkopfs, Hooks haben ihren eigenen Chip */
+  .search-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background: var(--contentbox-header-bg);
+    color: var(--contentbox-header-text);
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .search-filter-chip-field {
+    opacity: 0.7;
+  }
+
+  .search-filter-editor {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Die Filterangebote der Vervollständigung: wie die Chips, aber gestrichelt, denn sie sind noch nicht gesetzt */
+  .search-offers {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .search-offer {
+    border: 1px dashed var(--contentbox-border);
+    background: var(--contentbox-bg);
+    color: var(--contentbox-text);
+    cursor: pointer;
+  }
+
+  .search-offer:hover {
+    background: var(--contentbox-header-bg);
+  }
+
+  .search-offer-preview {
+    width: 1.4rem;
+    height: 1.4rem;
+    object-fit: contain;
+  }
+
+  .search-offer-extra {
+    opacity: 0.7;
+  }
+
+  .search-filter-editor .form-select,
+  .search-filter-editor .form-control {
+    width: auto;
+    min-width: 10rem;
+  }
+
+  .search-core-toggles {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  /* Ein Kernschalter: gedimmt, wenn der Kern abgewählt ist, in den Farben des subheaders, wenn er sucht */
+  .search-core-toggle {
+    padding: 0.2rem 0.6rem;
+    border: 1px solid var(--contentbox-border);
+    border-radius: 999px;
+    background: var(--contentbox-bg);
+    color: var(--contentbox-text);
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.2;
+    opacity: 0.6;
+    cursor: pointer;
+  }
+
+  .search-core-toggle.active {
+    border-color: var(--subheader-bg);
+    background: var(--subheader-bg);
+    color: var(--subheader-text);
+    opacity: 1;
+  }
+
+  .search-fsc {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .search-hits {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .search-hit {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.6rem 0;
+    border-top: 1px solid var(--contentbox-border);
+  }
+
+  .search-hit:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .search-hit-symbol {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .search-hit-symbol .file-sub-class-symbol {
+    min-width: 2.5rem;
+    height: 2.5rem;
+    font-size: 2.1rem;
+  }
+
+  .search-hit-preview {
+    max-width: 3rem;
+    max-height: 3rem;
+    object-fit: contain;
+  }
+
+  .search-hit-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
+  .search-hit-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Der Name ist der Einstieg: ein Knopf ohne Knopf-Optik, unterstrichen beim Zeigen */
+  .search-hit-name {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+
+  .search-hit-name:hover {
+    text-decoration: underline;
+  }
+
+  .search-hit-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .search-hit-description {
+    font-size: 0.9rem;
+  }
+
+  .search-hit-hooks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1rem;
+  }
+
+  /* Ein Hook-Wert im Treffer ist ein Knopf: Klick loggt ihn als Filter ein */
+  .search-hit-hook-value {
+    border: 0;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .search-hit-reasons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+    font-size: 0.8rem;
+    opacity: 0.85;
+  }
+
+  .search-hit-actions {
+    flex: none;
   }
 }

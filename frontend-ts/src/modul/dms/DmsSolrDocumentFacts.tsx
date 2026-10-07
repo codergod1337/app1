@@ -4,27 +4,11 @@ import { Hoverlay } from '../../components/Hoverlay.tsx'
 import { Icon } from '../../components/Icon.tsx'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
-import { DOCUMENT_LANGUAGE_FIELD_NAME } from './Dms.ts'
+import { DOCUMENT_LANGUAGE_FIELD_NAME, readableBytes, STATUS_FIELD_NAME } from './Dms.ts'
 import { DmsDocumentLanguageFlag } from './DmsDocumentLanguageFlag.tsx'
-import { STATUS_FIELD_NAME } from './DmsFields.ts'
 
 /** Ein Dokument, wie es der Server liefert: nur die Felder, die der User lesen darf */
 export type DmsSolrDocument = Record<string, unknown>
-
-/** Bytes lesbar: 1,2 MB statt 1234567 */
-function readableBytes(value: unknown): string {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return ''
-  }
-  const units = ['B', 'kB', 'MB', 'GB']
-  let amount = value
-  let unit = 0
-  while (amount >= 1000 && unit < units.length - 1) {
-    amount /= 1000
-    unit += 1
-  }
-  return `${unit === 0 ? amount : amount.toFixed(1)} ${units[unit]}`
-}
 
 /** Der letzte Eintrag einer Liste oder der Wert selbst, als Text */
 function lastOf(value: unknown): string | null {

@@ -1,66 +1,63 @@
 package codergod1337.app1.dms.service;
 
 import codergod1337.app1.dms.model.DmsCurrentUsersGrantsForClient;
-import codergod1337.app1.solr.access.model.SolrCurrentUserReadAndWriteAccessForCore;
-import codergod1337.app1.solr.access.service.SolrCurrentUserCoreAccessService;
-import codergod1337.app1.solr.document.service.SolrExactFieldValueResolveService;
-import codergod1337.app1.solr.document.service.SolrExactFieldValueResolveService.SolrResolvedDocumentsPage;
+import codergod1337.app1.dms.model.DmsResolvedDocumentsPage;
+import codergod1337.app1.dms.model.DmsSolrDocumentFieldNames;
+import codergod1337.app1.dms.model.DmsSolrDocumentGrantsForClient;
 import codergod1337.app1.solr.grant.model.SolrAdvancedFieldGrantAccessPerCore;
 import codergod1337.app1.solr.grant.model.SolrDocumentGrantedDocsPerCore;
+import codergod1337.app1.solr.grant.model.SolrHookGrantAccess;
 import codergod1337.app1.solr.grant.service.SolrAdvancedFieldGrantAccessPerCoreService;
 import codergod1337.app1.solr.grant.service.SolrDocumentGrantedDocsPerCoreService;
-import codergod1337.app1.system.security.CurrentUsersProvider;
+import codergod1337.app1.solr.grant.service.SolrHookGrantAccessService;
 import codergod1337.app1.system.user.model.Users;
 import codergod1337.app1.system.user.service.UsersService;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Der Tab „Meine Freigaben“ im DMS (Vorgabe 2026-10-04): der Weg eines eingeschränkten Users zu seinen Dokumenten, denn
- * mit der AR DMS allein löst er nur nach id auf. Das Register (seine Datei- und Feldfreigaben im Kern DMS) und,
- * seitenweise, die Dokumente, die seine guid in userGrantedAccess tragen, mit seiner Leseprüfung und seinen lesbaren
- * Feldern. Die guid kommt aus dem Token, nie vom Client.
+ * Die Freigaben aus Sicht des DMS: der Tab „Meine Freigaben“ (Vorgabe 2026-10-04), der Weg eines eingeschränkten
+ * Users zu seinen Dokumenten, denn mit der AR DMS allein löst er nur nach id auf. Das Register (seine Datei- und
+ * Feldfreigaben im Kern DMS, seine Hook-Freigaben serverweit) und, über die Lese-Tür des DMS, die Dokumente mit seiner
+ * guid in userGrantedAccess. Dazu der Kontrollblick des Admins auf die Freigaben eines Dokuments. Die guid des current
+ * users kommt aus dem Token, nie vom Client.
  */
 @Service
 public class DmsCurrentUsersGrantsService {
 
-	/** Neueste Dokumente zuerst, wenn der User das Feld lesen darf, sonst in Indexreihenfolge */
-	private static final String PREFERRED_SORT_FIELD_NAME = "documentCreatedAt";
-
-	private final SolrDocumentGrantedDocsPerCoreService documentGrantService;
+	private final SolrDocumentGrantedDocsPerCoreService documentGrantRegisterService;
 	private final SolrAdvancedFieldGrantAccessPerCoreService fieldGrantService;
-	private final SolrExactFieldValueResolveService solrExactFieldValueResolveService;
-	private final SolrCurrentUserCoreAccessService solrCurrentUserCoreAccessService;
+	private final SolrHookGrantAccessService hookGrantService;
+	private final DmsExactFieldValueResolveService dmsExactFieldValueResolveService;
 	private final UsersService usersService;
-	private final CurrentUsersProvider currentUsersProvider;
 
-	public DmsCurrentUsersGrantsService(SolrDocumentGrantedDocsPerCoreService documentGrantService,
-			SolrAdvancedFieldGrantAccessPerCoreService fieldGrantService,
-			SolrExactFieldValueResolveService solrExactFieldValueResolveService,
-			SolrCurrentUserCoreAccessService solrCurrentUserCoreAccessService, UsersService usersService,
-			CurrentUsersProvider currentUsersProvider) {
-		this.documentGrantService = documentGrantService;
+	public DmsCurrentUsersGrantsService(SolrDocumentGrantedDocsPerCoreService documentGrantRegisterService,
+			SolrAdvancedFieldGrantAccessPerCoreService fieldGrantService, SolrHookGrantAccessService hookGrantService,
+			DmsExactFieldValueResolveService dmsExactFieldValueResolveService, UsersService usersService) {
+		this.documentGrantRegisterService = documentGrantRegisterService;
 		this.fieldGrantService = fieldGrantService;
-		this.solrExactFieldValueResolveService = solrExactFieldValueResolveService;
-		this.solrCurrentUserCoreAccessService = solrCurrentUserCoreAccessService;
+		this.hookGrantService = hookGrantService;
+		this.dmsExactFieldValueResolveService = dmsExactFieldValueResolveService;
 		this.usersService = usersService;
-		this.currentUsersProvider = currentUsersProvider;
 	}
 
-	/** Das Register des current users im Kern DMS, alle Status, neueste zuerst, mit den Namen der Freigebenden */
+	/** Das Register des current users: Datei- und Feldfreigaben im Kern DMS, Hook-Freigaben serverweit, mit den Namen der Freigebenden */
 	@PreAuthorize("hasRole('DMS')")
 	public DmsCurrentUsersGrantsForClient currentUsersGrantsForClient() {
-		List<SolrDocumentGrantedDocsPerCore> documentGrants = documentGrantService
-				.documentGrantsOfCurrentUserInCore(DmsUploadService.CORE_KEY);
+		List<SolrDocumentGrantedDocsPerCore> documentGrants = documentGrantRegisterService
+				.documentGrantsOfCurrentUserInCore(DmsSolrDocumentFieldNames.CORE_KEY);
 		List<SolrAdvancedFieldGrantAccessPerCore> fieldGrants = fieldGrantService
-				.fieldGrantsOfCurrentUserInCore(DmsUploadService.CORE_KEY);
+				.fieldGrantsOfCurrentUserInCore(DmsSolrDocumentFieldNames.CORE_KEY);
+		List<SolrHookGrantAccess> hookGrants = hookGrantService.hookGrantsOfCurrentUser();
 		LinkedHashSet<UUID> guids = new LinkedHashSet<>();
 		for (SolrDocumentGrantedDocsPerCore grant : documentGrants) {
 			guids.add(grant.getGrantedByUsersGuid());
@@ -68,19 +65,41 @@ public class DmsCurrentUsersGrantsService {
 		for (SolrAdvancedFieldGrantAccessPerCore grant : fieldGrants) {
 			guids.add(grant.getGrantedByUsersGuid());
 		}
-		return new DmsCurrentUsersGrantsForClient(documentGrants, fieldGrants, usersDisplayNameByGuid(guids));
+		for (SolrHookGrantAccess grant : hookGrants) {
+			guids.add(grant.getGrantedByUsersGuid());
+		}
+		return new DmsCurrentUsersGrantsForClient(documentGrants, fieldGrants, hookGrants, usersDisplayNameByGuid(guids));
 	}
 
 	/** Die Dokumente mit der guid des current users in userGrantedAccess, seitenweise, mit seiner Leseprüfung */
 	@PreAuthorize("hasRole('DMS')")
-	public SolrResolvedDocumentsPage resolveDocumentsPageGrantedToCurrentUser(Integer page, Integer size) {
-		SolrCurrentUserReadAndWriteAccessForCore access = solrCurrentUserCoreAccessService
-				.readAndWriteAccessOfCurrentUserForCore(DmsUploadService.CORE_KEY);
-		String sortFieldName = access.isReadableByCurrentUser(PREFERRED_SORT_FIELD_NAME) ? PREFERRED_SORT_FIELD_NAME
-				: null;
-		return solrExactFieldValueResolveService.resolveDocumentsPageCarryingGranteeUsersGuid(DmsUploadService.CORE_KEY,
-				currentUsersProvider.getCurrentUsersGuid(), page != null ? page : 0,
-				size != null ? size : SolrExactFieldValueResolveService.DEFAULT_PAGE_SIZE, sortFieldName, true);
+	public DmsResolvedDocumentsPage resolveDocumentsPageGrantedToCurrentUser(Integer page, Integer size) {
+		return dmsExactFieldValueResolveService.resolveDmsSolrDocumentsPageForMyGrants(page != null ? page : 0,
+				size != null ? size : DmsExactFieldValueResolveService.DEFAULT_PAGE_SIZE);
+	}
+
+	/**
+	 * Der Kontrollblick auf die Freigaben eines Dokuments (Vorgabe 2026-10-04): die guids aus userGrantedAccess, gelesen
+	 * fürs Backend mit der Leseprüfung des Users, dazu die wirksamen Dateifreigaben dieser User im Kern DMS und ihre
+	 * Namen. Vorerst ADMIN, später weitere Rollen über denselben Endpunkt. 404, wenn er das Dokument nicht sehen darf.
+	 */
+	@PreAuthorize("hasRole('ADMIN')")
+	public DmsSolrDocumentGrantsForClient loadGrantsOfDmsSolrDocumentForAdminCheck(String id) {
+		List<String> grantedUsersGuids = dmsExactFieldValueResolveService.loadGranteesOfDmsSolrDocument(id);
+		if (grantedUsersGuids == null) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "kein Dokument mit dieser id");
+		}
+		List<UUID> parsed = new ArrayList<>();
+		for (String text : grantedUsersGuids) {
+			try {
+				parsed.add(UUID.fromString(text));
+			} catch (IllegalArgumentException ignored) {
+				// ein Eintrag, der keine guid ist, bleibt als Text stehen und hat kein Register
+			}
+		}
+		List<SolrDocumentGrantedDocsPerCore> inForce = parsed.isEmpty() ? List.of()
+				: documentGrantRegisterService.documentGrantsInForceOfUsersInCore(parsed, DmsSolrDocumentFieldNames.CORE_KEY);
+		return new DmsSolrDocumentGrantsForClient(grantedUsersGuids, inForce, usersDisplayNameByGuid(parsed));
 	}
 
 	/**

@@ -1,4 +1,6 @@
 import { request } from '../../api/client.ts'
+import type { LanguageCode } from '../../branding/languages.ts'
+import { translate } from '../../components/multilingual.ts'
 import type { PackSymbol } from '../../components/PackSymbol.ts'
 
 /** Eine Dateiart (FSC), wie sie das Backend liefert (FileSubClass.java). Gelesen wird über die Stammdaten. */
@@ -24,6 +26,30 @@ export interface FileSubClass {
 
 /** Daten zum Anlegen und Ändern: alles außer den Endungen, die fasst das Speichern nie an. */
 export type FileSubClassData = Omit<FileSubClass, 'extensions'>
+
+/** Der Anzeigename einer Dateiart in der Sprache, sonst der key */
+export function fileSubClassNameOf(fileSubClass: FileSubClass, language: LanguageCode): string {
+  return translate(fileSubClass.displayName, language) || fileSubClass.key
+}
+
+/**
+ * Die Dateiarten, deren Anzeigename oder key mit dem Getippten beginnt (klein), in Kachelreihenfolge: listingPosition,
+ * dann key. Leer passt alles. Für den Dateiart-Modus der Suche, wo genau dieser Anfang zu Ende geschrieben wird.
+ */
+export function fileSubClassesStartingWith(
+  fileSubClasses: readonly FileSubClass[],
+  needle: string,
+  language: LanguageCode,
+): FileSubClass[] {
+  return [...fileSubClasses]
+    .filter(
+      (fileSubClass) =>
+        needle === '' ||
+        fileSubClassNameOf(fileSubClass, language).toLowerCase().startsWith(needle) ||
+        fileSubClass.key.toLowerCase().startsWith(needle),
+    )
+    .sort((a, b) => a.listingPosition - b.listingPosition || a.key.localeCompare(b.key))
+}
 
 // ===== Endpunkte des FileSubClassAdminController. Gelesen wird über die Stammdaten (useMasterData). =====
 

@@ -140,6 +140,29 @@ public class UsersRefreshTokenService {
 				.ifPresent(usersRefreshToken -> usersRefreshTokenRepository.deleteByFamilyId(usersRefreshToken.getFamilyId()));
 	}
 
+	/**
+	 * Die lebenden Ketten eines Users, je Platz das aktuelle Glied (unverbraucht, nicht abgelaufen), sortiert nach
+	 * Platz. Daraus baut das Profil die Liste der Sitzungen.
+	 */
+	@Transactional(readOnly = true)
+	public List<UsersRefreshToken> getLivingUsersRefreshTokensOfUsers(UUID usersGuid) {
+		return usersRefreshTokenRepository
+				.findByUsersGuidAndUsedAtIsNullAndExpiresAtAfter(usersGuid, OffsetDateTime.now()).stream()
+				.sorted(Comparator.comparingInt(UsersRefreshToken::getSessionNumber))
+				.toList();
+	}
+
+	/** Die Kette auf diesem Platz löschen: Das Gerät verliert seine Sitzung. Ein leerer Platz ist kein Fehler. */
+	@Transactional
+	public void deleteUsersRefreshTokenFamilyBySessionNumber(UUID usersGuid, int sessionNumber) {
+		for (UsersRefreshToken livingUsersRefreshToken : usersRefreshTokenRepository
+				.findByUsersGuidAndUsedAtIsNullAndExpiresAtAfter(usersGuid, OffsetDateTime.now())) {
+			if (livingUsersRefreshToken.getSessionNumber() == sessionNumber) {
+				usersRefreshTokenRepository.deleteByFamilyId(livingUsersRefreshToken.getFamilyId());
+			}
+		}
+	}
+
 	/** Alle Ketten eines Users: guid-Wechsel, User gelöscht, Diebstahl. */
 	@Transactional
 	public void deleteAllUsersRefreshTokensOfUsers(UUID usersGuid) {

@@ -61,6 +61,32 @@ export const SOLR_FIELD_SETTINGS: { setting: SolrFieldSetting; label: string }[]
 export type SolrFieldReadAccessLevel = 'MINIMUM_SET_EVERY_READER' | 'ADVANCED_FULL_SIGHT_OR_FIELD_GRANT'
 
 /**
+ * Wer ein Feld setzt, die Schreibregel je Feld (SolrFieldClientWriteRule.java, Vorgabe 2026-10-07).
+ * CLIENT_SETS_AND_CHANGES: der Client setzt es beim Anlegen und ändert es beim Bearbeiten. CLIENT_SETS_ONCE: nur beim
+ * Anlegen, danach ignoriert. BACKEND_ONLY: nie vom Client, der Schreibservice setzt es selbst. Schickt der Client ein
+ * Feld, das er nicht darf, wird es ignoriert, nicht abgelehnt. Nur in unserer Felddefinition, nie in Solr. Neue Felder
+ * sind BACKEND_ONLY, die eingebauten immer, und ein BACKEND_ONLY-Feld hat im Kern-Tab keinen Löschknopf.
+ */
+export type SolrFieldClientWriteRule = 'CLIENT_SETS_AND_CHANGES' | 'CLIENT_SETS_ONCE' | 'BACKEND_ONLY'
+
+/** Die drei Stufen in der Reihenfolge, in der der Umschaltknopf im Sheet sie durchläuft */
+export const SOLR_FIELD_CLIENT_WRITE_RULES: readonly SolrFieldClientWriteRule[] = [
+  'BACKEND_ONLY',
+  'CLIENT_SETS_ONCE',
+  'CLIENT_SETS_AND_CHANGES',
+]
+
+/** Darf der Client das Feld beim Anlegen mitgeben? */
+export function isClientAllowedToSetOnCreate(rule: SolrFieldClientWriteRule): boolean {
+  return rule !== 'BACKEND_ONLY'
+}
+
+/** Darf der Client das Feld beim Bearbeiten ändern? */
+export function isClientAllowedToChangeOnUpdate(rule: SolrFieldClientWriteRule): boolean {
+  return rule === 'CLIENT_SETS_AND_CHANGES'
+}
+
+/**
  * Ein normales Feld eines Kerns, wie es das Backend liefert (SolrField.java). Es gibt genau zwei Arten von
  * Solr-Feldern: Hooks, in jedem Kern gleich, und diese normalen Felder je Kern, auch id. Eindeutig ist das Paar coreKey
  * und name, die id ist nur die Zeile in der Datenbank. Gelesen wird über die Stammdaten.
@@ -81,6 +107,8 @@ export interface SolrField {
   suggest: boolean
   /** Minimum oder Erweitert: wer das Feld beim Lesen bekommt, der Umschaltknopf im Sheet */
   readAccessLevel: SolrFieldReadAccessLevel
+  /** wer das Feld setzt, der zweite Umschaltknopf im Sheet */
+  clientWriteRule: SolrFieldClientWriteRule
   /** mehrsprachiges JSON: wozu das Feld da ist und welche Daten hinein gehören */
   description: string | null
   /** Reihenfolge in der Tabelle des Kerns */
@@ -109,7 +137,7 @@ export function changeSolrFieldPositions(newPositionById: Record<string, number>
   return request<SolrField[]>('POST', `${SOLR_FIELD_ADMIN_PATH}/position`, newPositionById)
 }
 
-/** Löscht das Feld aus unserer Tabelle. id und cursorDate lehnt das Backend ab (409), die hat jeder Kern. */
+/** Löscht das Feld aus unserer Tabelle. Die eingebauten Felder lehnt das Backend ab (409), die hat jeder Kern. Der Knopf fehlt bei BACKEND_ONLY. */
 export function deleteSolrField(id: number) {
   return request<SolrField>('DELETE', SOLR_FIELD_ADMIN_PATH, { id })
 }

@@ -5,7 +5,6 @@ import { ContentBox } from '../../components/ContentBox.tsx'
 import { DeleteButton } from '../../components/DeleteButton.tsx'
 import { DeletePopup } from '../../components/DeletePopup.tsx'
 import { useMasterData } from '../../components/masterDataContext.ts'
-import { translate } from '../../components/multilingual.ts'
 import { Table, type TableColumn } from '../../components/Table.tsx'
 import { getAllUsers, type Users } from '../users/Users.ts'
 import {
@@ -22,23 +21,16 @@ import {
   validUntilLocalInputToIso,
 } from './grantDisplay.ts'
 
-/** Ein Feld, das sich in einem Kern freigeben lässt: ein indexiertes Feld außer id, oder ein Hook */
-interface GrantableAdvancedField {
-  name: string
-  label: string
-  hook: boolean
-}
-
 /**
- * Tab „Feldfreigaben“: oben die neue Freigabe (Empfänger, Kern, dann alle indexierten Felder des Kerns außer id und alle
- * Hooks zum Ankreuzen, ohne die, die der User schon hat, Ablauf). Darunter das Register, neueste zuerst, entziehen nur
- * bei aktiven Zeilen. Gelöscht wird nichts. Eine Feldfreigabe ist ein Auflöserecht (Vorgabe 2026-10-04): Der Empfänger
- * darf nach dem Feld auflösen, obwohl er weder <KERN>_SUCHE noch HOOK_FULL hat; ein erweitertes Feld wird damit auch
- * lesbar. Nach id löst jeder auf, sie steht nicht zur Wahl.
+ * Tab „Feldfreigaben“: oben die neue Freigabe (Empfänger, Kern, dann alle indexierten Felder des Kerns außer id zum
+ * Ankreuzen, ohne die, die der User schon hat, Ablauf). Darunter das Register, neueste zuerst, entziehen nur bei
+ * aktiven Zeilen. Gelöscht wird nichts. Eine Feldfreigabe ist ein Auflöserecht (Vorgabe 2026-10-04): Der Empfänger darf
+ * nach dem Feld auflösen, obwohl er <KERN>_SUCHE nicht hat; ein erweitertes Feld wird damit auch lesbar. Nach id löst
+ * jeder auf, sie steht nicht zur Wahl. Hooks gibt der Tab „Hook-Freigaben“ frei, serverweit (Vorgabe 2026-10-07).
  */
 export function AdvancedFieldGrantsPerCoreTab() {
   const { t, i18n } = useTranslation()
-  const { solrCores, solrFields, solrHooks, entityStates } = useMasterData()
+  const { solrCores, solrFields, entityStates } = useMasterData()
   const [grants, setGrants] = useState<SolrAdvancedFieldGrantAccessPerCore[] | null>(null)
   const [users, setUsers] = useState<Users[] | null>(null)
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null)
@@ -88,15 +80,11 @@ export function AdvancedFieldGrantsPerCoreTab() {
       .map((grant) => grant.fieldName),
   )
 
-  const grantableFields: GrantableAdvancedField[] = [
-    ...(solrFields ?? [])
-      .filter((field) => field.coreKey === coreKey && field.indexed && field.name !== 'id')
-      .map((field) => ({ name: field.name, label: field.name, hook: false })),
-    ...(solrHooks ?? []).map((hook) => {
-      const name = translate(hook.displayName)
-      return { name: hook.key, label: name !== '' ? `${name} (${hook.key})` : hook.key, hook: true }
-    }),
-  ].filter((field) => !alreadyGrantedFieldNames.has(field.name))
+  /** Was sich freigeben lässt: jedes indexierte Feld des Kerns außer id, das der User noch nicht hat */
+  const grantableFieldNames = (solrFields ?? [])
+    .filter((field) => field.coreKey === coreKey && field.indexed && field.name !== 'id')
+    .map((field) => field.name)
+    .filter((name) => !alreadyGrantedFieldNames.has(name))
 
   const canGrant = !busy && granteeUsersGuid !== '' && coreKey !== '' && chosenFieldNames.length > 0
 
@@ -238,23 +226,22 @@ export function AdvancedFieldGrantsPerCoreTab() {
         <p className="mb-2">
           <strong>{t('grant.fields.fields')}</strong>
         </p>
-        {grantableFields.length === 0 ? (
+        {grantableFieldNames.length === 0 ? (
           <p className="mb-0 text-muted">{t('grant.fields.noFields')}</p>
         ) : (
           <div className="d-flex flex-wrap gap-3">
-            {grantableFields.map((field) => (
-              <div key={field.name} className="form-check">
+            {grantableFieldNames.map((name) => (
+              <div key={name} className="form-check">
                 <input
-                  id={`field-grant-${field.name}`}
+                  id={`field-grant-${name}`}
                   className="form-check-input"
                   type="checkbox"
                   disabled={busy || granteeUsersGuid === ''}
-                  checked={chosenFieldNames.includes(field.name)}
-                  onChange={() => toggleFieldName(field.name)}
+                  checked={chosenFieldNames.includes(name)}
+                  onChange={() => toggleFieldName(name)}
                 />
-                <label className="form-check-label" htmlFor={`field-grant-${field.name}`}>
-                  {field.label}
-                  {field.hook && <span className="text-muted ms-1">({t('resolve.hook')})</span>}
+                <label className="form-check-label" htmlFor={`field-grant-${name}`}>
+                  {name}
                 </label>
               </div>
             ))}

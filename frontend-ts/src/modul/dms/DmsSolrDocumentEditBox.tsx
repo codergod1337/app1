@@ -13,8 +13,8 @@ import { solrHookValuesOf } from '../solrmanager/SolrHook.ts'
 import { SolrHookFields, type SolrHookValuesByKey } from '../solrmanager/SolrHookFields.tsx'
 import {
   DOCUMENT_LANGUAGE_FIELD_NAME,
-  editDmsSolrDocument,
   FILE_SUB_CLASS_FIELD_NAME,
+  patchDmsSolrDocument,
   type DmsSolrDocumentForClient,
 } from './Dms.ts'
 import { documentLanguageAppliesToFileExtension } from './DmsDocumentLanguage.ts'
@@ -37,7 +37,8 @@ function dayOf(value: unknown): string {
  * Ein DMS-Dokument bearbeiten, nur eine ContentBox wie die Details (nach DmsEdit der Vorlage). Änderbar: Dateiname,
  * Index, Erstelldatum als Tag, Beschreibung mehrsprachig, Dateiart (nur Klassen mit eigener Schreibrolle und
  * freigeschalteter Endung, der Wechsel schreibt die Rechte des Dokuments neu) und Hooks. Status und das Feststehende
- * sind Anzeige. Geschickt wird nur, was sich geändert hat. Das Backend prüft writeAcl und alle Regeln selbst.
+ * sind Anzeige. Geschickt wird ein Patch: nur, was sich geändert hat, je Feld der Endwert, ein Hook als fertige Liste.
+ * Das Backend prüft writeAcl und alle Regeln selbst.
  */
 export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDocumentEditBoxProps) {
   const { t } = useTranslation()
@@ -97,20 +98,35 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
     }
     setSaving(true)
     setErrorMessage(null)
-    editDmsSolrDocument({
-      id,
-      ...(fileName !== originalFileName ? { fileName } : {}),
-      ...(fileIndex !== originalFileIndex ? { fileIndex } : {}),
-      ...(description !== originalDescription ? { fileDescription: description ?? '' } : {}),
-      ...(createdDay !== originalCreatedDay && createdDay !== '' ? { documentCreatedAt: createdDay } : {}),
-      ...(documentLanguageApplies && documentLanguage !== originalDocumentLanguage
-        ? { documentLanguage: documentLanguage ?? '' }
-        : {}),
-      ...(fileSubClassKey !== null && fileSubClassKey !== originalFileSubClassKey ? { fileSubClassKey } : {}),
-      ...(hooks !== originalHooks
-        ? { hookValuesByHookKey: Object.fromEntries(Object.entries(hooks).map(([key, values]) => [key, [...values]])) }
-        : {}),
-    })
+    // nur die geänderten Felder, je Feld der Endwert; leer heißt leeren
+    const fieldValuesByFieldName: Record<string, unknown> = {}
+    if (fileName !== originalFileName) {
+      fieldValuesByFieldName.fileName = fileName
+    }
+    if (fileIndex !== originalFileIndex) {
+      fieldValuesByFieldName.fileIndex = fileIndex
+    }
+    if (description !== originalDescription) {
+      fieldValuesByFieldName.fileDescription = description ?? ''
+    }
+    if (createdDay !== originalCreatedDay && createdDay !== '') {
+      fieldValuesByFieldName.documentCreatedAt = createdDay
+    }
+    if (documentLanguageApplies && documentLanguage !== originalDocumentLanguage) {
+      fieldValuesByFieldName[DOCUMENT_LANGUAGE_FIELD_NAME] = documentLanguage ?? ''
+    }
+    if (fileSubClassKey !== null && fileSubClassKey !== originalFileSubClassKey) {
+      fieldValuesByFieldName[FILE_SUB_CLASS_FIELD_NAME] = fileSubClassKey
+    }
+    // je Hook die fertige Liste, nur wenn sie sich geändert hat; ein Hook, der aus der Maske verschwand, wird geleert
+    for (const key of new Set([...Object.keys(originalHooks), ...Object.keys(hooks)])) {
+      const before = originalHooks[key] ?? []
+      const after = hooks[key] ?? []
+      if (before.length !== after.length || before.some((value, index) => value !== after[index])) {
+        fieldValuesByFieldName[key] = [...after]
+      }
+    }
+    patchDmsSolrDocument({ id, fieldValuesByFieldName })
       .then(({ data }) => onSaved(data))
       .catch((error: unknown) => {
         setErrorMessage(error instanceof RequestError ? error.message : t('common.unknownError'))

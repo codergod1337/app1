@@ -6,13 +6,14 @@ import { useMasterData } from '../../components/masterDataContext.ts'
 import { Tile } from '../../components/Tile.tsx'
 import { ADMIN_ACCESS_ROLE_KEY } from '../accessrole/AccessRole.ts'
 import { AccessRoleBadge } from '../accessrole/AccessRoleBadge.tsx'
-import { DMS_ACCESS_ROLE_KEY } from '../dms/Dms.ts'
+import { DMS_ACCESS_ROLE_KEY, DMS_SEARCH_ACCESS_ROLE_KEY } from '../dms/Dms.ts'
 import { useSession } from '../login/sessionContext.ts'
+import { SEARCH_PATH } from '../search/Search.ts'
 
 interface HomeTile {
   icon: IconName
   /** Schlüssel des Titels im Sprachkatalog, unter home.tiles */
-  titleKey: 'admin' | 'solrManager' | 'dms' | 'grant'
+  titleKey: 'admin' | 'solrManager' | 'dms' | 'search' | 'grant' | 'graph'
   to: string
   /**
    * Die AR, von denen eine reicht, um das Modul zu betreten: Wer im Modul etwas darf, sieht die Kachel. Was er darin
@@ -26,8 +27,12 @@ const HOME_TILES: HomeTile[] = [
   { icon: 'admin', titleKey: 'admin', to: '/admin', entryAccessRoleKeys: [ADMIN_ACCESS_ROLE_KEY] },
   { icon: 'solrManager', titleKey: 'solrManager', to: '/solrmanager', entryAccessRoleKeys: [ADMIN_ACCESS_ROLE_KEY] },
   { icon: 'dms', titleKey: 'dms', to: '/dms', entryAccessRoleKeys: [DMS_ACCESS_ROLE_KEY] },
+  // die Suche über alle Kerne: die Such-Rolle eines Kerns reicht, mit weiteren Kernen kommen deren Such-Rollen dazu
+  { icon: 'search', titleKey: 'search', to: SEARCH_PATH, entryAccessRoleKeys: [DMS_SEARCH_ACCESS_ROLE_KEY] },
   // Freigaben vorerst nur für ADMIN, später eine eigene AR, z. B. für die Datenpflege
   { icon: 'grant', titleKey: 'grant', to: '/grant', entryAccessRoleKeys: [ADMIN_ACCESS_ROLE_KEY] },
+  // GraphManager: Mailvorlagen, später Postfächer. Nur ADMIN, solange es nur Admin-Endpunkte gibt.
+  { icon: 'graph', titleKey: 'graph', to: '/graph', entryAccessRoleKeys: [ADMIN_ACCESS_ROLE_KEY] },
 ]
 
 /**

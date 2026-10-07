@@ -65,14 +65,17 @@
     "noPosition": "keine Position",
     "positionArc": "Position (ARC)",
     "rightsAr": "Rechte im Token (AR)",
-    "tokenNote": "Die Rechte stehen im Token. Ändert der Admin sie, gelten die neuen nach dem nächsten Refresh."
+    "tokenNote": "Die Rechte stehen im Token. Ändert der Admin sie, gelten die neuen nach dem nächsten Refresh.",
+    "search": "Suche"
   },
   "home": {
     "tiles": {
       "admin": "Administration",
       "solrManager": "SolrManager",
       "dms": "DMS",
-      "grant": "Freigaben"
+      "grant": "Freigaben",
+      "graph": "GraphManager",
+      "search": "Suche"
     },
     "entryAccessRoles": {
       "symbolLabel": "Welche AR dieses Modul öffnen",
@@ -127,8 +130,10 @@
       "intro": "Was dir im DMS freigegeben ist: Dokumente, die deine guid tragen, und Felder, nach denen du zusätzlich auflösen darfst. Was deine Rollen ohnehin öffnen, steht hier nicht.",
       "documentGrantsTitle": "Meine Dateifreigaben",
       "fieldGrantsTitle": "Meine Feldfreigaben",
+      "hookGrantsTitle": "Meine Hook-Freigaben (in jedem Kern)",
       "noDocumentGrants": "Für dich gibt es keine Dateifreigabe im DMS.",
       "noFieldGrants": "Für dich gibt es keine Feldfreigabe im DMS.",
+      "noHookGrants": "Für dich gibt es keine Hook-Freigabe.",
       "documentsTitle_one": "{{count}} Dokument für dich freigegeben",
       "documentsTitle_other": "{{count}} Dokumente für dich freigegeben"
     },
@@ -316,7 +321,8 @@
     "title": "Freigaben",
     "tabs": {
       "documents": "Dateifreigaben",
-      "fields": "Feldfreigaben"
+      "fields": "Feldfreigaben",
+      "hooks": "Hook-Freigaben"
     },
     "common": {
       "grantee": "Empfänger",
@@ -330,11 +336,14 @@
       "chooseUser": "User wählen",
       "chooseCore": "Kern wählen",
       "expire": "Abgelaufene aufräumen",
-      "expired": "{{fieldGrants}} Feldfreigaben und {{documentGrants}} Dateifreigaben auf abgelaufen gesetzt"
+      "expired": "{{hookGrants}} Hook-Freigaben und {{fieldGrants}} Feldfreigaben auf abgelaufen gesetzt"
     },
     "documents": {
       "title": "Dateifreigaben",
-      "intro": "Kern wählen, Bedingungen setzen wie beim Auflösen, auflösen: Die Trefferliste zeigt, was du selbst siehst und damit freigeben kannst. Freigeben schreibt die guid des Empfängers in userGrantedAccess jedes Treffers, in jedem Kern gleich. Ein Schnappschuss, spätere Dokumente sind nicht dabei. Der Empfänger bekommt damit die Minimum-Felder, erweiterte Felder brauchen eine Feldfreigabe.",
+      "intro": "Kern wählen, Bedingungen setzen wie beim Auflösen, auflösen: Die Trefferliste zeigt, was du selbst schreiben darfst und damit freigeben kannst. Freigeben schreibt die guid des Empfängers in userGrantedAccess jedes Treffers, je Kern über dessen eigenen Freigabe-Service. Ein Schnappschuss, spätere Dokumente sind nicht dabei. Der Empfänger bekommt damit die Minimum-Felder, erweiterte Felder brauchen eine Feldfreigabe.",
+      "noGrantServiceForCore": "Der Kern {{core}} hat noch keinen Freigabe-Service. Hier lässt sich nur das Register ansehen.",
+      "expire": "Abgelaufene in {{core}} aufräumen",
+      "expired": "{{count}} Dateifreigaben im Kern {{core}} auf abgelaufen gesetzt",
       "newTitle": "Neue Dateifreigabe",
       "conditions": "Bedingungen",
       "resolve": "Auflösen",
@@ -355,7 +364,7 @@
     },
     "fields": {
       "title": "Feldfreigaben",
-      "intro": "Ein Feld oder Hook, nach dem der Empfänger in diesem Kern auflösen darf, obwohl er weder <KERN>_SUCHE noch HOOK_FULL hat. Ein erweitertes Feld wird damit auch lesbar. Pro Kern, nicht pro Dokument. Nach id löst jeder auf, sie steht nicht zur Wahl.",
+      "intro": "Ein Feld, nach dem der Empfänger in diesem Kern auflösen darf, obwohl er <KERN>_SUCHE nicht hat. Ein erweitertes Feld wird damit auch lesbar. Pro Kern, nicht pro Dokument. Nach id löst jeder auf, sie steht nicht zur Wahl. Hooks gibt der Tab Hook-Freigaben frei, in jedem Kern auf einmal.",
       "newTitle": "Neue Feldfreigabe",
       "fields": "Felder",
       "noFields": "Für diesen User gibt es in diesem Kern kein Feld mehr, das ihm fehlt.",
@@ -368,6 +377,22 @@
       "count_other": "{{count}} Feldfreigaben",
       "revokeTitle": "Feldfreigabe entziehen",
       "revokeQuestion": "Soll die Freigabe des Feldes <strong>{{field}}</strong> im Kern <strong>{{core}}</strong> für <strong>{{user}}</strong> wirklich entzogen werden?"
+    },
+    "hooks": {
+      "title": "Hook-Freigaben",
+      "intro": "Ein Hook, nach dem der Empfänger auflösen darf, obwohl er HOOK_FULL nicht hat. Gilt in jedem Kern, in dem er die Tür <KERN> hat, denn jeder Kern trägt sämtliche Hooks. Der Hook wird damit auch lesbar. Der Knopf oben rechts im Register räumt abgelaufene Hook- und Feldfreigaben auf; Dateifreigaben laufen je Kern im Tab Dateifreigaben ab.",
+      "newTitle": "Neue Hook-Freigabe",
+      "hooks": "Hooks",
+      "noHooks": "Für diesen User gibt es keinen Hook mehr, der ihm fehlt.",
+      "hook": "Hook",
+      "grant": "Freigeben",
+      "granted_one": "{{count}} Hook freigegeben",
+      "granted_other": "{{count}} Hooks freigegeben",
+      "empty": "noch keine Hook-Freigaben",
+      "count_one": "{{count}} Hook-Freigabe",
+      "count_other": "{{count}} Hook-Freigaben",
+      "revokeTitle": "Hook-Freigabe entziehen",
+      "revokeQuestion": "Soll die Freigabe des Hooks <strong>{{hook}}</strong> für <strong>{{user}}</strong> wirklich entzogen werden?"
     }
   },
   "resolve": {
@@ -389,6 +414,99 @@
     "columns": {
       "preview": "Vorschau",
       "id": "ID"
+    }
+  },
+  "search": {
+    "title": "Suche",
+    "intro": "Ein Suchfeld für alle Kerne, zu denen du die Such-Rolle hast. Gesucht wird ab drei Zeichen oder mit einem Filter. Ein führendes + macht ein Wort zur Pflicht, ein führendes - schließt es aus. Mit fsc. wählst du eine Dateiart als Filter.",
+    "placeholder": "suchen, z. B. 4711 oder +zeichnung -alt",
+    "words_one": "{{count}} von {{max}} Suchwörtern",
+    "words_other": "{{count}} von {{max}} Suchwörtern",
+    "cores": {
+      "DMS": "DMS"
+    },
+    "allCores": "alle Kerne",
+    "noCores": "Für dich gibt es keinen Kern mit Suchrecht.",
+    "running": "sucht",
+    "hint": {
+      "NO_SEARCH_WORD_AND_NO_FILTER": "Mindestens {{min}} Zeichen eingeben oder einen Filter setzen, ohne beides wird nicht gesucht.",
+      "TOO_MANY_SEARCH_WORDS": "Höchstens {{max}} Suchwörter: Eingabe kürzen oder Filter setzen."
+    },
+    "filters": {
+      "chooseField": "Feld wählen",
+      "hooks": "Hooks",
+      "fieldsOfCore": "Felder {{core}}",
+      "dateFields": "Zeitraum",
+      "value": "Wert",
+      "from": "von",
+      "to": "bis",
+      "add": "Filter setzen",
+      "addValue": "{{field}} {{value}} als Filter setzen",
+      "remove": "Filter {{field}} {{value}} entfernen",
+      "removeDateRange": "Zeitraum {{field}} entfernen",
+      "open": "offen"
+    },
+    "fsc": {
+      "hint": "Dateiart wählen: Klick oder Enter setzt sie als Filter, Escape bricht ab."
+    },
+    "results": {
+      "moreThanReachable": "Mehr als {{reachable}} Treffer sind nicht blätterbar, die Suche enger fassen."
+    },
+    "offers": {
+      "title": "Vorschläge:",
+      "tabHint": "Tab setzt den ersten Vorschlag"
+    },
+    "matched": {
+      "fullText": "Volltext"
+    }
+  },
+  "graph": {
+    "title": "GraphManager",
+    "tabs": {
+      "mailTemplates": "Mailvorlagen",
+      "testMail": "Test-Mail"
+    },
+    "testMail": {
+      "title": "Test-Mail verschicken",
+      "intro": "Eine Mail über Microsoft Graph, ohne Vorlage: Absender, Empfänger, Betreff und Text von Hand. Der Absender muss ein Postfach im Tenant sein. Damit prüfst du Zertifikat, Berechtigung und ein Absenderpostfach, ohne einen Login zu starten.",
+      "from": "Von (Postfach, nur der Teil vor dem @)",
+      "to": "An",
+      "subject": "Betreff",
+      "htmlBody": "Text (HTML)",
+      "send": "Senden",
+      "sentAt": "verschickt um {{time}}",
+      "sentToast": "Test-Mail verschickt"
+    },
+    "mailTemplates": {
+      "title": "Mailvorlagen",
+      "intro": "Die Vorlagen der Mails, die das System über Microsoft Graph verschickt. Je Vorlagentyp gibt es genau eine Vorlage. Betreff und Text sind je Sprache gepflegt und tragen Platzhalter wie {users.vorname}, die beim Senden durch die echten Werte ersetzt werden. Fehlt die Vorlage eines Typs, legt das Backend sie beim Start mit Standardtexten an.",
+      "count_one": "{{count}} Mailvorlage",
+      "count_other": "{{count}} Mailvorlagen",
+      "empty": "keine Mailvorlagen",
+      "deleteTitle": "Mailvorlage löschen",
+      "deleteQuestion": "Soll die Vorlage <strong>{{key}}</strong> wirklich gelöscht werden? Beim nächsten Start legt das Backend für ihren Typ wieder die Standardtexte an.",
+      "editTitle": "Mailvorlage bearbeiten: {{key}}",
+      "editTitleNone": "Mailvorlage bearbeiten",
+      "notFound": "keine Mailvorlage gewählt oder nicht gefunden",
+      "columns": {
+        "type": "Typ",
+        "subject": "Betreff",
+        "updatedAt": "geändert"
+      },
+      "form": {
+        "type": "Vorlagentyp",
+        "subject": "Betreff",
+        "htmlBody": "Text (HTML)",
+        "placeholders": "Platzhalter",
+        "placeholdersHint": "Ein Klick kopiert den Platzhalter in die Zwischenablage. Beim Senden wird er durch den echten Wert ersetzt.",
+        "placeholderCopied": "Platzhalter kopiert",
+        "preview": "Muster",
+        "previewHint": "So sieht die Mail in der gewählten Sprache mit Beispielwerten aus.",
+        "previewSubject": "Betreff"
+      },
+      "types": {
+        "LOGIN_2FA": "Anmeldung bestätigen (2FA)"
+      }
     }
   },
   "solrmanager": {
@@ -525,6 +643,13 @@
       "fieldAccessMinimum": "Minimum",
       "fieldAccessAdvanced": "Erweitert",
       "fieldAccessOf": "Zugriff von {{name}}, Klick wechselt zwischen Minimum und Erweitert",
+      "clientWriteRule": "Schreibregel",
+      "clientWriteRuleOf": "Schreibregel von {{name}}, Klick wechselt zwischen Backend, nur beim Anlegen und Client",
+      "clientWriteRules": {
+        "BACKEND_ONLY": "Backend",
+        "CLIENT_SETS_ONCE": "nur beim Anlegen",
+        "CLIENT_SETS_AND_CHANGES": "Client"
+      },
       "empty": "keine Felder",
       "idHoverlay": "der Primärschlüssel des Kerns (uniqueKey), was hineinkommt, steht in der Beschreibung",
       "deleteTitle": "Feld löschen",
@@ -601,6 +726,15 @@
           "Minimum: Das Feld gehört zur Grundansicht des Kerns. Wer ein Dokument überhaupt sehen darf (readAcl, isPublic oder seine guid in userGrantedAccess), bekommt es immer, auch ohne die Rolle <KERN>_FULL. id ist immer Minimum.",
           "Erweitert: Das Feld bekommt nur, wer die Rolle <KERN>_FULL hat oder dem es für diesen Kern einzeln freigegeben ist. Alle anderen sehen es nie, dürfen nicht danach auflösen, sortieren oder facettieren und erfahren nicht, dass es das Feld gibt.",
           "Neue Felder sind Erweitert. Der Schalter steht nur in unserer Felddefinition, nicht in Solr: Der Abgleich ignoriert ihn, die Lesedienste bauen daraus, welche Felder sie anfordern (fl)."
+        ]
+      },
+      "clientWriteRule": {
+        "title": "Schreibregel: wer das Feld setzt",
+        "paragraphs": [
+          "Backend: Nie vom Client. Der Schreibservice des Kerns setzt das Feld selbst, z. B. sftpPath, readAcl, writeAcl, uploader. Ein Backend-Feld hat keinen Löschknopf, denn das Backend braucht es.",
+          "Nur beim Anlegen: Der Client gibt das Feld beim Upload mit, danach wird es ignoriert, z. B. versionChain, fileSizeBytes.",
+          "Client: Der Client setzt das Feld beim Anlegen und ändert es beim Bearbeiten, z. B. fileDescription, status, jeder Hook.",
+          "Schickt der Client ein Feld, das er nicht setzen darf, wird es ignoriert, nicht abgelehnt. Das Backend setzt seine Felder nach denen des Clients. Neue Felder sind Backend, die eingebauten immer. Der Schalter steht nur in unserer Felddefinition, nicht in Solr."
         ]
       },
       "type": {

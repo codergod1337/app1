@@ -1,7 +1,8 @@
 package codergod1337.app1.dms.controller;
 
+import codergod1337.app1.dms.model.DmsSolrDocumentExistenceCheck;
+import codergod1337.app1.dms.service.DmsSolrDocumentExistenceService;
 import codergod1337.app1.dms.service.DmsUploadService;
-import codergod1337.app1.dms.service.DmsUploadService.DmsExistence;
 import codergod1337.app1.dms.service.DmsUploadService.DmsUploadProbe;
 import codergod1337.app1.dms.service.DmsUploadService.DmsUploadResult;
 import java.util.regex.Pattern;
@@ -36,10 +37,13 @@ public class DmsUploadController {
 	private static final Pattern SHA256_HEX = Pattern.compile("[0-9a-f]{64}");
 
 	private final DmsUploadService dmsUploadService;
+	private final DmsSolrDocumentExistenceService dmsSolrDocumentExistenceService;
 	private final ObjectMapper objectMapper;
 
-	public DmsUploadController(DmsUploadService dmsUploadService, ObjectMapper objectMapper) {
+	public DmsUploadController(DmsUploadService dmsUploadService,
+			DmsSolrDocumentExistenceService dmsSolrDocumentExistenceService, ObjectMapper objectMapper) {
 		this.dmsUploadService = dmsUploadService;
+		this.dmsSolrDocumentExistenceService = dmsSolrDocumentExistenceService;
 		this.objectMapper = objectMapper;
 	}
 
@@ -63,13 +67,16 @@ public class DmsUploadController {
 		return dmsUploadService.uploadFile(readData(data), file);
 	}
 
-	/** Gibt es diese Bytes schon im DMS? Für die Vorprüfung der Maske: Sie rechnet den Hash im Browser und fragt hier. */
+	/**
+	 * Der Existenzcheck: Gibt es diese Bytes schon im DMS? Nur id, Dateiart und Status, ohne Rechteprüfung. Für die
+	 * Vorprüfung der Maske: Sie rechnet den Hash im Browser und fragt hier.
+	 */
 	@GetMapping("/exists/{sha256}")
-	public DmsExistence exists(@PathVariable String sha256) {
+	public DmsSolrDocumentExistenceCheck exists(@PathVariable String sha256) {
 		if (sha256 == null || !SHA256_HEX.matcher(sha256).matches()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sha256 ist kein SHA-256 in Hex (64 Zeichen, klein)");
 		}
-		return dmsUploadService.exists(sha256);
+		return dmsSolrDocumentExistenceService.loadDmsSolrDocumentExistenceCheck(sha256);
 	}
 
 	private static void requireFile(MultipartFile file) {

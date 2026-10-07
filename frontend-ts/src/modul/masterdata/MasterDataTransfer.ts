@@ -8,6 +8,7 @@ export type MasterDataSection =
   | 'FILE_EXTENSIONS'
   | 'FILE_SUB_CLASSES'
   | 'ENTITY_STATES'
+  | 'GRAPH_MAIL_TEMPLATES'
   | 'SOLR_HOOK_GROUPS'
   | 'SOLR_HOOKS'
   | 'SOLR_CORES'
@@ -30,6 +31,7 @@ export const MASTER_DATA_SECTIONS: { section: MasterDataSection; label: string }
   { section: 'SOLR_CORES', label: 'Solr-Kerne' },
   { section: 'SOLR_FIELDS', label: 'Solr-Felder der Kerne' },
   { section: 'ENTITY_STATES', label: 'Status (EntityState)' },
+  { section: 'GRAPH_MAIL_TEMPLATES', label: 'Mailvorlagen (GraphManager)' },
   { section: 'USERS', label: 'User' },
   { section: 'USERS_DETAILS', label: 'User-Details' },
   { section: 'USERS_SETTINGS', label: 'User-Einstellungen' },

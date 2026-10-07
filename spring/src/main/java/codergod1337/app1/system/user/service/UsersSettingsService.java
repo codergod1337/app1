@@ -4,6 +4,7 @@ import codergod1337.app1.system.HelperInputs;
 import codergod1337.app1.system.user.model.UsersSettings;
 import codergod1337.app1.system.user.repository.UsersSettingsRepository;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,15 @@ public class UsersSettingsService {
 	@Transactional(readOnly = true)
 	public List<UsersSettings> getUsersSettingsByUsersGuid(UUID usersGuid) {
 		return usersSettingsRepository.findByUsersGuid(usersGuid);
+	}
+
+	/**
+	 * Der Wert einer Einstellung eines Users, z. B. LANGUAGE für die Sprache einer Nachricht an ihn. Leer, wenn er sie
+	 * nie gesetzt hat: Dann gilt der Standard des Aufrufers.
+	 */
+	@Transactional(readOnly = true)
+	public Optional<String> findUsersSettingsValue(UUID usersGuid, String key) {
+		return usersSettingsRepository.findByUsersGuidAndKey(usersGuid, key).map(UsersSettings::getValue);
 	}
 
 	/**

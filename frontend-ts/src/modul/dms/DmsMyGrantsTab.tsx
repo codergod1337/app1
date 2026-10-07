@@ -6,7 +6,11 @@ import { useMasterData } from '../../components/masterDataContext.ts'
 import type { OriginState } from '../../components/Origin.ts'
 import { SolrResolvedDocumentsPageTable } from '../../components/SolrResolvedDocumentsPageTable.tsx'
 import { Table, type TableColumn } from '../../components/Table.tsx'
-import type { SolrAdvancedFieldGrantAccessPerCore, SolrDocumentGrantedDocsPerCore } from '../grant/Grant.ts'
+import type {
+  SolrAdvancedFieldGrantAccessPerCore,
+  SolrDocumentGrantedDocsPerCore,
+  SolrHookGrantAccess,
+} from '../grant/Grant.ts'
 import { grantDateTimeOrUnlimited, grantEntityStateDisplayName } from '../grant/grantDisplay.ts'
 import { exactResolveFieldValuesFromRegisterJson } from '../solrmanager/SolrExactResolve.ts'
 import {
@@ -28,7 +32,8 @@ const ORIGIN_STATE: OriginState = { origin: { path: '/dms/my-grants', label: 'dm
 /**
  * Tab „Meine Freigaben“ (Vorgabe 2026-10-04): der Weg eines eingeschränkten Users zu seinen Dokumenten, denn mit der AR
  * DMS allein löst er nur nach id auf. Oben seine Dateifreigaben aus dem Register (Bedingungen, Anzahl, von wem, gültig
- * bis, Status) und seine Feldfreigaben (wonach er zusätzlich auflösen darf), darunter die Trefferliste aller
+ * bis, Status), seine Feldfreigaben im DMS und seine Hook-Freigaben (serverweit, wonach er zusätzlich auflösen darf),
+ * darunter die Trefferliste aller
  * DMS-Dokumente, die seine guid in userGrantedAccess tragen, mit den bekannten Aktionen. Die Bedingung setzt das
  * Backend aus dem Token, der Client schickt nur Seite und Größe.
  */
@@ -115,6 +120,21 @@ export function DmsMyGrantsTab() {
     { header: t('grant.common.status'), cell: (grant) => grantEntityStateDisplayName(entityStates, grant.status) },
   ]
 
+  const hookGrantColumns: TableColumn<SolrHookGrantAccess>[] = [
+    { header: t('grant.hooks.hook'), cell: (grant) => <code>{grant.hookKey}</code> },
+    {
+      header: t('grant.common.grantedBy'),
+      cell: (grant) => `${nameOf(grant.grantedByUsersGuid)}, ${grantDateTimeOrUnlimited(grant.grantedAt, i18n.language, unlimited)}`,
+      unimportant: true,
+    },
+    {
+      header: t('grant.common.validUntil'),
+      cell: (grant) => grantDateTimeOrUnlimited(grant.validUntil, i18n.language, unlimited),
+      unimportant: true,
+    },
+    { header: t('grant.common.status'), cell: (grant) => grantEntityStateDisplayName(entityStates, grant.status) },
+  ]
+
   const loading = <span className="spinner-border spinner-border-sm" role="status" aria-label={t('common.loading')} />
 
   return (
@@ -147,6 +167,20 @@ export function DmsMyGrantsTab() {
             rowKey={(grant) => String(grant.id)}
             detailTitle={(grant) => grant.fieldName}
             emptyText={t('dms.myGrants.noFieldGrants')}
+          />
+        )}
+      </ContentBox>
+
+      <ContentBox title={t('dms.myGrants.hookGrantsTitle')}>
+        {grants === null ? (
+          loading
+        ) : (
+          <Table
+            columns={hookGrantColumns}
+            rows={grants.hookGrants}
+            rowKey={(grant) => String(grant.id)}
+            detailTitle={(grant) => grant.hookKey}
+            emptyText={t('dms.myGrants.noHookGrants')}
           />
         )}
       </ContentBox>

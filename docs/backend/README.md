@@ -11,6 +11,8 @@ Spring Boot mit Java (LTS, die Version steht in `spring/pom.xml` unter `java.ver
 
 - [SFTP-Dateispeicher](sftp.md): wie Dateien abgelegt werden, Installation des Containers
 - [Solr](solr.md): Container, wie ein Kern entsteht, Passwort, Installation
+- [Zugriff auf die Solr-Kerne](solr-zugriff.md): das Register, wer je Vorgang liest und schreibt, mit welcher Prüfung
+- [Microsoft Graph](graph.md): Anmeldung bei Entra mit Zertifikat, Mailvorlagen mit Platzhaltern, Versand, die 2FA-Mail
 
 ## Pakete
 
@@ -26,8 +28,9 @@ codergod1337.app1
     state/        EntityState: Status für alle Entities, die einen brauchen, mit Bereich (scope)
     sftp/         Dateispeicher
   file/           Dateiarten und Endungen (FileSubClass, FileExtension)
-  solr/           SolrManager: Hooks, Hook-Gruppen, Kerne, Felder. Tabellen heißen solr_*; document/ prüft Dokumente gegen die Felder
-  dms/            DMS: Upload in den Kern DMS, Tika liest die Datei, Vorschaubild für Bilder. Stufe 1: nur prüfen, nichts speichern
+  graph/          Microsoft Graph: entra (Token mit Zertifikat), mail (Vorlagen, Versand), später mailbox (Postfächer)
+  solr/           SolrManager: Hooks, Hook-Gruppen, Kerne, Felder. Tabellen heißen solr_*; document/ ist nur die rohe Solr-Schicht, access/ rechnet die Rechte aus dem Token, grant/ Feld- und Hook-Freigaben und das Register der Dateifreigaben, alles Postgres
+  dms/            DMS: drei Lese-Services (Existenzcheck, Auflösen, Suche), ein Schreibservice, ein Freigabe-Service, ein eigener Checker; jeder baut seine Solr-Abfragen selbst. Upload mit Tika und Vorschaubild, Download. Register: docs/backend/solr-zugriff.md
 ```
 
 Jedes Paket ist aufgeteilt in `controller/`, `service/`, `repository/` und `model/`. In `model/` liegen Entities, Enums und, wo nötig, DTOs.

@@ -18,6 +18,7 @@ public enum MasterDataSection {
 	SOLR_CORES("solr-cores.jsonl"),
 	SOLR_FIELDS("solr-fields.jsonl"),
 	ENTITY_STATES("entity-states.jsonl"),
+	GRAPH_MAIL_TEMPLATES("graph-mail-templates.jsonl"),
 	USERS("users.jsonl"),
 	USERS_DETAILS("users-details.jsonl"),
 	USERS_SETTINGS("users-settings.jsonl"),

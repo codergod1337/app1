@@ -4,6 +4,7 @@ import codergod1337.app1.solr.SolrFieldName;
 import codergod1337.app1.solr.core.model.SolrCore;
 import codergod1337.app1.solr.core.repository.SolrCoreRepository;
 import codergod1337.app1.solr.field.model.SolrField;
+import codergod1337.app1.solr.field.model.SolrFieldClientWriteRule;
 import codergod1337.app1.solr.field.model.SolrFieldReadAccessLevel;
 import codergod1337.app1.solr.field.model.SolrFieldType;
 import codergod1337.app1.solr.field.repository.SolrFieldRepository;
@@ -40,8 +41,9 @@ import org.springframework.web.server.ResponseStatusException;
  * mit Dateifreigabe: string, indexed, multiValued, nie required, sonst fände die Dokumentgrenze nichts. Alles andere an
  * den dreien ist frei wie bei jedem Feld.
  *
- * readAccessLevel (Minimum oder Erweitert) steht nur hier, nie in Solr: Der Abgleich ignoriert es, die Lesedienste bauen
- * daraus, welche Felder sie anfordern.
+ * readAccessLevel (Minimum oder Erweitert) und clientWriteRule (wer das Feld setzt) stehen nur hier, nie in Solr: Der
+ * Abgleich ignoriert sie, die Lesemechanik baut daraus, welche Felder sie anfordert, die Schreibmechanik, welche Felder
+ * der Client setzen darf. Die eingebauten Felder sind immer BACKEND_ONLY.
  */
 @Service
 public class SolrFieldService {
@@ -82,13 +84,14 @@ public class SolrFieldService {
 	/**
 	 * Neues Feld. 400 bei ungültigem name, unbekanntem Kern, einem Hook-Namen (den gibt es in jedem Kern schon) oder
 	 * suggest bei einem Typ ohne Zwilling. 409 wenn es das Feld in diesem Kern schon gibt. readAccessLevel null heißt
-	 * Erweitert, z. B. bei einem Import aus der Zeit vor dem Schalter.
+	 * Erweitert, clientWriteRule null heißt BACKEND_ONLY, z. B. bei einem Import aus der Zeit vor dem Schalter.
 	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public SolrField createSolrField(String coreKey, String name, SolrFieldType type, boolean indexed, boolean stored,
 			boolean multiValued, boolean docValues, boolean required, boolean suggest,
-			SolrFieldReadAccessLevel readAccessLevel, String description, int listingPosition) {
+			SolrFieldReadAccessLevel readAccessLevel, SolrFieldClientWriteRule clientWriteRule, String description,
+			int listingPosition) {
 		// ZIRKELSCHLUSS: direkt das fremde SolrCoreRepository, siehe Feld solrCoreRepository
 		if (coreKey == null || !solrCoreRepository.existsById(coreKey)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unbekannter Kern");
@@ -107,16 +110,16 @@ public class SolrFieldService {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "das Feld gibt es in diesem Kern schon");
 		}
 		SolrField solrField = solrFieldRepository.save(new SolrField(coreKey, name, type, indexed, stored, multiValued,
-				docValues, required, suggest, readAccessLevel, description, listingPosition));
+				docValues, required, suggest, readAccessLevel, clientWriteRule, description, listingPosition));
 		reloadSolrFieldsAfterCommit();
 		return solrField;
 	}
 
 	/**
-	 * Ein Feld, das der Code mitbringt, z. B. id mit jedem Kern. Gibt es das Feld schon, bleibt es, wie es ist, mit einer
-	 * Ausnahme: id wird auf Minimum gezogen, falls es das noch nicht ist (Kerne aus der Zeit vor dem Schalter). Danach
-	 * ist es ein normales Feld wie jedes andere. Aufgerufen vom SolrCoreService, deshalb ohne @PreAuthorize: die Prüfung
-	 * sitzt dort. Position 0, damit es ganz oben steht.
+	 * Ein eingebautes Feld, das der Code mitbringt, z. B. id mit jedem Kern. Gibt es das Feld schon, bleibt es, wie es
+	 * ist, mit zwei Ausnahmen: id wird auf Minimum gezogen, und jedes eingebaute Feld auf BACKEND_ONLY, falls es das noch
+	 * nicht ist (Kerne aus der Zeit vor dem Schalter). Danach ist es ein normales Feld wie jedes andere. Aufgerufen vom
+	 * SolrCoreService, deshalb ohne @PreAuthorize: die Prüfung sitzt dort. Position 0, damit es ganz oben steht.
 	 */
 	@Transactional
 	public SolrField createSolrFieldIfMissing(String coreKey, String name, SolrFieldType type, boolean indexed,
@@ -125,9 +128,17 @@ public class SolrFieldService {
 		SolrField existing = solrFieldRepository.findByCoreKey(coreKey).stream()
 				.filter(candidate -> candidate.getName().equals(name)).findFirst().orElse(null);
 		if (existing != null) {
+			boolean repair = false;
 			if (SolrCore.ID_FIELD_NAME.equals(name)
 					&& existing.getReadAccessLevel() != SolrFieldReadAccessLevel.MINIMUM_SET_EVERY_READER) {
 				existing.setReadAccessLevel(SolrFieldReadAccessLevel.MINIMUM_SET_EVERY_READER);
+				repair = true;
+			}
+			if (existing.getClientWriteRule() != SolrFieldClientWriteRule.BACKEND_ONLY) {
+				existing.setClientWriteRule(SolrFieldClientWriteRule.BACKEND_ONLY);
+				repair = true;
+			}
+			if (repair) {
 				SolrField repaired = solrFieldRepository.save(existing);
 				reloadSolrFieldsAfterCommit();
 				return repaired;
@@ -135,7 +146,7 @@ public class SolrFieldService {
 			return existing;
 		}
 		SolrField saved = solrFieldRepository.save(new SolrField(coreKey, name, type, indexed, stored, multiValued,
-				docValues, required, false, readAccessLevel, description, 0));
+				docValues, required, false, readAccessLevel, SolrFieldClientWriteRule.BACKEND_ONLY, description, 0));
 		reloadSolrFieldsAfterCommit();
 		return saved;
 	}
@@ -143,13 +154,14 @@ public class SolrFieldService {
 	/**
 	 * Die id bestimmt, welches Feld geändert wird. Kern und Name ändern sich nie, bei den eingebauten Feldern auch nicht
 	 * der Typ, bei id auch nicht indexed, required und multiValued, bei userGrantedAccess nicht indexed, multiValued und
-	 * required (400). id bleibt immer Minimum, egal was ankommt. Alle anderen Felder werden ersetzt.
+	 * required (400). id bleibt immer Minimum, die eingebauten Felder bleiben immer BACKEND_ONLY, egal was ankommt. Alle
+	 * anderen Felder werden ersetzt.
 	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public SolrField updateSolrField(Long id, SolrFieldType type, boolean indexed, boolean stored, boolean multiValued,
 			boolean docValues, boolean required, boolean suggest, SolrFieldReadAccessLevel readAccessLevel,
-			String description, int listingPosition) {
+			SolrFieldClientWriteRule clientWriteRule, String description, int listingPosition) {
 		SolrField solrField = findSolrFieldForWrite(id);
 		requireType(type);
 		requireSuggestAllowed(type, suggest);
@@ -164,6 +176,9 @@ public class SolrFieldService {
 		solrField.setReadAccessLevel(SolrCore.ID_FIELD_NAME.equals(solrField.getName())
 				? SolrFieldReadAccessLevel.MINIMUM_SET_EVERY_READER
 				: readAccessLevel);
+		solrField.setClientWriteRule(SolrCore.BUILT_IN_FIELD_NAMES.contains(solrField.getName())
+				? SolrFieldClientWriteRule.BACKEND_ONLY
+				: clientWriteRule);
 		solrField.setDescription(description);
 		solrField.setListingPosition(listingPosition);
 		SolrField saved = solrFieldRepository.save(solrField);

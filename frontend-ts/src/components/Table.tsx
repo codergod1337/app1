@@ -19,6 +19,11 @@ export interface TableColumn<T> {
    * teilen sich den Rest. So stehen die Spalten mehrerer Tabellen untereinander genau übereinander.
    */
   width?: string
+  /**
+   * Der Spaltenkopf steht senkrecht, von unten nach oben gelesen: für schmale Spalten mit einem Schalter, deren Name
+   * länger ist als die Spalte breit, z. B. multiValued in 3rem. Im Detail-Popup steht der Kopf normal.
+   */
+  verticalHeader?: boolean
 }
 
 interface TableProps<T> {
@@ -40,6 +45,8 @@ interface TableProps<T> {
   fixedRow?: (row: T) => boolean
   /** Breite der Aktionsspalte beim festen Layout (siehe TableColumn.width). Standard: Platz für zwei Knöpfe. */
   actionsWidth?: string
+  /** Der Kopf der Aktionsspalte steht senkrecht, wie TableColumn.verticalHeader */
+  actionsHeaderVertical?: boolean
   /** Eine zusätzliche Klasse je Zeile, z. B. für eine fertige oder gescheiterte Zeile. Das Aussehen bestimmt das Theme. */
   rowClassName?: (row: T) => string | undefined
 }
@@ -139,6 +146,7 @@ export function Table<T>({
   onReorder,
   fixedRow,
   actionsWidth = '6rem',
+  actionsHeaderVertical = false,
   rowClassName,
 }: TableProps<T>) {
   const { t } = useTranslation()
@@ -147,6 +155,17 @@ export function Table<T>({
   const visibleColumns = isMobile ? columns.filter((column) => !column.unimportant) : columns
   const columnCount = visibleColumns.length + (actions ? 1 : 0)
   const fixedLayout = columns.some((column) => column.width !== undefined)
+
+  /** Der Spaltenkopf, mit Hoverlay, wenn es eine Erklärung gibt */
+  function headerOf(column: TableColumn<T>): ReactNode {
+    return column.headerHint !== undefined ? (
+      <Hoverlay text={column.headerHint}>
+        <span className="table-header-hinted">{column.header}</span>
+      </Hoverlay>
+    ) : (
+      column.header
+    )
+  }
 
   const table = (
     <table className={`table table-striped align-middle mb-0 data-table${fixedLayout ? ' data-table-fixed' : ''}`}>
@@ -162,17 +181,26 @@ export function Table<T>({
         <tr>
           {/* Mit onReorder sitzt der Griff in der ersten sichtbaren Spalte */}
           {visibleColumns.map((column, index) => (
-            <th key={column.header} className={onReorder && index === 0 ? 'drag-cell' : undefined}>
-              {column.headerHint !== undefined ? (
-                <Hoverlay text={column.headerHint}>
-                  <span className="table-header-hinted">{column.header}</span>
-                </Hoverlay>
-              ) : (
-                column.header
-              )}
+            <th
+              key={column.header}
+              className={
+                [onReorder && index === 0 ? 'drag-cell' : '', column.verticalHeader ? 'th-vertical' : '']
+                  .join(' ')
+                  .trim() || undefined
+              }
+            >
+              {column.verticalHeader ? <span className="th-vertical-text">{headerOf(column)}</span> : headerOf(column)}
             </th>
           ))}
-          {actions && <th className="actions-cell">{t('common.actions')}</th>}
+          {actions && (
+            <th className={actionsHeaderVertical ? 'actions-cell th-vertical' : 'actions-cell'}>
+              {actionsHeaderVertical ? (
+                <span className="th-vertical-text">{t('common.actions')}</span>
+              ) : (
+                t('common.actions')
+              )}
+            </th>
+          )}
         </tr>
       </thead>
       <tbody>
@@ -224,15 +252,7 @@ export function Table<T>({
           <dl className="details-list">
             {columns.map((column) => (
               <div key={column.header}>
-                <dt>
-                  {column.headerHint !== undefined ? (
-                    <Hoverlay text={column.headerHint}>
-                      <span className="table-header-hinted">{column.header}</span>
-                    </Hoverlay>
-                  ) : (
-                    column.header
-                  )}
-                </dt>
+                <dt>{headerOf(column)}</dt>
                 <dd>{column.cell(detailRow)}</dd>
               </div>
             ))}

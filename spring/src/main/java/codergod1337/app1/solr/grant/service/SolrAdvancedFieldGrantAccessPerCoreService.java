@@ -1,13 +1,11 @@
 package codergod1337.app1.solr.grant.service;
 
+import codergod1337.app1.solr.core.model.SolrCore;
 import codergod1337.app1.solr.core.service.SolrCoreService;
-import codergod1337.app1.solr.document.service.SolrDocumentService;
 import codergod1337.app1.solr.field.model.SolrField;
 import codergod1337.app1.solr.field.service.SolrFieldService;
 import codergod1337.app1.solr.grant.model.SolrAdvancedFieldGrantAccessPerCore;
 import codergod1337.app1.solr.grant.repository.SolrAdvancedFieldGrantAccessPerCoreRepository;
-import codergod1337.app1.solr.hook.model.SolrHook;
-import codergod1337.app1.solr.hook.service.SolrHookService;
 import codergod1337.app1.system.security.CurrentUsersProvider;
 import codergod1337.app1.system.user.service.UsersService;
 import jakarta.annotation.PostConstruct;
@@ -29,11 +27,12 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Die Feldfreigaben: das Recht, in einem Kern nach einem Feld oder Hook aufzulösen, obwohl der User weder
- * {@code <KERN>_SUCHE} noch (für Hooks) {@code HOOK_FULL} hat (Vorgabe 2026-10-04). Ein erweitertes Feld wird damit auch
- * lesbar. Pro Kern, nie pro Dokument, nichts davon in Solr. Die aktiven Zeilen liegen im Speicher, weil die
- * Zugriffsrechnung sie bei jedem Request eines eingeschränkten Users braucht: unveränderliche Liste, nur ersetzt, neu
- * geladen nach jedem Commit, wie bei Hooks und Feldern.
+ * Die Feldfreigaben: das Recht, in einem Kern nach einem normalen Feld aufzulösen, obwohl der User {@code <KERN>_SUCHE}
+ * nicht hat (Vorgabe 2026-10-04). Ein erweitertes Feld wird damit auch lesbar. Pro Kern, nie pro Dokument, nichts davon
+ * in Solr. Hooks werden seit 2026-10-07 nicht mehr hier, sondern serverweit freigegeben (SolrHookGrantAccessService);
+ * alte Hook-Zeilen in dieser Tabelle bleiben als Protokoll stehen und wirken nicht mehr. Die aktiven Zeilen liegen im
+ * Speicher, weil die Zugriffsrechnung sie bei jedem Request eines eingeschränkten Users braucht: unveränderliche Liste,
+ * nur ersetzt, neu geladen nach jedem Commit, wie bei Hooks und Feldern.
  *
  * Nichts wird gelöscht, eine Freigabe wechselt nur den Status (GrantEntityStateService). Beim Lesen zählen nur ACTIVE
  * und nicht abgelaufen: Eine abgelaufene Zeile ist sofort wirkungslos, auch bevor der Ablauf sie auf EXPIRED setzt.
@@ -49,7 +48,6 @@ public class SolrAdvancedFieldGrantAccessPerCoreService {
 	private final SolrAdvancedFieldGrantAccessPerCoreRepository repository;
 	private final SolrCoreService solrCoreService;
 	private final SolrFieldService solrFieldService;
-	private final SolrHookService solrHookService;
 	private final UsersService usersService;
 	private final CurrentUsersProvider currentUsersProvider;
 
@@ -57,12 +55,11 @@ public class SolrAdvancedFieldGrantAccessPerCoreService {
 	private volatile List<SolrAdvancedFieldGrantAccessPerCore> activeGrants = List.of();
 
 	public SolrAdvancedFieldGrantAccessPerCoreService(SolrAdvancedFieldGrantAccessPerCoreRepository repository,
-			SolrCoreService solrCoreService, SolrFieldService solrFieldService, SolrHookService solrHookService,
-			UsersService usersService, CurrentUsersProvider currentUsersProvider) {
+			SolrCoreService solrCoreService, SolrFieldService solrFieldService, UsersService usersService,
+			CurrentUsersProvider currentUsersProvider) {
 		this.repository = repository;
 		this.solrCoreService = solrCoreService;
 		this.solrFieldService = solrFieldService;
-		this.solrHookService = solrHookService;
 		this.usersService = usersService;
 		this.currentUsersProvider = currentUsersProvider;
 	}
@@ -73,16 +70,21 @@ public class SolrAdvancedFieldGrantAccessPerCoreService {
 	}
 
 	/**
-	 * Die erweiterten Felder und Hooks, die diesem User in diesem Kern zusätzlich zu den Minimum-Feldern offenstehen:
-	 * aktive, nicht abgelaufene Zeilen aus dem Speicher. Für die Leseprüfung, ohne @PreAuthorize: Der Aufrufer fragt nach
+	 * Die Felder, die diesem User in diesem Kern zusätzlich zu den Minimum-Feldern offenstehen: aktive, nicht
+	 * abgelaufene Zeilen aus dem Speicher, nur Namen, die ein Feld des Kerns sind. Alte Hook-Zeilen zählen nicht mehr,
+	 * Hooks gibt der SolrHookGrantAccessService frei. Für die Leseprüfung, ohne @PreAuthorize: Der Aufrufer fragt nach
 	 * sich selbst.
 	 */
 	public Set<String> activeGrantedAdvancedFieldNamesOfUsersInCore(UUID granteeUsersGuid, String coreKey) {
 		Instant now = Instant.now();
+		Set<String> fieldNamesOfCore = new HashSet<>();
+		for (SolrField solrField : solrFieldService.getSolrFieldsByCoreKey(coreKey)) {
+			fieldNamesOfCore.add(solrField.getName());
+		}
 		Set<String> fieldNames = new HashSet<>();
 		for (SolrAdvancedFieldGrantAccessPerCore grant : activeGrants) {
 			if (grant.getGranteeUsersGuid().equals(granteeUsersGuid) && grant.getCoreKey().equals(coreKey)
-					&& isInForce(grant, now)) {
+					&& isInForce(grant, now) && fieldNamesOfCore.contains(grant.getFieldName())) {
 				fieldNames.add(grant.getFieldName());
 			}
 		}
@@ -114,8 +116,9 @@ public class SolrAdvancedFieldGrantAccessPerCoreService {
 
 	/**
 	 * Gibt dem User die Felder dieses Kerns frei, eine Zeile je Feld. 404 bei unbekanntem User oder Kern, 400 bei
-	 * einem Namen, der weder auflösbares Feld des Kerns noch Hook ist, bei einer schon aktiven Freigabe desselben Feldes
-	 * und bei einem Ablauf in der Vergangenheit. Alles oder nichts: eine Transaktion.
+	 * einem Namen, der kein auflösbares Feld des Kerns ist (Hooks gehen serverweit über die Hook-Freigabe), bei einer
+	 * schon aktiven Freigabe desselben Feldes und bei einem Ablauf in der Vergangenheit. Alles oder nichts: eine
+	 * Transaktion.
 	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
@@ -127,12 +130,13 @@ public class SolrAdvancedFieldGrantAccessPerCoreService {
 		if (fieldNames == null || fieldNames.isEmpty()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fieldNames fehlt oder ist leer");
 		}
-		Set<String> grantableFieldNames = grantableAdvancedFieldAndHookNamesOfCore(coreKey);
+		Set<String> grantableFieldNames = grantableAdvancedFieldNamesOfCore(coreKey);
 		Set<String> alreadyGranted = activeGrantedAdvancedFieldNamesOfUsersInCore(granteeUsersGuid, coreKey);
 		List<String> problems = new ArrayList<>();
 		for (String fieldName : new LinkedHashSet<>(fieldNames)) {
 			if (!grantableFieldNames.contains(fieldName)) {
-				problems.add(fieldName + ": kein auflösbares Feld des Kerns " + coreKey + " und kein Hook");
+				problems.add(fieldName + ": kein auflösbares Feld des Kerns " + coreKey
+						+ " (Hooks gibt die Hook-Freigabe frei)");
 			} else if (alreadyGranted.contains(fieldName)) {
 				problems.add(fieldName + ": schon freigegeben");
 			}
@@ -188,19 +192,16 @@ public class SolrAdvancedFieldGrantAccessPerCoreService {
 	}
 
 	/**
-	 * Die Namen, die sich in diesem Kern freigeben lassen: jedes indexierte Feld außer {@code id} (danach löst jeder auf)
-	 * und alle Hooks. Auch Minimum-Felder, denn die Freigabe ist ein Auflöserecht, lesen kann sie jeder ohnehin. Für
-	 * Maske und Prüfung.
+	 * Die Namen, die sich in diesem Kern freigeben lassen: jedes indexierte Feld außer {@code id} (danach löst jeder
+	 * auf). Auch Minimum-Felder, denn die Freigabe ist ein Auflöserecht, lesen kann sie jeder ohnehin. Keine Hooks, die
+	 * gibt die Hook-Freigabe serverweit frei. Für Maske und Prüfung.
 	 */
-	public Set<String> grantableAdvancedFieldAndHookNamesOfCore(String coreKey) {
+	public Set<String> grantableAdvancedFieldNamesOfCore(String coreKey) {
 		Set<String> names = new LinkedHashSet<>();
 		for (SolrField solrField : solrFieldService.getSolrFieldsByCoreKey(coreKey)) {
-			if (solrField.isIndexed() && !SolrDocumentService.ID_FIELD_NAME.equals(solrField.getName())) {
+			if (solrField.isIndexed() && !SolrCore.ID_FIELD_NAME.equals(solrField.getName())) {
 				names.add(solrField.getName());
 			}
-		}
-		for (SolrHook solrHook : solrHookService.getAllSolrHooks()) {
-			names.add(solrHook.getKey());
 		}
 		return names;
 	}

@@ -32,10 +32,12 @@ export const ANONYMOUS_SESSION: SessionInfo = {
   tokenExpiresAt: null,
 }
 
-/** Die zwei Tokens nach Schritt 1: Abholschein und, bis es Mailversand gibt, der Bestätigungs-Token */
-export interface Login2faTokens {
+/**
+ * Die Antwort nach Schritt 1 (Login2faPollToken.java): nur der Abholschein für dieses Fenster. Der Bestätigungs-Token
+ * geht per Mail an den User, nie in der Antwort.
+ */
+export interface Login2faPollToken {
   pollToken: string
-  confirmationToken: string
 }
 
 /** Antwort beim Abholen: WAITING, solange nicht bestätigt ist, danach LOGGED_IN und die Cookies sind gesetzt */
@@ -48,12 +50,15 @@ export interface LoginClaim {
 
 const LOGIN_PATH = '/api/rest/v1/public/intern/login'
 
-/** Schritt 1: email und Passwort. Das Passwort geht nur als SHA-256 hinaus. */
+/** Schritt 1: email und Passwort. Das Passwort geht nur als SHA-256 hinaus. 503, wenn die Mail nicht hinausging. */
 export async function startLogin(email: string, password: string) {
-  return request<Login2faTokens>('POST', `${LOGIN_PATH}/start`, { email, password: await sha256Hex(password) })
+  return request<Login2faPollToken>('POST', `${LOGIN_PATH}/start`, {
+    email,
+    password: await sha256Hex(password),
+  })
 }
 
-/** Schritt 2: der Aktivierungslink, im neuen Fenster */
+/** Schritt 2: der Bestätigungs-Token, über den Link aus der Mail (neues Fenster) oder von Hand eingefügt */
 export function confirmLogin(confirmationToken: string) {
   return request<void>('POST', `${LOGIN_PATH}/confirm`, { confirmationToken })
 }
@@ -61,6 +66,40 @@ export function confirmLogin(confirmationToken: string) {
 /** Schritt 3, im Sekundentakt bis LOGGED_IN */
 export function claimLogin(pollToken: string) {
   return request<LoginClaim>('POST', `${LOGIN_PATH}/claim`, { pollToken })
+}
+
+/**
+ * Eine Sitzung des angemeldeten Users (UsersSessionForClient.java): ein belegter Platz, kein Token, kein Hash.
+ * lastRefreshedAt ist der Hinweis auf das Gerät: Ein offenes Fenster erneuert alle paar Minuten.
+ */
+export interface UsersSessionForClient {
+  sessionNumber: number
+  area: Area
+  /** ISO-8601 */
+  loggedInSince: string
+  refreshCount: number
+  lastRefreshedAt: string
+  expiresAt: string
+  /** die Sitzung dieses Fensters */
+  current: boolean
+}
+
+// ===== Endpunkte des UsersSessionController: die eigenen Sitzungen, nur angemeldet =====
+
+const USERS_SESSION_PATH = '/api/rest/v1/session'
+
+export function getCurrentUsersSessions() {
+  return request<UsersSessionForClient[]>('GET', USERS_SESSION_PATH)
+}
+
+/** Eine Sitzung beenden. War es die eigene, sind danach die Cookies weg: Sitzung neu laden. */
+export function endCurrentUsersSession(sessionNumber: number) {
+  return request<void>('DELETE', USERS_SESSION_PATH, { sessionNumber })
+}
+
+/** Alle Sitzungen beenden, auch diese: danach sind die Cookies weg, Sitzung neu laden. */
+export function endAllCurrentUsersSessions() {
+  return request<void>('DELETE', `${USERS_SESSION_PATH}/all`)
 }
 
 // ===== Endpunkte des SessionPublicController =====

@@ -26,7 +26,17 @@ function explanation(title: string, ...paragraphs: ReactNode[]): ReactNode {
 /** Die Absätze einer Erklärung aus dem Katalog: eine Liste je Schlüssel */
 function paragraphs(
   t: TFunction,
-  key: 'indexed' | 'stored' | 'multiValued' | 'docValues' | 'required' | 'suggest' | 'type' | 'id' | 'fieldAccess',
+  key:
+    | 'indexed'
+    | 'stored'
+    | 'multiValued'
+    | 'docValues'
+    | 'required'
+    | 'suggest'
+    | 'type'
+    | 'id'
+    | 'fieldAccess'
+    | 'clientWriteRule',
 ): string[] {
   const value: unknown = t(`solrmanager.hints.${key}.paragraphs`, { returnObjects: true })
   return Array.isArray(value) ? value.map(String) : []
@@ -92,6 +102,11 @@ export function solrFieldIdHint(t: TFunction): ReactNode {
 /** Die Erklärung des Umschaltknopfs Minimum gegen Erweitert */
 export function solrFieldAccessHint(t: TFunction): ReactNode {
   return explanation(t('solrmanager.hints.fieldAccess.title'), ...paragraphs(t, 'fieldAccess'))
+}
+
+/** Die Erklärung des Umschaltknopfs der Schreibregel: Backend, nur beim Anlegen, Client */
+export function solrFieldClientWriteRuleHint(t: TFunction): ReactNode {
+  return explanation(t('solrmanager.hints.clientWriteRule.title'), ...paragraphs(t, 'clientWriteRule'))
 }
 
 /**

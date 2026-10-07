@@ -5,19 +5,29 @@ import codergod1337.app1.system.access.service.AccessRoleCollectionService;
 import codergod1337.app1.system.access.service.AccessRoleCollectionUsersAssignmentService;
 import codergod1337.app1.system.access.service.AccessRoleUsersAssignmentService;
 import codergod1337.app1.system.security.CurrentUsersProvider;
+import codergod1337.app1.graph.mail.model.GraphMailTemplateType;
+import codergod1337.app1.graph.mail.service.GraphMailTemplateService;
+import codergod1337.app1.graph.mail.service.LoginGraphMailPlaceholderGroup;
+import codergod1337.app1.graph.mail.service.UsersGraphMailPlaceholderGroup;
 import codergod1337.app1.system.security.JwtConfig;
+import codergod1337.app1.system.security.TokenRevocations;
 import codergod1337.app1.system.security.login.model.Area;
 import codergod1337.app1.system.security.login.model.IssuedSession;
+import codergod1337.app1.system.security.login.model.Login2faPollToken;
 import codergod1337.app1.system.security.login.model.Login2faTokens;
 import codergod1337.app1.system.security.login.model.SessionInfo;
 import codergod1337.app1.system.security.login.model.UsersRefreshToken;
+import codergod1337.app1.system.security.login.model.UsersSessionForClient;
 import codergod1337.app1.system.user.model.Users;
 import codergod1337.app1.system.user.service.UsersCredentialsService;
 import codergod1337.app1.system.user.service.UsersService;
+import codergod1337.app1.system.user.service.UsersSettingsService;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -31,60 +41,93 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Der Ablauf von Login, Refresh und Logout. Jeder Login läuft über die 2FA: start (Passwort), confirm
- * (Aktivierungslink), claim (Sitzung abholen). Jeder Fehlschlag bekommt dieselbe Absage, von außen ist nicht zu
- * unterscheiden, ob die email unbekannt oder das Passwort falsch war.
+ * Der Ablauf von Login, Refresh und Logout. Jeder Login läuft über die 2FA: start (Passwort, der Aktivierungslink
+ * geht an den User), confirm (der Link), claim (Sitzung abholen). Jeder Fehlschlag bekommt dieselbe Absage, von außen
+ * ist nicht zu unterscheiden, ob die email unbekannt oder das Passwort falsch war.
  */
 @Service
 public class LoginService {
 
 	private static final String LOGIN_FAILED = "Anmeldung fehlgeschlagen";
 
+	/** die UsersSetting mit der Sprache der Oberfläche, gesetzt vom Frontend (useLanguage) */
+	private static final String LANGUAGE_SETTING_KEY = "LANGUAGE";
+
 	private final UsersService usersService;
 	private final UsersCredentialsService usersCredentialsService;
+	private final UsersSettingsService usersSettingsService;
 	private final AccessRoleUsersAssignmentService accessRoleUsersAssignmentService;
 	private final AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService;
 	private final AccessRoleCollectionService accessRoleCollectionService;
 	private final UsersLogin2faService usersLogin2faService;
+	private final GraphMailTemplateService graphMailTemplateService;
 	private final UsersRefreshTokenService usersRefreshTokenService;
 	private final CurrentUsersProvider currentUsersProvider;
+	private final TokenRevocations tokenRevocations;
 	private final JwtEncoder jwtEncoder;
 
 	/** Wie lange ein JWT gilt, app1.jwt.validity */
 	private final Duration jwtValidity;
 
+	/** Die Seite hinter dem Aktivierungslink, app1.login.confirm-url. Der Token hängt hinter einem # dahinter. */
+	private final String confirmUrl;
+
+	/** Wie lange eine Wartezeile gilt, app1.login.two-factor-validity, steht so in der Mail */
+	private final Duration twoFactorValidity;
+
 	public LoginService(UsersService usersService, UsersCredentialsService usersCredentialsService,
+			UsersSettingsService usersSettingsService,
 			AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
 			AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService,
 			AccessRoleCollectionService accessRoleCollectionService,
-			UsersLogin2faService usersLogin2faService, UsersRefreshTokenService usersRefreshTokenService,
-			CurrentUsersProvider currentUsersProvider, JwtEncoder jwtEncoder,
-			@Value("${app1.jwt.validity}") Duration jwtValidity) {
+			UsersLogin2faService usersLogin2faService, GraphMailTemplateService graphMailTemplateService,
+			UsersRefreshTokenService usersRefreshTokenService,
+			CurrentUsersProvider currentUsersProvider, TokenRevocations tokenRevocations, JwtEncoder jwtEncoder,
+			@Value("${app1.jwt.validity}") Duration jwtValidity,
+			@Value("${app1.login.confirm-url}") String confirmUrl,
+			@Value("${app1.login.two-factor-validity}") Duration twoFactorValidity) {
 		this.usersService = usersService;
 		this.usersCredentialsService = usersCredentialsService;
+		this.usersSettingsService = usersSettingsService;
 		this.accessRoleUsersAssignmentService = accessRoleUsersAssignmentService;
 		this.accessRoleCollectionUsersAssignmentService = accessRoleCollectionUsersAssignmentService;
 		this.accessRoleCollectionService = accessRoleCollectionService;
 		this.usersLogin2faService = usersLogin2faService;
+		this.graphMailTemplateService = graphMailTemplateService;
 		this.usersRefreshTokenService = usersRefreshTokenService;
 		this.currentUsersProvider = currentUsersProvider;
+		this.tokenRevocations = tokenRevocations;
 		this.jwtEncoder = jwtEncoder;
 		this.jwtValidity = jwtValidity;
+		this.confirmUrl = confirmUrl;
+		this.twoFactorValidity = twoFactorValidity;
 	}
 
 	/**
 	 * Schritt 1: email und Passwort (SHA-256). Unbekannte email, falsches Passwort, Service-Account oder Status nicht
-	 * ACTIVE: 401. Sonst neue Wartezeile, zurück kommen Abholschein und Bestätigungs-Token.
+	 * ACTIVE: 401. Sonst neue Wartezeile, dann geht die 2FA-Mail (Vorlage LOGIN_2FA, in der Sprache des Users) mit
+	 * Link und Token an seine E-Mail. Scheitert der Versand: 503, die Transaktion rollt die Wartezeile zurück. Zurück
+	 * kommt nur der Abholschein.
 	 */
 	@Transactional
-	public Login2faTokens startLogin(Area area, String email, String password) {
+	public Login2faPollToken startLogin(Area area, String email, String password) {
 		Users users = usersService.findUsersByEmail(email)
 				// Service-Accounts sind Dienste und kommen über diesen Weg nicht herein
 				.filter(found -> !found.isServiceAccount())
 				.filter(found -> "ACTIVE".equals(found.getStatus()))
 				.filter(found -> usersCredentialsService.isUsersCredentialsPasswordValid(found.getGuid(), password))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, LOGIN_FAILED));
-		return usersLogin2faService.createUsersLogin2fa(users.getGuid(), area);
+		Login2faTokens login2faTokens = usersLogin2faService.createUsersLogin2fa(users.getGuid(), area);
+
+		// Hinter dem #: Diesen Teil schickt ein Browser nie an einen Server, auch ein Link-Scanner bestätigt so nichts
+		String confirmLink = confirmUrl + "#" + login2faTokens.confirmationToken();
+		String language = usersSettingsService.findUsersSettingsValue(users.getGuid(), LANGUAGE_SETTING_KEY).orElse(null);
+		graphMailTemplateService.sendGraphMailFromTemplate(GraphMailTemplateType.LOGIN_2FA, language, Map.of(
+				GraphMailTemplateType.PLACEHOLDER_GROUP_USERS, UsersGraphMailPlaceholderGroup.valuesOf(users),
+				GraphMailTemplateType.PLACEHOLDER_GROUP_LOGIN, LoginGraphMailPlaceholderGroup.valuesOf(confirmLink,
+						login2faTokens.confirmationToken(), Math.max(1, twoFactorValidity.toMinutes()))),
+				users.getEmail());
+		return new Login2faPollToken(login2faTokens.pollToken());
 	}
 
 	/** Schritt 2: der Aktivierungslink */
@@ -130,6 +173,42 @@ public class LoginService {
 	@Transactional
 	public void logout(String refreshToken) {
 		usersRefreshTokenService.deleteUsersRefreshTokenFamily(refreshToken);
+	}
+
+	/** Die Sitzungen des angemeldeten Users, je belegtem Platz eine, die eigene (der Platz aus dem Token) markiert. */
+	@Transactional(readOnly = true)
+	public List<UsersSessionForClient> getCurrentUsersSessions() {
+		UUID usersGuid = currentUsersProvider.getCurrentUsersGuid();
+		int currentSessionNumber = currentUsersProvider.getCurrentUsersSessionNumber();
+		List<UsersSessionForClient> sessions = new ArrayList<>();
+		for (UsersRefreshToken living : usersRefreshTokenService.getLivingUsersRefreshTokensOfUsers(usersGuid)) {
+			sessions.add(new UsersSessionForClient(living.getSessionNumber(), living.getArea(),
+					living.getFamilyCreatedAt(), living.getRefreshCount(), living.getCreatedAt(), living.getExpiresAt(),
+					living.getSessionNumber() == currentSessionNumber));
+		}
+		return sessions;
+	}
+
+	/**
+	 * Eine Sitzung des angemeldeten Users beenden: Die Kette auf diesem Platz wird gelöscht, das Gerät scheitert beim
+	 * nächsten Refresh. Zurück kommt, ob es die eigene war: Dann löscht der Controller auch die Cookies.
+	 */
+	@Transactional
+	public boolean endCurrentUsersSession(int sessionNumber) {
+		usersRefreshTokenService.deleteUsersRefreshTokenFamilyBySessionNumber(currentUsersProvider.getCurrentUsersGuid(),
+				sessionNumber);
+		return sessionNumber == currentUsersProvider.getCurrentUsersSessionNumber();
+	}
+
+	/**
+	 * Alle Sitzungen des angemeldeten Users beenden, auch die eigene. Dazu die laufenden JWTs sperren, damit fremde
+	 * Fenster sofort fliegen und nicht erst beim nächsten Refresh.
+	 */
+	@Transactional
+	public void endAllCurrentUsersSessions() {
+		UUID usersGuid = currentUsersProvider.getCurrentUsersGuid();
+		usersRefreshTokenService.deleteAllUsersRefreshTokensOfUsers(usersGuid);
+		tokenRevocations.revokeUsersTokens(usersGuid);
 	}
 
 	/** Wer gerade da ist: die Sitzung des Angemeldeten oder die leere Sitzung eines Unangemeldeten. */

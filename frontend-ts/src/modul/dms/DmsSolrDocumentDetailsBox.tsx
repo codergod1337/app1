@@ -12,7 +12,7 @@ import { FileSubClassPicker } from '../filesubclass/FileSubClassPicker.tsx'
 import { FileSubClassSymbol } from '../filesubclass/FileSubClassSymbol.tsx'
 import { solrHookValuesOf } from '../solrmanager/SolrHook.ts'
 import { SolrHookFields } from '../solrmanager/SolrHookFields.tsx'
-import { DMS_STATE_DELETED, editDmsSolrDocument, FILE_SUB_CLASS_FIELD_NAME, type DmsSolrDocumentForClient } from './Dms.ts'
+import { FILE_SUB_CLASS_FIELD_NAME, softDeleteDmsSolrDocument, type DmsSolrDocumentForClient } from './Dms.ts'
 import { DmsSolrDocumentActionButtons } from './DmsSolrDocumentActionButtons.tsx'
 import { DmsSolrDocumentIdentifiersHint, DmsSolrDocumentInfobox } from './DmsSolrDocumentFacts.tsx'
 import { DmsSolrDocumentGrantsHint } from './DmsSolrDocumentGrantsHint.tsx'
@@ -195,7 +195,7 @@ export function DmsSolrDocumentDetailsBox({ loaded, origin, onClose, onDeleted }
       <DeletePopup
         open={deleting}
         title={t('dms.document.deleteTitle')}
-        onConfirm={() => editDmsSolrDocument({ id, status: DMS_STATE_DELETED })}
+        onConfirm={() => softDeleteDmsSolrDocument(id)}
         onDeleted={onDeleted}
         onClose={() => setDeleting(false)}
       >

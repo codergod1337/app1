@@ -1,14 +1,14 @@
 package codergod1337.app1.solr.grant.controller;
 
-import codergod1337.app1.solr.document.service.SolrExactFieldValueResolveService;
 import codergod1337.app1.solr.grant.model.ExpiredGrantsCount;
-import codergod1337.app1.solr.grant.model.GrantableDocumentsPreviewPage;
 import codergod1337.app1.solr.grant.model.NewAdvancedFieldGrantRequest;
-import codergod1337.app1.solr.grant.model.NewDocumentGrantRequest;
+import codergod1337.app1.solr.grant.model.NewHookGrantRequest;
 import codergod1337.app1.solr.grant.model.SolrAdvancedFieldGrantAccessPerCore;
 import codergod1337.app1.solr.grant.model.SolrDocumentGrantedDocsPerCore;
+import codergod1337.app1.solr.grant.model.SolrHookGrantAccess;
 import codergod1337.app1.solr.grant.service.SolrAdvancedFieldGrantAccessPerCoreService;
 import codergod1337.app1.solr.grant.service.SolrDocumentGrantedDocsPerCoreService;
+import codergod1337.app1.solr.grant.service.SolrHookGrantAccessService;
 import codergod1337.app1.system.HelperInputs;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
@@ -26,8 +26,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Das Modul „Freigaben“: Dateifreigaben und Feldfreigaben je Kern anlegen, ansehen, entziehen. Vorerst nur für ADMIN
- * (Pfad /api/rest/v1/admin/** und @PreAuthorize im Service), später eine eigene AR.
+ * Das Modul „Freigaben“, der Teil, der nur in Postgres steht: Hook-Freigaben (serverweit), Feldfreigaben (je Kern) und
+ * das Register aller Dateifreigaben zum Lesen. Setzen, Entziehen und Ablauf einer Dateifreigabe macht je Kern dessen
+ * eigener Controller, im DMS der DmsDocumentGrantAdminController. Vorerst nur für ADMIN (Pfad /api/rest/v1/admin/**
+ * und @PreAuthorize im Service), später eine eigene AR.
  *
  * Keine Parameter in der URL, alles im Body. Gelöscht wird nichts: DELETE entzieht, die Zeile bleibt als Protokoll.
  */
@@ -35,16 +37,41 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/rest/v1/admin/solr/grant")
 public class SolrGrantAdminController {
 
+	private final SolrHookGrantAccessService hookGrantService;
 	private final SolrAdvancedFieldGrantAccessPerCoreService advancedFieldGrantService;
-	private final SolrDocumentGrantedDocsPerCoreService documentGrantService;
+	private final SolrDocumentGrantedDocsPerCoreService documentGrantRegisterService;
 
-	public SolrGrantAdminController(SolrAdvancedFieldGrantAccessPerCoreService advancedFieldGrantService,
-			SolrDocumentGrantedDocsPerCoreService documentGrantService) {
+	public SolrGrantAdminController(SolrHookGrantAccessService hookGrantService,
+			SolrAdvancedFieldGrantAccessPerCoreService advancedFieldGrantService,
+			SolrDocumentGrantedDocsPerCoreService documentGrantRegisterService) {
+		this.hookGrantService = hookGrantService;
 		this.advancedFieldGrantService = advancedFieldGrantService;
-		this.documentGrantService = documentGrantService;
+		this.documentGrantRegisterService = documentGrantRegisterService;
 	}
 
-	// ===== Feldfreigaben =====
+	// ===== Hook-Freigaben, serverweit =====
+
+	/** Alle Hook-Freigaben, auch entzogene und abgelaufene, neueste zuerst */
+	@GetMapping("/hook")
+	public List<SolrHookGrantAccess> getAllHookGrants() {
+		return hookGrantService.getAllHookGrants();
+	}
+
+	/** Neue Hook-Freigaben: eine Zeile je Hook. Zurück kommen die angelegten Zeilen. */
+	@PostMapping("/hook")
+	@ResponseStatus(HttpStatus.CREATED)
+	public List<SolrHookGrantAccess> grantHooksToUsers(@RequestBody NewHookGrantRequest newHookGrantData) {
+		return hookGrantService.grantHooksToUsers(readGuid(newHookGrantData.granteeUsersGuid()),
+				newHookGrantData.hookKeys(), readValidUntil(newHookGrantData.validUntil()));
+	}
+
+	/** Entzieht die Hook-Freigabe mit dieser id. Zurück kommt die Zeile mit Status REVOKED. */
+	@DeleteMapping("/hook")
+	public SolrHookGrantAccess revokeHookGrant(@RequestBody Map<String, Object> hookGrantToRevoke) {
+		return hookGrantService.revokeHookGrant(readId(hookGrantToRevoke.get("id")));
+	}
+
+	// ===== Feldfreigaben, je Kern =====
 
 	/** Alle Feldfreigaben, auch entzogene und abgelaufene, neueste zuerst */
 	@GetMapping("/field")
@@ -68,50 +95,20 @@ public class SolrGrantAdminController {
 		return advancedFieldGrantService.revokeFieldGrant(readId(fieldGrantToRevoke.get("id")));
 	}
 
-	// ===== Dateifreigaben =====
+	// ===== Register der Dateifreigaben, nur lesen =====
 
-	/** Alle Dateifreigaben, auch entzogene und abgelaufene, neueste zuerst */
+	/** Alle Dateifreigaben aller Kerne, auch entzogene und abgelaufene, neueste zuerst */
 	@GetMapping("/document")
 	public List<SolrDocumentGrantedDocsPerCore> getAllDocumentGrants() {
-		return documentGrantService.getAllDocumentGrants();
-	}
-
-	/**
-	 * Vorschau: die Treffer dieser Bedingungen, die der Freigebende sieht und ändern darf, seitenweise, dazu ob sich das
-	 * freigeben lässt (weniger als 500 Treffer). page ab 0, size 1 bis 200, beides optional.
-	 */
-	@PostMapping("/document/preview")
-	public GrantableDocumentsPreviewPage previewGrantableDocumentsPage(
-			@RequestBody NewDocumentGrantRequest documentGrantData) {
-		int page = documentGrantData.page() != null ? documentGrantData.page() : 0;
-		int size = documentGrantData.size() != null ? documentGrantData.size()
-				: SolrExactFieldValueResolveService.DEFAULT_PAGE_SIZE;
-		return documentGrantService.previewGrantableDocumentsPage(readCoreKey(documentGrantData.coreKey()),
-				documentGrantData.fieldValuesByFieldName(), page, size);
-	}
-
-	/** Neue Dateifreigabe. Zurück kommt die Zeile mit der Zahl der Dokumente, die die guid bekamen. */
-	@PostMapping("/document")
-	@ResponseStatus(HttpStatus.CREATED)
-	public SolrDocumentGrantedDocsPerCore grantDocumentsToUsers(@RequestBody NewDocumentGrantRequest newDocumentGrantData) {
-		return documentGrantService.grantDocumentsToUsers(readGuid(newDocumentGrantData.granteeUsersGuid()),
-				readCoreKey(newDocumentGrantData.coreKey()), newDocumentGrantData.fieldValuesByFieldName(),
-				readValidUntil(newDocumentGrantData.validUntil()));
-	}
-
-	/** Entzieht die Dateifreigabe mit dieser id: die guid verschwindet aus den Dokumenten, die Zeile wird REVOKED. */
-	@DeleteMapping("/document")
-	public SolrDocumentGrantedDocsPerCore revokeDocumentGrant(@RequestBody Map<String, Object> documentGrantToRevoke) {
-		return documentGrantService.revokeDocumentGrant(readId(documentGrantToRevoke.get("id")));
+		return documentGrantRegisterService.getAllDocumentGrants();
 	}
 
 	// ===== Ablauf =====
 
-	/** Setzt alle abgelaufenen Freigaben auf EXPIRED, bei Dateifreigaben samt guid aus den Dokumenten */
+	/** Setzt alle abgelaufenen Hook- und Feldfreigaben auf EXPIRED. Dateifreigaben laufen je Kern ab. */
 	@PostMapping("/expire")
 	public ExpiredGrantsCount expireGrants() {
-		return new ExpiredGrantsCount(advancedFieldGrantService.expireFieldGrants(),
-				documentGrantService.expireDocumentGrants());
+		return new ExpiredGrantsCount(hookGrantService.expireHookGrants(), advancedFieldGrantService.expireFieldGrants());
 	}
 
 	// ===== Form der Eingaben =====

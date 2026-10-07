@@ -18,6 +18,7 @@ import { SolrHookFields, type SolrHookValuesByKey } from '../solrmanager/SolrHoo
 import {
   DOCUMENT_LANGUAGE_FIELD_NAME,
   FILE_SUB_CLASS_FIELD_NAME,
+  fileExtensionOf,
   getDmsExistence,
   uploadDmsFile,
   type DmsExistence,
@@ -25,7 +26,6 @@ import {
 } from './Dms.ts'
 import { documentLanguageAppliesToFileExtension } from './DmsDocumentLanguage.ts'
 import { DmsDocumentLanguagePicker } from './DmsDocumentLanguagePicker.tsx'
-import { fileExtensionOf } from './DmsFields.ts'
 
 /** So viele Dateien nimmt ein Stapel: eine Mappe ist kein Massenimport */
 const MAX_FILES = 25
@@ -119,7 +119,9 @@ export function DmsUploadBatchTab() {
     if (entry.existence.status === 'DELETED') {
       return 'deleted'
     }
-    return entry.existence.fileSubClassKey === fileSubClassKey ? 'merge' : 'exists'
+    // Merge nur bei gleicher Dateiart und Status ACTIVE oder ARCHIVED, dieselbe Regel wie im Backend
+    const mergeableStatus = entry.existence.status === 'ACTIVE' || entry.existence.status === 'ARCHIVED'
+    return entry.existence.fileSubClassKey === fileSubClassKey && mergeableStatus ? 'merge' : 'exists'
   }
 
   /** Hat die Datei dieser Zeile eine Sprache? Sagt ihre Endungsgruppe, dieselbe Regel wie im Backend */
