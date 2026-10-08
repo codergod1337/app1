@@ -8,6 +8,7 @@ import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
 import { NewEntityButton } from '../../components/NewEntityButton.tsx'
 import { SolrCoreEmblem } from './SolrCoreEmblem.tsx'
+import { isSolrFieldOfCore } from './SolrField.ts'
 import { SolrFieldSheet } from './SolrFieldSheet.tsx'
 import { groupSolrHooks } from './SolrHook.ts'
 import { SolrHookCatalog } from './SolrHookCatalog.tsx'
@@ -18,8 +19,8 @@ import { SolrSyncStatus } from './SolrSyncStatus.tsx'
  * Tabellenkalkulation (SolrFieldSheet), darunter alle Hooks als Katalog in einer Hoverlay-Box, je Gruppe die Liste,
  * in jedem Kern gleich. Die Flaggen der ContentBox wählen die Sprache der Beschreibungen.
  *
- * Die ID des Dokuments ist immer das Feld id, das mit jedem Kern entsteht. Es gibt hier nichts zu wählen: Was
- * hineinkommt, steht in der Beschreibung des Feldes.
+ * Felder, die in jedem Kern liegen (coreKey null, etwa id, cursorDate und userGrantedAccess), erscheinen in jedem
+ * Kern-Tab, id auf Platz 1.
  */
 export function SolrCoreTab() {
   const { t } = useTranslation()
@@ -29,7 +30,7 @@ export function SolrCoreTab() {
   // Das Plus im Kopf der Box öffnet unten im Sheet die leere Zeile für ein neues Feld
   const [newFieldRowOpen, setNewFieldRowOpen] = useState(false)
   const solrCore = solrCores?.find((candidate) => candidate.key === coreKey) ?? null
-  const coreFields = solrFields?.filter((solrField) => solrField.coreKey === coreKey) ?? null
+  const coreFields = solrFields?.filter((solrField) => isSolrFieldOfCore(solrField, coreKey)) ?? null
 
   let footer
   if (errorMessage !== null) {

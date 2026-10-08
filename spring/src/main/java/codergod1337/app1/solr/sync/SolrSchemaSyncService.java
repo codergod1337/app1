@@ -11,6 +11,7 @@ import codergod1337.app1.solr.hook.model.SolrHook;
 import codergod1337.app1.solr.hook.service.SolrHookService;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -24,12 +25,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.apache.solr.client.api.model.CoreStatusResponse;
 import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
+import org.apache.solr.client.solrj.request.GenericSolrRequest;
 import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.CoreAdminResponse;
 import org.apache.solr.client.solrj.response.schema.SchemaResponse;
+import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
+import org.apache.solr.common.util.NamedList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -48,14 +53,31 @@ import org.springframework.stereotype.Service;
  * eine Typänderung heißt Neuaufbau des Kerns, docs/backend/solr.md). Die Kerne selbst legt der Container an
  * (solr_cores in der .env), ein fehlender Kern wird gemeldet.
  *
+ * Dazu die Klauselgrenze des Kerns: {@code query.maxBooleanClauses} steht in der solrconfig.xml, einer Kopie je Kern,
+ * die niemand mehr anfasst. Der Abgleich liest den Wert über die Config-API und setzt ihn auf {@link #MAX_BOOLEAN_CLAUSES},
+ * wenn er abweicht (set-property, Solr schreibt eine configoverlay.json und lädt den Kern nach). Die Grenze des Knotens
+ * ({@code solr.max.booleanClauses}, solr.xml) hat keine API, sie steht als SOLR_OPTS in der Compose, beide 3000.
+ *
  * Läuft beim Start für alle Kerne und nach jeder Änderung im SolrManager (SolrDefinitionChangedEvent), auf einem
- * eigenen Thread, damit kein Request auf Solr wartet. Ist Solr nicht erreichbar, steht das im Bericht, das Backend
- * läuft trotzdem.
+ * eigenen Thread, damit kein Request auf Solr wartet. Lädt ein Kern noch (Containerstart, Nachladen nach einer
+ * Änderung), wartet der Abgleich kurz und versucht es noch einmal. Ist Solr nicht erreichbar, steht das im Bericht,
+ * das Backend läuft trotzdem.
  */
 @Service
 public class SolrSchemaSyncService {
 
 	private static final Logger log = LoggerFactory.getLogger(SolrSchemaSyncService.class);
+
+	/**
+	 * Die Klauselgrenze je Kern (User 2026-10-07): 3000 statt 1024. Jedes Suchwort läuft über jedes Feld der qf samt
+	 * Zwilling, mit vielen Hooks sind das schnell dreißig Klauseln je Wort. Derselbe Wert wie solr.max.booleanClauses in
+	 * der Compose, denn die Grenze des Kerns kann die des Knotens nicht überschreiten.
+	 */
+	public static final int MAX_BOOLEAN_CLAUSES = 3000;
+
+	/** So oft versucht der Abgleich es, wenn der Kern noch lädt, und so lange wartet er dazwischen */
+	private static final int CORE_LOADING_ATTEMPTS = 10;
+	private static final long CORE_LOADING_WAIT_MS = 3_000;
 
 	/** Felder des Basis-Configsets, die der Abgleich nie anfasst und nicht als fremd meldet */
 	private static final Set<String> SYSTEM_FIELD_NAMES = Set.of("_version_", "_root_");
@@ -139,23 +161,60 @@ public class SolrSchemaSyncService {
 		}
 	}
 
-	/** Ein Kern. Wirft nie: Jeder Fehler steht im Bericht. synchronized, damit Hintergrund und Admin sich nicht kreuzen. */
+	/**
+	 * Ein Kern. Wirft nie: Jeder Fehler steht im Bericht. synchronized, damit Hintergrund und Admin sich nicht kreuzen.
+	 * Lädt der Kern noch, wartet der Abgleich und versucht es noch einmal, bis zu CORE_LOADING_ATTEMPTS Mal.
+	 */
 	public synchronized SolrCoreSyncReport syncCore(String coreKey) {
 		long start = System.nanoTime();
-		SolrCoreSyncReport report;
-		try {
-			report = doSync(coreKey, start);
-			log.info("Solr-Abgleich {}: {} Felder in Solr, {} neu, {} angepasst, {} copyFields neu, {} nur in Solr, {} Typkonflikte, {} ms",
-					coreKey, report.fieldsInSolr(), report.added().size(), report.replaced().size(),
-					report.copyFieldsAdded().size(), report.onlyInSolr().size(), report.typeConflicts().size(),
-					report.durationMs());
-		} catch (Exception e) {
-			String error = e.getClass().getSimpleName() + ": " + e.getMessage();
-			log.warn("Solr-Abgleich {} fehlgeschlagen: {}", coreKey, error);
-			report = SolrCoreSyncReport.failed(coreKey, error, millisSince(start));
+		SolrCoreSyncReport report = null;
+		for (int attempt = 1; report == null; attempt++) {
+			try {
+				report = doSync(coreKey, start);
+				log.info("Solr-Abgleich {}: {} Felder in Solr, {} neu, {} angepasst, {} copyFields neu, {} nur in Solr, {} Typkonflikte, Klauselgrenze {}{}, {} ms",
+						coreKey, report.fieldsInSolr(), report.added().size(), report.replaced().size(),
+						report.copyFieldsAdded().size(), report.onlyInSolr().size(), report.typeConflicts().size(),
+						report.maxBooleanClauses(), report.maxBooleanClausesChanged() ? " (gesetzt)" : "", report.durationMs());
+			} catch (Exception e) {
+				if (isCoreStillLoading(e) && attempt < CORE_LOADING_ATTEMPTS && waitForCore(coreKey, attempt)) {
+					continue;
+				}
+				String error = e.getClass().getSimpleName() + ": " + e.getMessage();
+				log.warn("Solr-Abgleich {} fehlgeschlagen: {}", coreKey, error);
+				report = SolrCoreSyncReport.failed(coreKey, error, millisSince(start));
+			}
 		}
 		reportsByCoreKey.put(coreKey, report);
 		return report;
+	}
+
+	/** „SolrCore is loading“ oder ein 503: Solr steht, der Kern noch nicht. Alles andere ist ein echter Fehler. */
+	private static boolean isCoreStillLoading(Throwable e) {
+		Throwable cause = e;
+		while (cause != null) {
+			if (cause instanceof SolrException solrException && solrException.code() == 503) {
+				return true;
+			}
+			String message = cause.getMessage();
+			if (message != null && message.contains("SolrCore is loading")) {
+				return true;
+			}
+			cause = cause.getCause() == cause ? null : cause.getCause();
+		}
+		return false;
+	}
+
+	/** Kurz warten, bevor der Kern noch einmal gefragt wird. false, wenn der Thread beendet wird. */
+	private static boolean waitForCore(String coreKey, int attempt) {
+		log.info("Solr-Abgleich {}: der Kern lädt noch, Versuch {} von {} in {} s", coreKey, attempt + 1,
+				CORE_LOADING_ATTEMPTS, CORE_LOADING_WAIT_MS / 1000);
+		try {
+			Thread.sleep(CORE_LOADING_WAIT_MS);
+			return true;
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			return false;
+		}
 	}
 
 	private SolrCoreSyncReport doSync(String coreKey, long start) throws SolrServerException, IOException {
@@ -205,10 +264,55 @@ public class SolrSchemaSyncService {
 			}
 		}
 
+		// Die Klauselgrenze zuletzt: set-property lädt den Kern nach, die Schemaänderungen sind dann schon durch
+		int maxBooleanClauses = readMaxBooleanClauses(client);
+		boolean maxBooleanClausesChanged = false;
+		if (maxBooleanClauses != MAX_BOOLEAN_CLAUSES) {
+			setMaxBooleanClauses(client);
+			maxBooleanClauses = MAX_BOOLEAN_CLAUSES;
+			maxBooleanClausesChanged = true;
+		}
+
 		int fieldsCount = (int) fieldsInSolr.keySet().stream().filter(name -> !SYSTEM_FIELD_NAMES.contains(name)).count()
 				+ added.size();
 		return new SolrCoreSyncReport(coreKey, true, true, fieldsCount, added, replaced, copyFieldsAdded, onlyInSolr,
-				typeConflicts, null, Instant.now(), millisSince(start));
+				typeConflicts, maxBooleanClauses, maxBooleanClausesChanged, null, Instant.now(), millisSince(start));
+	}
+
+	/** Die wirksame Klauselgrenze des Kerns aus der Config-API: solrconfig.xml samt configoverlay.json */
+	private static int readMaxBooleanClauses(SolrClient client) throws SolrServerException, IOException {
+		NamedList<Object> response = new GenericSolrRequest(SolrRequest.METHOD.GET, "/config/query").process(client)
+				.getResponse();
+		Object query = child(response.get("config"), "query");
+		Object value = child(query, "maxBooleanClauses");
+		if (value == null) {
+			throw new IllegalStateException("Config-API nennt kein query.maxBooleanClauses");
+		}
+		return Integer.parseInt(String.valueOf(value).strip());
+	}
+
+	/** Ein Eintrag einer verschachtelten Antwort, egal ob Solr sie als NamedList oder Map liefert */
+	private static Object child(Object parent, String name) {
+		if (parent instanceof NamedList<?> namedList) {
+			return namedList.get(name);
+		}
+		if (parent instanceof Map<?, ?> map) {
+			return map.get(name);
+		}
+		return null;
+	}
+
+	/** set-property über die Config-API: Solr schreibt die configoverlay.json des Kerns und lädt ihn nach */
+	private static void setMaxBooleanClauses(SolrClient client) throws SolrServerException, IOException {
+		String body = "{\"set-property\":{\"query.maxBooleanClauses\":" + MAX_BOOLEAN_CLAUSES + "}}";
+		NamedList<Object> response = new GenericSolrRequest(SolrRequest.METHOD.POST, "/config")
+				.withContent(body.getBytes(StandardCharsets.UTF_8), "application/json")
+				.process(client)
+				.getResponse();
+		Object errors = response.get("errorMessages");
+		if (errors != null) {
+			throw new IllegalStateException("Config-API lehnt ab: " + errors);
+		}
 	}
 
 	/** Ein erwartetes Feld gegen Solr: fehlt es, add-field; anderer Typ, nur melden; andere Schalter, replace-field. */

@@ -4,6 +4,7 @@ import codergod1337.app1.dms.model.DmsSearchDateRange;
 import codergod1337.app1.dms.model.DmsSearchFilterOffer;
 import codergod1337.app1.dms.model.DmsSearchHint;
 import codergod1337.app1.dms.model.DmsSearchHit;
+import codergod1337.app1.dms.model.DmsSearchHitReason;
 import codergod1337.app1.dms.model.DmsSearchRequest;
 import codergod1337.app1.dms.model.DmsSearchResultPage;
 import codergod1337.app1.dms.model.DmsSolrDocumentFieldNames;
@@ -106,16 +107,21 @@ public class DmsSearchService {
 			DmsSolrDocumentFieldNames.DOCUMENT_UPLOADED_AT, DmsSolrDocumentFieldNames.LAST_CHANGED_AT);
 
 	/**
-	 * Die festen Suchfelder mit Gewicht: die id ganz oben (wer den Hash tippt, meint genau dieses Dokument), dann Name,
-	 * Index, Beschreibung, der Volltext zuletzt. Jeder Hook kommt mit {@link #HOOK_WEIGHT} dazu, jeder Suggested-Zwilling
-	 * mit dem halben Gewicht seines Felds für den Präfix-Treffer ab drei Zeichen. Ein festes Feld, das in der
-	 * Felddefinition fehlt, bleibt weg, denn ein Feld, das es in Solr nicht gibt, kippt die ganze Abfrage.
+	 * Die Suchfelder mit Gewicht, genau wie die DMS-Suche der Vorlage: die id ganz oben (wer den Hash tippt, meint genau
+	 * dieses Dokument), dann Name, Index, Beschreibung, der Volltext zuletzt. Jeder Hook kommt mit {@link #HOOK_WEIGHT}
+	 * dazu, jeder Suggested-Zwilling mit {@link #TWIN_WEIGHT} für den Präfix-Treffer ab drei Zeichen. Ein festes Feld,
+	 * das in der Felddefinition fehlt, bleibt weg, denn ein Feld, das es in Solr nicht gibt, kippt die ganze Abfrage.
 	 */
 	private static final Map<String, Integer> FIXED_SEARCH_FIELD_WEIGHTS = fixedSearchFieldWeights();
-	private static final int HOOK_WEIGHT = 5;
+	private static final int HOOK_WEIGHT = 2;
+	private static final int TWIN_WEIGHT = 1;
 
-	private static final String STATUS_FILTER_QUERY = DmsSolrDocumentFieldNames.STATUS + ":(" + DmsStateService.ACTIVE
-			+ " OR " + DmsStateService.ARCHIVED + ")";
+	/** Die Zwillinge der Vervollständigung, Gewichte wie der Suggest der Vorlage: Dateiname vor Index vor allem anderen */
+	private static final int SUGGEST_FILE_NAME_WEIGHT = 4;
+	private static final int SUGGEST_FILE_INDEX_WEIGHT = 3;
+	private static final int SUGGEST_OTHER_WEIGHT = 2;
+
+	private static final String STATUS_FILTER_QUERY = DmsStateService.VISIBLE_STATUS_FILTER_QUERY;
 
 	/**
 	 * Relevanz mal Recency, nach der Vorlage: recip(x, m, a, b) = a / (m*x + b), x das Alter in Millisekunden. Mit
@@ -128,12 +134,9 @@ public class DmsSearchService {
 	/** Trennt die Werte eines terms-Parameters. Ein Steuerzeichen, das in keinem Wert vorkommt. */
 	private static final String TERMS_PARSER_VALUE_SEPARATOR = "\u001F";
 
-	/**
-	 * Anfang und Ende einer Fundstelle im Highlighting: STX und ETX, in echtem Text unmöglich. Kein HTML, der Ausschnitt
-	 * wird ohnehin nie ausgeliefert, nur die Wörter dazwischen.
-	 */
-	private static final String HIGHLIGHT_OPEN = String.valueOf((char) 2);
-	private static final String HIGHLIGHT_CLOSE = String.valueOf((char) 3);
+	/** Dieselben Marken wie im Treffergrund, Solr setzt sie um die Fundstellen im Volltext; der Ausschnitt selbst wird nie ausgeliefert */
+	private static final String HIGHLIGHT_OPEN = DmsSearchHitReason.MARK_OPEN;
+	private static final String HIGHLIGHT_CLOSE = DmsSearchHitReason.MARK_CLOSE;
 	private static final int HIGHLIGHT_SNIPPETS = 3;
 	private static final int HIGHLIGHT_FRAGMENT_SIZE = 80;
 	/** Wie weit der Highlighter in den Volltext hineinsieht, rund 20 Textseiten */
@@ -195,20 +198,31 @@ public class DmsSearchService {
 			return DmsSearchResultPage.withoutQuery(DmsSearchHint.NO_SEARCH_WORD_AND_NO_FILTER, size);
 		}
 
-		Map<String, Integer> searchFieldWeights = searchFieldWeights(hookKeys);
+		Map<String, SolrField> fieldsByName = fieldsByName();
+		Map<String, Integer> searchFieldWeights = searchFieldWeights(fieldsByName, hookKeys);
+		// Boost und Sortierung nach documentCreatedAt brauchen docValues am Feld, sonst lehnt Solr die ganze Abfrage ab
+		boolean createdAtSortable = isSortable(fieldsByName.get(DmsSolrDocumentFieldNames.DOCUMENT_CREATED_AT));
 		SolrQuery query = new SolrQuery();
 		if (searchText.searchable()) {
 			query.setQuery(searchText.query());
 			query.set("defType", "edismax");
 			query.set("qf", queryFieldsParameter(searchFieldWeights));
-			query.set("boost", RECENCY_BOOST);
+			if (createdAtSortable) {
+				query.set("boost", RECENCY_BOOST);
+			}
 			query.setSort("score", SolrQuery.ORDER.desc);
+			// Highlighting immer (User 2026-10-07, kein Schalter mehr): der Treffergrund gehört zu jedem Treffer
 			if (searchFieldWeights.containsKey(DmsSolrDocumentFieldNames.SEARCHABLE_WORDS)) {
 				addFullTextHighlighting(query);
 			}
 		} else {
 			query.setQuery("*:*");
-			query.setSort(DmsSolrDocumentFieldNames.DOCUMENT_CREATED_AT, SolrQuery.ORDER.desc);
+			if (createdAtSortable) {
+				query.setSort(DmsSolrDocumentFieldNames.DOCUMENT_CREATED_AT, SolrQuery.ORDER.desc);
+			} else {
+				// ohne docValues am Datum: zuletzt geschrieben zuerst, _version_ hat immer docValues
+				query.setSort(SolrDocumentService.VERSION_FIELD_NAME, SolrQuery.ORDER.desc);
+			}
 		}
 		for (String filterQuery : access.readAclAndGrantedAccessFilterQueries()) {
 			query.addFilterQuery(filterQuery);
@@ -234,9 +248,9 @@ public class DmsSearchService {
 		for (Map<String, Object> document : queried.documents()) {
 			hits.add(hit(document, searchText, exactFilters, dateRanges, reasonFieldNames, queried.highlightingByDocumentId()));
 		}
-		log.debug("DMS-Suche von {}: {} Treffer, Seite {}, Suchwörter {}, Filter {}, Zeiträume {}",
-				currentUsersProvider.getCurrentUsersGuid(), queried.totalFound(), page, searchText.positiveWords(),
-				exactFilters.keySet(), dateRanges.keySet());
+		log.info("DMS-Suche von {}: {} Treffer, Seite {}, q='{}', Filter {}, Zeiträume {}, fq {}, qf {}",
+				currentUsersProvider.getCurrentUsersGuid(), queried.totalFound(), page, query.getQuery(),
+				exactFilters.keySet(), dateRanges.keySet(), List.of(query.getFilterQueries()), searchFieldWeights.keySet());
 		return new DmsSearchResultPage(queried.totalFound(), page, size, hits, null);
 	}
 
@@ -262,7 +276,7 @@ public class DmsSearchService {
 		List<String> hookKeys = hookKeys();
 		Map<String, List<Object>> exactFilters = checkedExactFilters(searchRequest.exactFilterValuesByFieldName(), hookKeys);
 		Map<String, DmsSearchDateRange> dateRanges = checkedDateRangeFilters(searchRequest.dateRangeFilterByFieldName());
-		Map<String, Integer> searchFieldWeights = searchFieldWeights(hookKeys);
+		Map<String, Integer> searchFieldWeights = searchFieldWeights(fieldsByName(), hookKeys);
 		Map<String, Integer> suggestFieldWeights = suggestFieldWeights(searchFieldWeights);
 		if (suggestFieldWeights.isEmpty()) {
 			return DmsSuggestResult.empty();
@@ -305,12 +319,13 @@ public class DmsSearchService {
 
 	// ===== Suchfelder =====
 
+	/** Ohne id (User 2026-10-07: die braucht die Suche nicht), mit der Dateiart, denn nach ihr wird auch gefiltert */
 	private static Map<String, Integer> fixedSearchFieldWeights() {
 		Map<String, Integer> weights = new LinkedHashMap<>();
-		weights.put(SolrCore.ID_FIELD_NAME, 10);
 		weights.put(DmsSolrDocumentFieldNames.FILE_NAME, 4);
 		weights.put(DmsSolrDocumentFieldNames.FILE_INDEX, 3);
 		weights.put(DmsSolrDocumentFieldNames.FILE_DESCRIPTION, 2);
+		weights.put(DmsSolrDocumentFieldNames.FILE_SUB_CLASS_KEY, 2);
 		weights.put(DmsSolrDocumentFieldNames.SEARCHABLE_WORDS, 1);
 		return Map.copyOf(weights);
 	}
@@ -323,16 +338,26 @@ public class DmsSearchService {
 		return keys;
 	}
 
-	/**
-	 * Die Felder der qf mit Gewicht, in dieser Reihenfolge: die festen Felder, soweit die Felddefinition sie hat, ihre
-	 * Zwillinge, die Hooks und deren Zwillinge. Hooks haben immer einen Zwilling (SolrHook.FIELD_SUGGEST).
-	 */
-	private Map<String, Integer> searchFieldWeights(List<String> hookKeys) {
-		Map<String, Integer> weights = new LinkedHashMap<>();
+	/** Die Felddefinition des Kerns DMS nach Name, aus der Kopie im Speicher */
+	private Map<String, SolrField> fieldsByName() {
 		Map<String, SolrField> fieldsByName = new LinkedHashMap<>();
 		for (SolrField solrField : solrFieldService.getSolrFieldsByCoreKey(DmsSolrDocumentFieldNames.CORE_KEY)) {
 			fieldsByName.put(solrField.getName(), solrField);
 		}
+		return fieldsByName;
+	}
+
+	/** Sortieren und Funktionen wie ms() brauchen docValues an einem einwertigen Feld, sonst antwortet Solr mit 400 */
+	private static boolean isSortable(SolrField solrField) {
+		return solrField != null && solrField.isDocValues() && !solrField.isMultiValued();
+	}
+
+	/**
+	 * Die Felder der qf mit Gewicht, in dieser Reihenfolge: die festen Felder, soweit die Felddefinition sie hat, ihre
+	 * Zwillinge, die Hooks und deren Zwillinge. Hooks haben immer einen Zwilling (SolrHook.FIELD_SUGGEST).
+	 */
+	private static Map<String, Integer> searchFieldWeights(Map<String, SolrField> fieldsByName, List<String> hookKeys) {
+		Map<String, Integer> weights = new LinkedHashMap<>();
 		for (Map.Entry<String, Integer> fixed : FIXED_SEARCH_FIELD_WEIGHTS.entrySet()) {
 			SolrField solrField = fieldsByName.get(fixed.getKey());
 			if (solrField == null || !solrField.isIndexed()) {
@@ -340,33 +365,36 @@ public class DmsSearchService {
 			}
 			weights.put(fixed.getKey(), fixed.getValue());
 			if (solrField.isSuggest() && solrField.getType().isSuggestable()) {
-				weights.put(fixed.getKey() + SolrFieldName.SUGGEST_SUFFIX, Math.max(1, fixed.getValue() / 2));
+				weights.put(fixed.getKey() + SolrFieldName.SUGGEST_SUFFIX, TWIN_WEIGHT);
 			}
 		}
 		for (String hookKey : hookKeys) {
 			weights.put(hookKey, HOOK_WEIGHT);
 			if (SolrHook.FIELD_SUGGEST && SolrHook.FIELD_TYPE.isSuggestable()) {
-				weights.put(hookKey + SolrFieldName.SUGGEST_SUFFIX, Math.max(1, HOOK_WEIGHT / 2));
+				weights.put(hookKey + SolrFieldName.SUGGEST_SUFFIX, TWIN_WEIGHT);
 			}
 		}
 		return weights;
 	}
 
 	/**
-	 * Die qf der Vervollständigung aus der qf der Suche: je Feld sein Zwilling mit dem vollen Gewicht des Felds, dazu
+	 * Die qf der Vervollständigung aus der qf der Suche: nur die Zwillinge, Dateiname 4, Index 3, alles andere 2, dazu
 	 * der Volltext als exakter Token-Match. Felder ohne Zwilling fallen weg, denn ohne EdgeNGram gibt es keinen Präfix.
 	 */
 	private static Map<String, Integer> suggestFieldWeights(Map<String, Integer> searchFieldWeights) {
 		Map<String, Integer> weights = new LinkedHashMap<>();
-		for (Map.Entry<String, Integer> weight : searchFieldWeights.entrySet()) {
-			String name = weight.getKey();
+		for (String name : searchFieldWeights.keySet()) {
 			if (name.endsWith(SolrFieldName.SUGGEST_SUFFIX) || DmsSolrDocumentFieldNames.SEARCHABLE_WORDS.equals(name)) {
 				continue;
 			}
 			String twin = name + SolrFieldName.SUGGEST_SUFFIX;
-			if (searchFieldWeights.containsKey(twin)) {
-				weights.put(twin, weight.getValue());
+			if (!searchFieldWeights.containsKey(twin)) {
+				continue;
 			}
+			int weight = DmsSolrDocumentFieldNames.FILE_NAME.equals(name) ? SUGGEST_FILE_NAME_WEIGHT
+					: DmsSolrDocumentFieldNames.FILE_INDEX.equals(name) ? SUGGEST_FILE_INDEX_WEIGHT
+					: SUGGEST_OTHER_WEIGHT;
+			weights.put(twin, weight);
 		}
 		Integer fullText = searchFieldWeights.get(DmsSolrDocumentFieldNames.SEARCHABLE_WORDS);
 		if (fullText != null) {
@@ -509,7 +537,7 @@ public class DmsSearchService {
 		for (Map.Entry<String, List<Object>> filter : exactFilters.entrySet()) {
 			String fieldName = filter.getKey();
 			SolrFieldType type = dmsSolrDocumentChecker.solrFieldTypeOf(fieldName);
-			if (type == SolrFieldType.TEXT_MINIMAL || type == SolrFieldType.TEXT_WORD || type == SolrFieldType.TEXT_WORDS) {
+			if (type != null && type.isText()) {
 				List<String> phrases = new ArrayList<>();
 				for (Object value : filter.getValue()) {
 					phrases.add("\"" + ClientUtils.escapeQueryChars(value.toString()) + "\"");
@@ -545,51 +573,113 @@ public class DmsSearchService {
 	// ===== Treffergrund =====
 
 	/**
-	 * Ein Treffer mit seinem Grund: die Suchwörter in den durchsuchten Feldern des Dokuments (Teilstring, ohne Groß und
-	 * Klein, so trifft auch der Präfix des Zwillings), jeder Filterwert in seinem Feld, jeder Zeitraum in seinem Feld,
-	 * dazu die Wörter, die Solr im Volltext markiert hat. Nichts wird erfunden: ohne Fund kein Eintrag.
+	 * Ein Treffer mit seinem Grund, nach dem Treffergrund der Vorlage, aus den Feldern des Treffers selbst, denn die
+	 * Werte stehen in der Antwort und das trifft auch den Präfix des Zwillings: je durchsuchtem Feld der erste Wert, in
+	 * dem ein Suchwort steht, mit allen Fundstellen markiert, Treffer am Anfang des Werts zuerst; dann je Filter der
+	 * getroffene Wert ganz markiert, je Zeitraum der Tag; zuletzt der Volltext ohne Ausschnitt, wenn Solr darin
+	 * markiert hat. Ein Feld höchstens einmal. Nichts wird erfunden: ohne Fund kein Eintrag.
 	 */
 	private static DmsSearchHit hit(Map<String, Object> document, SolrSearchText searchText,
 			Map<String, List<Object>> exactFilters, Map<String, DmsSearchDateRange> dateRanges,
 			Set<String> reasonFieldNames, Map<String, Map<String, List<String>>> highlightingByDocumentId) {
-		Map<String, List<String>> matched = new LinkedHashMap<>();
-		for (String fieldName : reasonFieldNames) {
-			List<String> texts = textsOf(document.get(fieldName));
-			if (texts.isEmpty()) {
-				continue;
-			}
-			for (String word : searchText.positiveWords()) {
-				String needle = word.toLowerCase(Locale.ROOT);
-				if (texts.stream().anyMatch(text -> text.toLowerCase(Locale.ROOT).contains(needle))) {
-					addMatched(matched, fieldName, needle);
+		List<String> needles = new ArrayList<>();
+		for (String word : searchText.positiveWords()) {
+			needles.add(word.toLowerCase(Locale.ROOT));
+		}
+		List<DmsSearchHitReason> atStart = new ArrayList<>();
+		List<DmsSearchHitReason> inside = new ArrayList<>();
+		Set<String> explained = new LinkedHashSet<>();
+		if (!needles.isEmpty()) {
+			for (String fieldName : reasonFieldNames) {
+				for (String text : textsOf(document.get(fieldName))) {
+					int first = firstMatch(text, needles);
+					if (first < 0) {
+						continue;
+					}
+					(first == 0 ? atStart : inside).add(new DmsSearchHitReason(fieldName, markAll(text, needles)));
+					explained.add(fieldName);
+					break;
 				}
 			}
 		}
+		List<DmsSearchHitReason> reasons = new ArrayList<>(atStart);
+		reasons.addAll(inside);
 		for (Map.Entry<String, List<Object>> filter : exactFilters.entrySet()) {
-			List<String> texts = textsOf(document.get(filter.getKey()));
-			for (Object value : filter.getValue()) {
-				String needle = value.toString().toLowerCase(Locale.ROOT);
-				if (texts.stream().anyMatch(text -> text.toLowerCase(Locale.ROOT).equals(needle))) {
-					addMatched(matched, filter.getKey(), needle);
+			if (explained.contains(filter.getKey())) {
+				continue;
+			}
+			for (String text : textsOf(document.get(filter.getKey()))) {
+				boolean matches = filter.getValue().stream().anyMatch(value -> value.toString().equalsIgnoreCase(text));
+				if (matches) {
+					reasons.add(new DmsSearchHitReason(filter.getKey(), HIGHLIGHT_OPEN + text + HIGHLIGHT_CLOSE));
+					explained.add(filter.getKey());
+					break;
 				}
 			}
 		}
 		for (Map.Entry<String, DmsSearchDateRange> filter : dateRanges.entrySet()) {
-			if (document.get(filter.getKey()) instanceof Instant instant && isWithin(instant, filter.getValue())) {
-				addMatched(matched, filter.getKey(), rangeText(filter.getValue()));
+			if (!explained.contains(filter.getKey()) && document.get(filter.getKey()) instanceof Instant instant
+					&& isWithin(instant, filter.getValue())) {
+				String day = instant.atZone(ZoneOffset.UTC).toLocalDate().toString();
+				reasons.add(new DmsSearchHitReason(filter.getKey(), HIGHLIGHT_OPEN + day + HIGHLIGHT_CLOSE));
+				explained.add(filter.getKey());
 			}
 		}
 		Object id = document.get(SolrCore.ID_FIELD_NAME);
 		Map<String, List<String>> highlighting = id == null ? null : highlightingByDocumentId.get(id.toString());
 		List<String> snippets = highlighting == null ? null : highlighting.get(DmsSolrDocumentFieldNames.SEARCHABLE_WORDS);
-		if (snippets != null) {
-			for (String snippet : snippets) {
-				for (String word : markedWordsOf(snippet)) {
-					addMatched(matched, DmsSolrDocumentFieldNames.SEARCHABLE_WORDS, word);
-				}
+		if (snippets != null && snippets.stream().anyMatch(snippet -> snippet != null && snippet.contains(HIGHLIGHT_OPEN))) {
+			// der Volltext geht nie zum Client: nur das Feld, kein Ausschnitt (User 2026-10-07)
+			reasons.add(new DmsSearchHitReason(DmsSolrDocumentFieldNames.SEARCHABLE_WORDS, null));
+		}
+		return new DmsSearchHit(withVersionAsText(document), List.copyOf(reasons));
+	}
+
+	/** Die Stelle des ersten Suchworts im Text, ohne Groß und Klein, -1 ohne Fund */
+	private static int firstMatch(String text, List<String> needles) {
+		String lower = text.toLowerCase(Locale.ROOT);
+		int first = -1;
+		for (String needle : needles) {
+			int at = lower.indexOf(needle);
+			if (at >= 0 && (first < 0 || at < first)) {
+				first = at;
 			}
 		}
-		return new DmsSearchHit(withVersionAsText(document), matched);
+		return first;
+	}
+
+	/** Jede Fundstelle jedes Suchworts im Text markiert, überlappende zu einer Marke zusammengefasst */
+	private static String markAll(String text, List<String> needles) {
+		boolean[] marked = new boolean[text.length()];
+		String lower = text.toLowerCase(Locale.ROOT);
+		for (String needle : needles) {
+			if (needle.isEmpty()) {
+				continue;
+			}
+			int at = lower.indexOf(needle);
+			while (at >= 0) {
+				for (int index = at; index < at + needle.length() && index < marked.length; index++) {
+					marked[index] = true;
+				}
+				at = lower.indexOf(needle, at + needle.length());
+			}
+		}
+		StringBuilder snippet = new StringBuilder(text.length() + 8);
+		boolean open = false;
+		for (int index = 0; index < text.length(); index++) {
+			if (marked[index] && !open) {
+				snippet.append(HIGHLIGHT_OPEN);
+				open = true;
+			} else if (!marked[index] && open) {
+				snippet.append(HIGHLIGHT_CLOSE);
+				open = false;
+			}
+			snippet.append(text.charAt(index));
+		}
+		if (open) {
+			snippet.append(HIGHLIGHT_CLOSE);
+		}
+		return snippet.toString();
 	}
 
 	// ===== Filterangebote =====
@@ -657,42 +747,10 @@ public class DmsSearchService {
 		return values != null && values.stream().anyMatch(filtered -> filtered.toString().equalsIgnoreCase(value));
 	}
 
-	private static void addMatched(Map<String, List<String>> matched, String fieldName, String word) {
-		List<String> words = matched.computeIfAbsent(fieldName, ignored -> new ArrayList<>());
-		if (!words.contains(word)) {
-			words.add(word);
-		}
-	}
-
 	private static boolean isWithin(Instant instant, DmsSearchDateRange range) {
 		boolean afterFrom = range.from() == null || !instant.isBefore(startOfDay(range.from()));
 		boolean beforeTo = range.to() == null || instant.isBefore(startOfDay(range.to().plusDays(1)));
 		return afterFrom && beforeTo;
-	}
-
-	private static String rangeText(DmsSearchDateRange range) {
-		return (range.from() == null ? "" : range.from().toString()) + ".." + (range.to() == null ? "" : range.to().toString());
-	}
-
-	/** Die markierten Wörter eines Ausschnitts, klein, ohne Doppelte */
-	private static List<String> markedWordsOf(String snippet) {
-		List<String> words = new ArrayList<>();
-		if (snippet == null) {
-			return words;
-		}
-		int open = snippet.indexOf(HIGHLIGHT_OPEN);
-		while (open >= 0) {
-			int close = snippet.indexOf(HIGHLIGHT_CLOSE, open + 1);
-			if (close < 0) {
-				break;
-			}
-			String word = snippet.substring(open + 1, close).strip().toLowerCase(Locale.ROOT);
-			if (!word.isEmpty() && !words.contains(word)) {
-				words.add(word);
-			}
-			open = snippet.indexOf(HIGHLIGHT_OPEN, close + 1);
-		}
-		return words;
 	}
 
 	/**

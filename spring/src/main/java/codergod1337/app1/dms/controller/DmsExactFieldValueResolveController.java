@@ -4,8 +4,12 @@ import codergod1337.app1.dms.model.DmsExactFieldValueResolveRequest;
 import codergod1337.app1.dms.model.DmsResolvedDocumentsPage;
 import codergod1337.app1.dms.service.DmsExactFieldValueResolveService;
 import codergod1337.app1.solr.access.model.SolrCurrentUserReadAndWriteAccessForCore.SolrCurrentUserCoreAccessForClient;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,7 +21,8 @@ import org.springframework.web.server.ResponseStatusException;
  *
  * GET /access sagt der Maske, welche Felder der current user lesen und nach welchen er auflösen darf. POST /resolve löst
  * auf: fieldValuesByFieldName als JSON-Objekt, je Feld ein Wert oder eine Liste, dazu page, size, sortFieldName,
- * sortDescending. Suche kommt später als eigener Endpunkt.
+ * sortDescending. GET /version-chain/{versionChain} löst eine Versionskette auf: der Fahrplan und die neue Fassung.
+ * Die Suche hat ihren eigenen Controller.
  */
 @RestController
 @RequestMapping("/api/rest/v1/dms")
@@ -47,6 +52,21 @@ public class DmsExactFieldValueResolveController {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fieldValuesByFieldName ist kein JSON-Objekt");
 		}
 		return dmsExactFieldValueResolveService.resolveDmsSolrDocumentsPageForResolveTab(resolveRequest);
+	}
+
+	/**
+	 * Die Versionskette: alle Fassungen, die der User sehen darf, aufsteigend nach version, mit seiner Feldgrenze. Leer,
+	 * wenn es die Kette nicht gibt oder er nichts davon sieht. Die versionChain vergibt das Backend als UUID, alles
+	 * andere ist eine kaputte Eingabe.
+	 */
+	@GetMapping("/version-chain/{versionChain}")
+	public List<Map<String, Object>> resolveDmsVersionChain(@PathVariable String versionChain) {
+		try {
+			UUID.fromString(versionChain);
+		} catch (IllegalArgumentException e) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "versionChain ist keine UUID");
+		}
+		return dmsExactFieldValueResolveService.resolveDmsVersionChainForClient(versionChain);
 	}
 
 }

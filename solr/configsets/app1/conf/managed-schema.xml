@@ -16,32 +16,12 @@
     <fieldType name="pdouble" class="solr.DoublePointField" docValues="true"/>
     <fieldType name="pdate"   class="solr.DatePointField"   docValues="true"/>
 
-    <!-- text_minimal: Leerzeichen trennen, Kleinschreibung, sonst nichts (Dateinamen) -->
-    <fieldType name="text_minimal" class="solr.TextField" positionIncrementGap="100">
-        <analyzer>
-            <tokenizer class="solr.WhitespaceTokenizerFactory"/>
-            <filter class="solr.LowerCaseFilterFactory"/>
-        </analyzer>
-    </fieldType>
+    <!-- Zwei Texttypen (User 2026-10-09), sonst keine: text_edge für alles, was ein User tippt und beim Tippen wiederfinden
+         will, text_suche für den Volltext. -->
 
-    <!-- text_word: auch an Satzzeichen trennen (Beschreibungen, mehrsprachiges JSON) -->
-    <fieldType name="text_word" class="solr.TextField" positionIncrementGap="100">
-        <analyzer>
-            <tokenizer class="solr.StandardTokenizerFactory"/>
-            <filter class="solr.LowerCaseFilterFactory"/>
-        </analyzer>
-    </fieldType>
-
-    <!-- text_words: vom Backend aufbereitete Token (Volltext), Solr trennt nur an Leerzeichen -->
-    <fieldType name="text_words" class="solr.TextField" positionIncrementGap="100">
-        <analyzer>
-            <tokenizer class="solr.WhitespaceTokenizerFactory"/>
-            <filter class="solr.LowerCaseFilterFactory"/>
-        </analyzer>
-    </fieldType>
-
-    <!-- text_suggest: Suggest-Zwilling von Texten, wortweise Präfixe ab 3 Zeichen, die Anfrage ohne NGram -->
-    <fieldType name="text_suggest" class="solr.TextField" positionIncrementGap="100">
+    <!-- text_edge: an Leerzeichen und Satzzeichen zerlegt, klein, beim Indexieren dazu jeder Wortanfang ab 3 Zeichen
+         (EdgeNGram), die Anfrage ohne: „rech“ findet „Rechnung“ im Feld selbst, ohne Zwilling. Dateiname, Index, Beschreibung. -->
+    <fieldType name="text_edge" class="solr.TextField" positionIncrementGap="100">
         <analyzer type="index">
             <tokenizer class="solr.StandardTokenizerFactory"/>
             <filter class="solr.LowerCaseFilterFactory"/>
@@ -53,7 +33,35 @@
         </analyzer>
     </fieldType>
 
-    <!-- code_suggest: Suggest-Zwilling von String und Zahlen, der ganze Wert als ein Token, Präfixe ab 3 Zeichen -->
+    <!-- text_suche: der Volltext. Jedes Wort einzeln, klein. Beim Indexieren wird jedes Kompositum ab 7 Zeichen
+         zusätzlich in seine Teile zerlegt (HyphenationCompoundWordTokenFilter: die deutschen Trennmuster
+         lang/hyph_de.xml liefern die möglichen Stellen, zerlegt wird nur in Teile, die im Wörterbuch
+         lang/compound_de.txt stehen, ein Fugen-s wird erkannt, je Stelle der längste Treffer, keine Teile von Teilen,
+         keine Überlappungen, das Original bleibt): „Eingangsrechnung“ liegt auch als eingang und rechnung im Index,
+         „Donaudampfschifffahrtsgesellschaft“ als donau, dampf, schifffahrt, gesellschaft. Danach deutsche
+         Normalisierung (ß, Umlaute) und Stammform: „Rechnungen“ findet „Rechnung“. Die Anfrage läuft ohne Zerlegung
+         durch dieselbe Normalisierung und Stammform. Synonyme kommen später aus Postgres beim Suchen dazu, nicht
+         hierher. Geprüft am 2026-10-09 gegen Lucene 10.5 mit genau diesen Parametern. -->
+    <fieldType name="text_suche" class="solr.TextField" positionIncrementGap="100">
+        <analyzer type="index">
+            <tokenizer class="solr.StandardTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+            <filter class="solr.HyphenationCompoundWordTokenFilterFactory" hyphenator="lang/hyph_de.xml"
+                    dictionary="lang/compound_de.txt" minWordSize="7" minSubwordSize="4" maxSubwordSize="20"
+                    onlyLongestMatch="true" noSubMatches="true" noOverlappingMatches="true"/>
+            <filter class="solr.GermanNormalizationFilterFactory"/>
+            <filter class="solr.GermanLightStemFilterFactory"/>
+        </analyzer>
+        <analyzer type="query">
+            <tokenizer class="solr.StandardTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+            <filter class="solr.GermanNormalizationFilterFactory"/>
+            <filter class="solr.GermanLightStemFilterFactory"/>
+        </analyzer>
+    </fieldType>
+
+    <!-- code_suggest: Suggest-Zwilling von String und Zahlen, der ganze Wert als ein Token, Präfixe ab 3 Zeichen. Texte
+         brauchen keinen Zwilling, text_edge kann das selbst. -->
     <fieldType name="code_suggest" class="solr.TextField" positionIncrementGap="100">
         <analyzer type="index">
             <tokenizer class="solr.KeywordTokenizerFactory"/>

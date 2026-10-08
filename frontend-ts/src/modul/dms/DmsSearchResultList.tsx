@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { highlightWords } from '../../components/highlight.tsx'
 import { Hoverlay } from '../../components/Hoverlay.tsx'
 import { Icon } from '../../components/Icon.tsx'
 import { useLanguage } from '../../components/languageContext.ts'
@@ -9,10 +8,13 @@ import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
 import { FileSubClassSymbol } from '../filesubclass/FileSubClassSymbol.tsx'
 import type { SearchResultListProps } from '../search/searchCores.ts'
+import { SearchHitReasons } from '../search/SearchHitReasons.tsx'
 import { SolrHookChip } from '../solrmanager/SolrHookChip.tsx'
 import {
+  DMS_CORE_KEY,
   DMS_STATE_ACTIVE,
   DOCUMENT_LANGUAGE_FIELD_NAME,
+  dmsFieldLabel,
   dmsSolrDocumentPath,
   FILE_SUB_CLASS_FIELD_NAME,
   readableBytes,
@@ -21,9 +23,6 @@ import {
 import { DmsDocumentLanguageFlag } from './DmsDocumentLanguageFlag.tsx'
 import { DmsSolrDocumentActionButtons } from './DmsSolrDocumentActionButtons.tsx'
 import { DmsSolrDocumentIdentifiersHint } from './DmsSolrDocumentFacts.tsx'
-
-/** Der Volltext: geht nie zum Client, im Treffergrund steht nur, dass und womit er traf */
-const FULL_TEXT_FIELD_NAME = 'searchableWords'
 
 /** Eine Liste, egal ob Solr einen Wert oder mehrere liefert */
 function asList(value: unknown): string[] {
@@ -35,52 +34,16 @@ function asList(value: unknown): string[] {
 
 /**
  * Die Treffer des Kerns DMS in der Suche, nach DmsTreffer der Vorlage: je Treffer das Symbol der Dateiart oder das
- * Vorschaubild, der Dateiname als Weg zur Dokumentseite, die Fakten in einer Zeile, die Beschreibung, die Hooks mit
- * ihren Werten, der Treffergrund und rechts die bekannten Aktionen. Die Wörter des Treffergrunds sind in den gezeigten
- * Werten markiert (User 2026-10-07: jeder Filter, nicht nur die Eingabe); beim Volltext nur das Feld, denn der Text
- * selbst kommt nie mit. Ein Klick auf einen Hook-Wert loggt ihn als Filter ein.
+ * Vorschaubild, der Dateiname als Weg zur Dokumentseite mit der Beschreibung im Hoverlay, die Fakten in einer Zeile,
+ * die Hooks mit ihren Werten, darunter der Treffergrund, rechts die bekannten Aktionen. Ein Klick auf einen Hook-Wert
+ * loggt ihn als Filter ein.
  */
 export function DmsSearchResultList({ hits, origin, onFilter }: SearchResultListProps) {
   const { t, i18n } = useTranslation()
   const { language } = useLanguage()
   const navigate = useNavigate()
-  const { fileSubClasses, solrHooks, entityStates } = useMasterData()
-
-  /** Die Beschriftung eines Feldes im Treffergrund: Hooks mit Anzeigename, bekannte Felder aus dem Katalog, sonst der Solr-Name */
-  function labelOfField(name: string): string {
-    const hook = solrHooks?.find((candidate) => candidate.key === name)
-    if (hook) {
-      return translate(hook.displayName, language) || hook.key
-    }
-    switch (name) {
-      case FULL_TEXT_FIELD_NAME:
-        return t('search.matched.fullText')
-      case 'fileName':
-        return t('dms.document.fileName')
-      case 'fileIndex':
-        return t('dms.document.fileIndex')
-      case 'fileDescription':
-        return t('dms.document.description')
-      case FILE_SUB_CLASS_FIELD_NAME:
-        return t('dms.document.fileSubClass')
-      case STATUS_FIELD_NAME:
-        return t('dms.document.status')
-      case 'version':
-        return t('dms.document.version')
-      case 'mimeType':
-        return t('dms.document.mimeType')
-      case DOCUMENT_LANGUAGE_FIELD_NAME:
-        return t('dms.document.documentLanguage')
-      case 'documentCreatedAt':
-        return t('dms.document.createdAt')
-      case 'documentUploadedAt':
-        return t('dms.document.uploadedAt')
-      case 'lastChangedAt':
-        return t('dms.document.lastChangedAt')
-      default:
-        return name
-    }
-  }
+  const { fileSubClasses, solrHooks, entityStates, solrFields } = useMasterData()
+  const labelOf = (name: string, fallback: string) => dmsFieldLabel(solrFields, name, fallback, language)
 
   function day(value: unknown): string | null {
     if (typeof value !== 'string') {
@@ -94,8 +57,6 @@ export function DmsSearchResultList({ hits, origin, onFilter }: SearchResultList
     <div className="search-hits">
       {hits.map((hit) => {
         const document = hit.document
-        const matched = hit.matchedWordsByFieldName
-        const wordsOf = (name: string): string[] => matched[name] ?? []
         const id = typeof document.id === 'string' ? document.id : ''
         const fileName = typeof document.fileName === 'string' ? document.fileName : id
         const fileSubClassKey =
@@ -112,38 +73,36 @@ export function DmsSearchResultList({ hits, origin, onFilter }: SearchResultList
         const version = document.version
         const fileIndex = typeof document.fileIndex === 'string' ? document.fileIndex : null
         const createdDay = day(document.documentCreatedAt)
-        const marked = (name: string, value: ReactNode) => (wordsOf(name).length > 0 ? <mark>{value}</mark> : value)
 
         const facts: { key: string; label: string; value: ReactNode }[] = []
         if (fileSubClassName !== '') {
-          facts.push({ key: 'fsc', label: t('dms.document.fileSubClass'), value: marked(FILE_SUB_CLASS_FIELD_NAME, fileSubClassName) })
+          facts.push({ key: 'fsc', label: labelOf(FILE_SUB_CLASS_FIELD_NAME, t('dms.document.fileSubClass')), value: fileSubClassName })
         }
-        if (status !== null && (status !== DMS_STATE_ACTIVE || wordsOf(STATUS_FIELD_NAME).length > 0)) {
-          facts.push({ key: 'status', label: t('dms.document.status'), value: marked(STATUS_FIELD_NAME, statusName) })
+        if (status !== null && status !== DMS_STATE_ACTIVE) {
+          facts.push({ key: 'status', label: labelOf(STATUS_FIELD_NAME, t('dms.document.status')), value: statusName })
         }
         if (typeof version === 'number') {
-          facts.push({ key: 'version', label: t('dms.document.version'), value: version })
+          facts.push({ key: 'version', label: labelOf('version', t('dms.document.version')), value: version })
         }
         if (fileIndex !== null && fileIndex !== '') {
-          facts.push({ key: 'index', label: t('dms.document.fileIndex'), value: highlightWords(fileIndex, wordsOf('fileIndex')) })
+          facts.push({ key: 'index', label: labelOf('fileIndex', t('dms.document.fileIndex')), value: fileIndex })
         }
         const size = readableBytes(document.fileSizeBytes)
         if (size !== '') {
-          facts.push({ key: 'size', label: t('dms.document.fileSize'), value: size })
+          facts.push({ key: 'size', label: labelOf('fileSizeBytes', t('dms.document.fileSize')), value: size })
         }
         if (createdDay !== null) {
-          facts.push({ key: 'created', label: t('dms.document.createdAt'), value: marked('documentCreatedAt', createdDay) })
+          facts.push({ key: 'created', label: labelOf('documentCreatedAt', t('dms.document.createdAt')), value: createdDay })
         }
         if (typeof document[DOCUMENT_LANGUAGE_FIELD_NAME] === 'string') {
           facts.push({
             key: 'language',
-            label: t('dms.document.documentLanguage'),
+            label: labelOf(DOCUMENT_LANGUAGE_FIELD_NAME, t('dms.document.documentLanguage')),
             value: <DmsDocumentLanguageFlag code={document[DOCUMENT_LANGUAGE_FIELD_NAME]} />,
           })
         }
 
         const hooksWithValues = (solrHooks ?? []).filter((hook) => asList(document[hook.key]).length > 0)
-        const reasons = Object.entries(matched)
 
         return (
           <div key={id} className="search-hit">
@@ -165,13 +124,15 @@ export function DmsSearchResultList({ hits, origin, onFilter }: SearchResultList
 
             <div className="search-hit-body">
               <div className="search-hit-head">
-                <button
-                  type="button"
-                  className="search-hit-name"
-                  onClick={() => navigate(dmsSolrDocumentPath(id), { state: origin })}
-                >
-                  {highlightWords(fileName, wordsOf('fileName'))}
-                </button>
+                <Hoverlay text={description !== '' ? description : null}>
+                  <button
+                    type="button"
+                    className="search-hit-name"
+                    onClick={() => navigate(dmsSolrDocumentPath(id), { state: origin })}
+                  >
+                    {fileName}
+                  </button>
+                </Hoverlay>
                 <DmsSolrDocumentIdentifiersHint document={document} />
               </div>
 
@@ -185,12 +146,6 @@ export function DmsSearchResultList({ hits, origin, onFilter }: SearchResultList
                 </div>
               )}
 
-              {description !== '' && (
-                <div className="search-hit-description text-break">
-                  {highlightWords(description, wordsOf('fileDescription'))}
-                </div>
-              )}
-
               {hooksWithValues.length > 0 && (
                 <div className="search-hit-hooks">
                   {hooksWithValues.map((hook) => (
@@ -201,10 +156,13 @@ export function DmsSearchResultList({ hits, origin, onFilter }: SearchResultList
                           key={value}
                           type="button"
                           className="solr-hook-value-badge solr-hook-value-badge-link search-hit-hook-value"
-                          aria-label={t('search.filters.addValue', { field: labelOfField(hook.key), value })}
+                          aria-label={t('search.filters.addValue', {
+                            field: translate(hook.displayName, language) || hook.key,
+                            value,
+                          })}
                           onClick={() => onFilter({ fieldName: hook.key, value })}
                         >
-                          {highlightWords(value, wordsOf(hook.key))}
+                          {value}
                         </button>
                       ))}
                     </span>
@@ -212,16 +170,7 @@ export function DmsSearchResultList({ hits, origin, onFilter }: SearchResultList
                 </div>
               )}
 
-              {reasons.length > 0 && (
-                <div className="search-hit-reasons">
-                  {reasons.map(([name, words]) => (
-                    <span key={name} className="search-hit-reason">
-                      {name === FULL_TEXT_FIELD_NAME ? <Icon name="fullText" /> : <Icon name="filter" />} {labelOfField(name)}:{' '}
-                      <mark>{words.join(', ')}</mark>
-                    </span>
-                  ))}
-                </div>
-              )}
+              <SearchHitReasons reasons={hit.reasons} coreKey={DMS_CORE_KEY} language={language} />
             </div>
 
             <div className="search-hit-actions">

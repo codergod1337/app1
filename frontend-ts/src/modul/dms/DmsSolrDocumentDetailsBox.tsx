@@ -12,7 +12,7 @@ import { FileSubClassPicker } from '../filesubclass/FileSubClassPicker.tsx'
 import { FileSubClassSymbol } from '../filesubclass/FileSubClassSymbol.tsx'
 import { solrHookValuesOf } from '../solrmanager/SolrHook.ts'
 import { SolrHookFields } from '../solrmanager/SolrHookFields.tsx'
-import { FILE_SUB_CLASS_FIELD_NAME, softDeleteDmsSolrDocument, type DmsSolrDocumentForClient } from './Dms.ts'
+import { dmsFieldLabel, FILE_SUB_CLASS_FIELD_NAME, softDeleteDmsSolrDocument, type DmsSolrDocumentForClient } from './Dms.ts'
 import { DmsSolrDocumentActionButtons } from './DmsSolrDocumentActionButtons.tsx'
 import { DmsSolrDocumentIdentifiersHint, DmsSolrDocumentInfobox } from './DmsSolrDocumentFacts.tsx'
 import { DmsSolrDocumentGrantsHint } from './DmsSolrDocumentGrantsHint.tsx'
@@ -50,7 +50,8 @@ function ignoreChoice() {
 export function DmsSolrDocumentDetailsBox({ loaded, origin, onClose, onDeleted }: DmsSolrDocumentDetailsBoxProps) {
   const { t } = useTranslation()
   const { language } = useLanguage()
-  const { fileSubClasses, solrHooks, accessRoles } = useMasterData()
+  const { fileSubClasses, solrHooks, accessRoles, solrFields } = useMasterData()
+  const labelOf = (name: string, fallback: string) => dmsFieldLabel(solrFields, name, fallback, language)
   const [fullTextOpen, setFullTextOpen] = useState(false)
   const [aclOpen, setAclOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -115,7 +116,7 @@ export function DmsSolrDocumentDetailsBox({ loaded, origin, onClose, onDeleted }
           <DmsSolrDocumentInfobox document={document} />
 
           <div>
-            <div className="small text-muted">{t('dms.document.description')}</div>
+            <div className="small text-muted">{labelOf('fileDescription', t('dms.document.description'))}</div>
             <div className="text-break">{description !== '' ? description : '—'}</div>
           </div>
 
@@ -128,7 +129,7 @@ export function DmsSolrDocumentDetailsBox({ loaded, origin, onClose, onDeleted }
               onChange={ignoreChoice}
               language={language}
               disabled
-              title={t('dms.document.fileSubClass')}
+              title={labelOf(FILE_SUB_CLASS_FIELD_NAME, t('dms.document.fileSubClass'))}
             />
           )}
 

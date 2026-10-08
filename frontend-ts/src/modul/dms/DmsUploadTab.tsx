@@ -10,7 +10,7 @@ import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
 import { Table, type TableColumn } from '../../components/Table.tsx'
 import { FileSubClassPicker } from '../filesubclass/FileSubClassPicker.tsx'
-import { SOLR_FIELD_TYPES, type SolrField } from '../solrmanager/SolrField.ts'
+import { SOLR_FIELD_TYPES, solrFieldLabel, type SolrField } from '../solrmanager/SolrField.ts'
 import { solrHookValuesOf } from '../solrmanager/SolrHook.ts'
 import { solrFieldDocument, type SolrFieldRawValue } from '../solrmanager/SolrFieldValue.ts'
 import { SolrFieldValueInput } from '../solrmanager/SolrFieldValueInput.tsx'
@@ -204,7 +204,14 @@ export function DmsUploadTab() {
       width: '15rem',
       cell: (solrField) => (
         <Hoverlay text={translate(solrField.description, language)}>
-          <span className="table-header-hinted">{solrField.name}</span>
+          <span className="table-header-hinted">
+            {solrFieldLabel(solrField, language)}
+            {solrFieldLabel(solrField, language) !== solrField.name && (
+              <span className="text-muted ms-1">
+                <code>{solrField.name}</code>
+              </span>
+            )}
+          </span>
         </Hoverlay>
       ),
     },

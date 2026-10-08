@@ -9,8 +9,9 @@ import type { SolrHookGroup } from './SolrHookGroup.ts'
 /**
  * Ein Hook, wie ihn das Backend liefert (SolrHook.java): eine Adresse, über die ein Solr-Dokument auf ein Fachobjekt
  * zeigt. Jeder Kern bekommt dieselben Hooks. Kein Aussehen am Hook: Alle Chips (SolrHookChip) sehen gleich aus, der
- * Look steht fest in basic.css. Der Hook trägt keine Rechte: Wer HOOK_FULL hat, darf jeden benutzen, alle anderen nur,
- * was ihnen je Hook und Wert freigegeben ist. Gelesen wird über die Stammdaten.
+ * Look steht fest in basic.css. Wer den Hook lesen und danach filtern darf, steht wie bei jedem Feld als AR-Liste am
+ * Hook, in jedem Kern gleich; SOLR_USERS_VIEW_ALL und SOLR_USERS_VIEW_HOOKS bekommen jeden. Gelesen wird über die
+ * Stammdaten.
  */
 export interface SolrHook {
   /** der Name des Feldes in Solr, z. B. artikelNummer, ändert sich nie */
@@ -21,6 +22,8 @@ export interface SolrHook {
   description: string | null
   /** der key der Gruppe (SolrHookGroup), nur für die Anzeige. null: ohne Gruppe */
   hookGroupKey: string | null
+  /** die ARs, deren Inhaber den Hook lesen dürfen; leer heißt niemand außer SOLR_USERS_VIEW_ALL und SOLR_USERS_VIEW_HOOKS */
+  readAccessRoleKeys: string[]
   listingPosition: number
 }
 

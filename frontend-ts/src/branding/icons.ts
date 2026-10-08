@@ -46,6 +46,8 @@ export const icons = {
   fullText: { pack: 'bootstrap', id: 'file-text' },
   download: { pack: 'bootstrap', id: 'download' },
   upload: { pack: 'bootstrap', id: 'upload' },
+  /** eine neue Fassung an eine Versionskette hängen: das Journal mit dem Pfeil nach oben, wie in der Vorlage */
+  newVersion: { pack: 'bootstrap', id: 'journal-arrow-up' },
   camera: { pack: 'bootstrap', id: 'camera-fill' },
   add: { pack: 'bootstrap', id: 'plus-lg' },
   back: { pack: 'bootstrap', id: 'arrow-left' },

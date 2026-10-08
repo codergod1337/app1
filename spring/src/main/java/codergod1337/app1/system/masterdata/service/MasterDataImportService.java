@@ -380,7 +380,10 @@ public class MasterDataImportService {
 				"key fehlt oder ist ungültig"));
 	}
 
-	/** Hooks: der key ist ein Solr-Feldname. Gibt es ihre Gruppe weder bei uns noch im Import, kommt der Hook ohne Gruppe. */
+	/**
+	 * Hooks: der key ist ein Solr-Feldname. Gibt es ihre Gruppe weder bei uns noch im Import, kommt der Hook ohne Gruppe.
+	 * Unbekannte AR in der Leseliste fallen weg.
+	 */
 	private void planSolrHooks(ImportPlan plan, List<Line> lines) {
 		Map<String, SolrHook> existing = byKey(solrHookService.getAllSolrHooks(), SolrHook::getKey);
 		List<PlannedRow> rows = planKeyedRows(lines, SolrHook.class, SolrHook::getKey, SolrHook::getDisplayName, existing,
@@ -388,40 +391,45 @@ public class MasterDataImportService {
 		plan.rowsBySection.put(MasterDataSection.SOLR_HOOKS, rows);
 		for (PlannedRow row : rows) {
 			SolrHook solrHook = row.isNew() ? (SolrHook) row.data : null;
-			if (solrHook != null && solrHook.getHookGroupKey() != null
-					&& !plan.solrHookGroupKeys.contains(solrHook.getHookGroupKey())) {
+			if (solrHook == null) {
+				continue;
+			}
+			if (solrHook.getHookGroupKey() != null && !plan.solrHookGroupKeys.contains(solrHook.getHookGroupKey())) {
 				row.addMessage("Hook-Gruppe " + solrHook.getHookGroupKey()
 						+ " gibt es weder bei uns noch im Import, der Hook kommt ohne Gruppe");
 				solrHook.setHookGroupKey(null);
 			}
+			solrHook.setReadAccessRoleKeys(keepKnown(row, solrHook.getReadAccessRoleKeys(), plan.accessRoleKeys, "AR"));
 		}
 		plan.solrHookKeys.addAll(existing.keySet());
 		plan.solrHookKeys.addAll(newKeys(plan, MasterDataSection.SOLR_HOOKS));
 	}
 
-	/** Kerne: normale Key-Regel, HOOKS und CORES sind reserviert. Sie verweisen auf nichts, es kann nichts wegfallen. */
+	/**
+	 * Kerne: normale Key-Regel, HOOKS, HOOKGROUPS und CORES sind reserviert. Sie verweisen auf nichts, es kann nichts
+	 * wegfallen.
+	 */
 	private void planSolrCores(ImportPlan plan, List<Line> lines) {
 		Map<String, SolrCore> existing = byKey(solrCoreService.getAllSolrCores(), SolrCore::getKey);
 		plan.rowsBySection.put(MasterDataSection.SOLR_CORES, planKeyedRows(lines, SolrCore.class, SolrCore::getKey,
 				SolrCore::getDisplayName, existing, SolrCoreService::isValidSolrCoreKey,
-				"key fehlt oder ist ungültig, HOOKS und CORES sind reserviert"));
+				"key fehlt oder ist ungültig, HOOKS, HOOKGROUPS und CORES sind reserviert"));
 		plan.solrCoreKeys.addAll(existing.keySet());
 		plan.solrCoreKeys.addAll(newKeys(plan, MasterDataSection.SOLR_CORES));
 	}
 
 	/**
-	 * Felder: erkannt am Paar Kern und name. Verwaist, wenn es den Kern weder bei uns noch angehakt im Import gibt.
-	 * Ungültig bei Hook-Namen (die gibt es in jedem Kern schon) und suggest an einem Typ ohne Zwilling. Das Feld id
-	 * wird nicht geschrieben: Das legt jeder Kern beim Anlegen selbst an.
+	 * Felder: erkannt am name, der über alle Kerne eindeutig ist. coreKey leer heißt in jedem Kern. Verwaist, wenn es
+	 * den Kern weder bei uns noch angehakt im Import gibt. Ungültig bei einem Namen, den die Regel nicht erlaubt (es sei
+	 * denn, die Zeile gibt es bei uns schon, so kommt id aus dem Code durch), Hook-Namen (die gibt es in jedem Kern
+	 * schon), suggest an einem Typ ohne Zwilling und required an einem Feld, das der Client nicht setzt. Unbekannte AR
+	 * in der Leseliste fallen weg.
 	 */
 	private void planSolrFields(ImportPlan plan, List<Line> lines) {
-		Map<String, SolrField> existingByPair = new HashMap<>();
-		for (SolrField solrField : solrFieldService.getAllSolrFields()) {
-			existingByPair.put(solrField.getCoreKey() + "|" + solrField.getName(), solrField);
-		}
+		Map<String, SolrField> existingByName = byKey(solrFieldService.getAllSolrFields(), SolrField::getName);
 		ObjectReader reader = jsonMapper.readerFor(SolrField.class).without(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 		List<PlannedRow> rows = new ArrayList<>();
-		Map<String, Integer> countByPair = new HashMap<>();
+		Map<String, Integer> countByName = new HashMap<>();
 		for (Line line : lines) {
 			PlannedRow row = new PlannedRow(line);
 			rows.add(row);
@@ -437,10 +445,11 @@ public class MasterDataImportService {
 				continue;
 			}
 			row.data = solrField;
-			if (solrField.getCoreKey() != null && solrField.getName() != null) {
-				row.id = solrField.getCoreKey() + " · " + solrField.getName();
+			if (solrField.getName() != null) {
+				row.id = (solrField.getCoreKey() != null ? solrField.getCoreKey() : "jeder Kern") + " · "
+						+ solrField.getName();
 				row.label = row.id;
-				countByPair.merge(solrField.getCoreKey() + "|" + solrField.getName(), 1, Integer::sum);
+				countByName.merge(solrField.getName(), 1, Integer::sum);
 			}
 		}
 
@@ -449,12 +458,12 @@ public class MasterDataImportService {
 				continue;
 			}
 			SolrField solrField = (SolrField) row.data;
-			String pair = solrField.getCoreKey() + "|" + solrField.getName();
-			if (!SolrCoreService.isValidSolrCoreKey(solrField.getCoreKey())) {
-				row.reject(RowStatus.INVALID, "coreKey fehlt oder ist ungültig");
-			} else if (!SolrFieldName.isValid(solrField.getName())) {
+			if (solrField.getCoreKey() != null && !SolrCoreService.isValidSolrCoreKey(solrField.getCoreKey())) {
+				row.reject(RowStatus.INVALID, "coreKey ist ungültig");
+			} else if (!SolrFieldName.isValid(solrField.getName()) && !existingByName.containsKey(solrField.getName())) {
+				// eine vorhandene Zeile hat die Regel schon bestanden, oder sie ist id aus dem Code
 				row.reject(RowStatus.INVALID, "name fehlt oder ist kein gültiger Solr-Feldname");
-			} else if (countByPair.get(pair) > 1) {
+			} else if (countByName.get(solrField.getName()) > 1) {
 				row.reject(RowStatus.INVALID, "steht mehrfach in der Datei");
 			} else if (plan.solrHookKeys.contains(solrField.getName())) {
 				row.reject(RowStatus.INVALID, "name ist ein Hook, den gibt es in jedem Kern schon");
@@ -462,16 +471,17 @@ public class MasterDataImportService {
 				row.reject(RowStatus.INVALID, "type fehlt oder ist unbekannt");
 			} else if (solrField.isSuggest() && !solrField.getType().isSuggestable()) {
 				row.reject(RowStatus.INVALID, "suggest geht bei " + solrField.getType() + " nicht");
-			} else if (SolrCore.BUILT_IN_FIELD_NAMES.contains(solrField.getName())) {
-				row.reject(RowStatus.EXISTING,
-						"das Feld " + solrField.getName() + " legt jeder Kern beim Anlegen selbst an");
-			} else if (!plan.solrCoreKeys.contains(solrField.getCoreKey())) {
+			} else if (solrField.isRequired() && (solrField.getClientWriteRule() == null
+					|| !solrField.getClientWriteRule().isClientAllowedToSetOnCreate())) {
+				row.reject(RowStatus.INVALID, "required geht nur bei einem Feld, das der Client beim Anlegen setzt");
+			} else if (solrField.getCoreKey() != null && !plan.solrCoreKeys.contains(solrField.getCoreKey())) {
 				row.reject(RowStatus.ORPHAN,
 						"Kern " + solrField.getCoreKey() + " gibt es weder bei uns noch angehakt im Import");
-			} else if (existingByPair.containsKey(pair)) {
+			} else if (existingByName.containsKey(solrField.getName())) {
 				row.status = RowStatus.EXISTING;
-				addDifferences(row, existingByPair.get(pair));
+				addDifferences(row, existingByName.get(solrField.getName()));
 			} else {
+				solrField.setReadAccessRoleKeys(keepKnown(row, solrField.getReadAccessRoleKeys(), plan.accessRoleKeys, "AR"));
 				rejectViolations(row, solrField);
 			}
 		}
@@ -1142,7 +1152,7 @@ public class MasterDataImportService {
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.SOLR_HOOKS)) {
 			SolrHook solrHook = (SolrHook) row.data;
 			solrHookService.createSolrHook(solrHook.getKey(), solrHook.getDisplayName(), solrHook.getDescription(),
-					solrHook.getHookGroupKey(), solrHook.getListingPosition());
+					solrHook.getHookGroupKey(), solrHook.getReadAccessRoleKeys(), solrHook.getListingPosition());
 		}
 
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.SOLR_CORES)) {
@@ -1155,8 +1165,9 @@ public class MasterDataImportService {
 			SolrField solrField = (SolrField) row.data;
 			solrFieldService.createSolrField(solrField.getCoreKey(), solrField.getName(), solrField.getType(),
 					solrField.isIndexed(), solrField.isStored(), solrField.isMultiValued(), solrField.isDocValues(),
-					solrField.isRequired(), solrField.isSuggest(), solrField.getReadAccessLevel(),
-					solrField.getClientWriteRule(), solrField.getDescription(), solrField.getListingPosition());
+					solrField.isRequired(), solrField.isSuggest(), solrField.getReadAccessRoleKeys(),
+					solrField.isBackendOnly(), solrField.getClientWriteRule(), solrField.getDisplayName(),
+					solrField.getDescription(), solrField.getListingPosition());
 		}
 
 		String startPassword = sha256Hex(START_PASSWORD);

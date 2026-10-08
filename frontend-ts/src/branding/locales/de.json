@@ -141,7 +141,7 @@
       "title": "Auflösen",
       "intro": "Exakt nach Feld und Wert: mehrere Werte eines Feldes mit ODER, mehrere Felder mit UND. Ohne Bedingung kommt alles, was du sehen darfst. Die Treffer tragen nur die Felder, die du lesen darfst.",
       "fullFields": "Vollsicht: alle Felder (DMS_FULL oder DMS_SUCHE)",
-      "limitedFields": "nur Freigaben: Minimum-Felder plus Feldfreigaben",
+      "limitedFields": "nur Freigaben: Felder „immer“ plus Feldfreigaben",
       "searchAllowed": "Suche erlaubt (DMS_SUCHE)",
       "searchNotAllowed": "keine Suche",
       "readableFields_one": "{{count}} Feld, das du bekommst",
@@ -174,6 +174,9 @@
       "mimeType": "MIME-Typ",
       "documentLanguage": "Sprache",
       "downloadCount": "Downloads",
+      "isPublic": "Internetfreigabe",
+      "isPublicYes": "ja, ohne Anmeldung sichtbar",
+      "isPublicNo": "nein",
       "createdAt": "erstellt",
       "uploadedAt": "hochgeladen",
       "lastChangedAt": "zuletzt geändert",
@@ -191,6 +194,7 @@
       "details": "Details zu {{name}}",
       "download": "{{name}} herunterladen",
       "edit": "{{name}} bearbeiten",
+      "newVersion": "neue Fassung zu {{name}} hochladen",
       "grant": "{{name}} freigeben",
       "delete": "{{name}} löschen",
       "deleteTitle": "Dokument löschen",
@@ -200,8 +204,32 @@
       "pickerLabel": "Sprache des Dokuments",
       "none": "keine Sprache"
     },
+    "versionChain": {
+      "title_one": "{{count}} Fassung",
+      "title_other": "{{count}} Fassungen",
+      "current": "diese Fassung"
+    },
+    "revisions": {
+      "title_one": "{{count}} Revision",
+      "title_other": "{{count}} Revisionen",
+      "loadFailed": "Die Revisionen ließen sich nicht laden",
+      "revision": "Rev. {{revisionNo}}",
+      "delta": {
+        "field": "Feld",
+        "before": "vorher",
+        "after": "nachher"
+      },
+      "noDifference": "Kein Unterschied.",
+      "restore": "zurückladen",
+      "restoreTitle": "Revision zurückladen",
+      "restoreQuestion": "Soll Revision <strong>{{revisionNo}}</strong> zurückgeladen werden? Jedes Feld bekommt den gesicherten Stand, auch Status, Dateiart und Zugriffsrechte. Der aktuelle Stand wird vorher selbst als Revision gesichert, es geht nichts verloren.",
+      "restored": "Revision {{revisionNo}} zurückgeladen",
+      "restoreFailed": "Zurückladen fehlgeschlagen"
+    },
     "viewer": {
       "title": "Viewer",
+      "showHooks": "alle Hooks dieses Dokuments zeigen",
+      "hooksTitle": "Hooks von {{name}}",
       "noViewer": "Für diesen Dateityp gibt es keinen Viewer, die Datei lässt sich nur herunterladen.",
       "showNativeSize": "Klick: in voller Größe zeigen (1:1)",
       "fitAgain": "Klick: wieder einpassen"
@@ -222,6 +250,10 @@
       "toastRunning": "Upload läuft",
       "toastDone": "Upload fertig",
       "toastSummary": "{{done}} hochgeladen, {{failed}} fehlgeschlagen",
+      "newVersionTitle": "Neue Fassung zu {{name}}, wird v{{version}}",
+      "newVersionDropzone": "Neue Fassung hierher ziehen oder klicken",
+      "fileSubClassLocked": "Dateiart vom Kopf der Kette, nicht wählbar",
+      "chainNotFound": "Zu dieser Versionskette gibt es keine sichtbare Fassung.",
       "columns": {
         "state": "Zustand",
         "fileSubClass": "Art",
@@ -235,6 +267,7 @@
         "new": "neu",
         "merge": "ergänzt Hooks",
         "exists": "andere Dateiart",
+        "sameBytes": "schon im DMS",
         "deleted": "gelöscht",
         "extension": "Endung gesperrt",
         "error": "ungeprüft",
@@ -245,6 +278,7 @@
         "MERGED": "Hooks ergänzt"
       },
       "reason": {
+        "sameBytes": "Dieselben Bytes liegen schon im DMS, id {{id}}. Eine neue Fassung braucht neue Bytes.",
         "exists": "Dieselben Bytes liegen schon unter der Dateiart {{key}}. Die Dateiart wechselt nur das Bearbeiten.",
         "deleted": "Dieses Dokument ist im DMS gelöscht, id {{id}}. Ein Admin kann es zurückholen.",
         "error": "Der Browser konnte die Datei nicht prüfen (zu groß oder kein sicherer Kontext). Das Backend prüft beim Hochladen."
@@ -340,7 +374,7 @@
     },
     "documents": {
       "title": "Dateifreigaben",
-      "intro": "Kern wählen, Bedingungen setzen wie beim Auflösen, auflösen: Die Trefferliste zeigt, was du selbst schreiben darfst und damit freigeben kannst. Freigeben schreibt die guid des Empfängers in userGrantedAccess jedes Treffers, je Kern über dessen eigenen Freigabe-Service. Ein Schnappschuss, spätere Dokumente sind nicht dabei. Der Empfänger bekommt damit die Minimum-Felder, erweiterte Felder brauchen eine Feldfreigabe.",
+      "intro": "Kern wählen, Bedingungen setzen wie beim Auflösen, auflösen: Die Trefferliste zeigt, was du selbst schreiben darfst und damit freigeben kannst. Freigeben schreibt die guid des Empfängers in userGrantedAccess jedes Treffers, je Kern über dessen eigenen Freigabe-Service. Ein Schnappschuss, spätere Dokumente sind nicht dabei. Der Empfänger bekommt damit die Felder „immer“, Felder „durch Freigabe“ brauchen eine Feldfreigabe oder Vollsicht.",
       "noGrantServiceForCore": "Der Kern {{core}} hat noch keinen Freigabe-Service. Hier lässt sich nur das Register ansehen.",
       "expire": "Abgelaufene in {{core}} aufräumen",
       "expired": "{{count}} Dateifreigaben im Kern {{core}} auf abgelaufen gesetzt",
@@ -426,6 +460,7 @@
       "DMS": "DMS"
     },
     "allCores": "alle Kerne",
+    "missingRole": "Dafür fehlt dir die AccessRole {{role}}.",
     "noCores": "Für dich gibt es keinen Kern mit Suchrecht.",
     "running": "sucht",
     "hint": {
@@ -433,18 +468,8 @@
       "TOO_MANY_SEARCH_WORDS": "Höchstens {{max}} Suchwörter: Eingabe kürzen oder Filter setzen."
     },
     "filters": {
-      "chooseField": "Feld wählen",
-      "hooks": "Hooks",
-      "fieldsOfCore": "Felder {{core}}",
-      "dateFields": "Zeitraum",
-      "value": "Wert",
-      "from": "von",
-      "to": "bis",
-      "add": "Filter setzen",
       "addValue": "{{field}} {{value}} als Filter setzen",
-      "remove": "Filter {{field}} {{value}} entfernen",
-      "removeDateRange": "Zeitraum {{field}} entfernen",
-      "open": "offen"
+      "remove": "Filter {{field}} {{value}} entfernen"
     },
     "fsc": {
       "hint": "Dateiart wählen: Klick oder Enter setzt sie als Filter, Escape bricht ab."
@@ -455,9 +480,6 @@
     "offers": {
       "title": "Vorschläge:",
       "tabHint": "Tab setzt den ersten Vorschlag"
-    },
-    "matched": {
-      "fullText": "Volltext"
     }
   },
   "graph": {
@@ -523,6 +545,8 @@
       "added": "neu angelegt",
       "replaced": "angepasst",
       "copyFieldsAdded": "copyFields neu",
+      "maxBooleanClauses": "Klauselgrenze (maxBooleanClauses)",
+      "maxBooleanClausesSet": "gerade gesetzt",
       "onlyInSolr": "nur in Solr, nicht gelöscht",
       "typeConflicts": "Typkonflikte, Neuaufbau nötig",
       "syncedAt": "zuletzt",
@@ -561,7 +585,8 @@
         "group": "Gruppe",
         "noGroup": "ohne Gruppe",
         "asFilter": "als Filter",
-        "onDocument": "am Dokument"
+        "onDocument": "am Dokument",
+        "readAccess": "Lesen: die ARs, deren Inhaber den Hook bekommen, in jedem Kern. Ohne Haken liest ihn niemand außer SOLR_USERS_VIEW_ALL und SOLR_USERS_VIEW_HOOKS."
       },
       "picker": {
         "placeholder": "Feldname oder Anzeigename",
@@ -631,18 +656,23 @@
       "gradient": "Verlaufsart"
     },
     "sheet": {
-      "id": "ID",
+      "name": "Name",
       "fieldName": "Feldname in Solr",
       "type": "Typ",
+      "displayName": "Anzeigename",
       "description": "Beschreibung: wozu, welche Daten",
       "status": "Status",
       "newField": "neues Feld",
       "settingFor": "{{setting}} für {{name}}",
       "typeOf": "Typ von {{name}}",
-      "fieldAccess": "Zugriff",
-      "fieldAccessMinimum": "Minimum",
-      "fieldAccessAdvanced": "Erweitert",
-      "fieldAccessOf": "Zugriff von {{name}}, Klick wechselt zwischen Minimum und Erweitert",
+      "everyCore": "in jedem Kern: dieselbe Zeile in jedem Kern-Tab",
+      "fieldAccess": "Lesen",
+      "fieldAccessOf": "Lesen von {{name}}, Klick öffnet die ARs zum Ankreuzen",
+      "fieldAccessNone": "niemand",
+      "fieldAccessEdit": "Lesen: {{name}}",
+      "fieldAccessIntro": "Wer eine dieser ARs im Token hat, bekommt das Feld in jeder Antwort und darf danach filtern. USER ist die Grundmenge: jeder, der das Dokument sieht. SOLR_USERS_VIEW_ALL bekommt jedes Feld ohne Haken. Jeder Haken speichert sofort.",
+      "backendOnly": "nur Backend",
+      "backendOnlyOf": "nur Backend für {{name}}: nie zum Client",
       "clientWriteRule": "Schreibregel",
       "clientWriteRuleOf": "Schreibregel von {{name}}, Klick wechselt zwischen Backend, nur beim Anlegen und Client",
       "clientWriteRules": {
@@ -651,7 +681,6 @@
         "CLIENT_SETS_AND_CHANGES": "Client"
       },
       "empty": "keine Felder",
-      "idHoverlay": "der Primärschlüssel des Kerns (uniqueKey), was hineinkommt, steht in der Beschreibung",
       "deleteTitle": "Feld löschen",
       "deleteQuestion": "Soll das Feld <strong>{{name}}</strong> aus dem Kern <strong>{{core}}</strong> wirklich gelöscht werden? Was in Solr mit dem Feld passiert, entscheidet der Abgleich."
     },
@@ -706,9 +735,10 @@
         ]
       },
       "required": {
-        "title": "required: ohne Wert kein Dokument",
+        "title": "required: Pflicht beim Anlegen",
         "paragraphs": [
-          "Solr lehnt jedes Dokument ab, dem der Wert fehlt, mit einem Fehler beim Schreiben. Für Pflichtfelder wie id.",
+          "Der Client muss das Feld beim Anlegen mitschicken, sonst lehnt das Backend den Upload ab. Solr lehnt zusätzlich jedes Dokument ab, dem der Wert fehlt.",
+          "Nur bei Feldern, die der Client setzt: Bei der Schreibregel Backend ist der Haken aus und gesperrt, das Backend setzt das Feld selbst.",
           "Vorsicht beim Nachrüsten: Alte Dokumente ohne Wert lassen sich erst wieder schreiben, wenn sie den Wert bekommen, auch bei einem Teilupdate."
         ]
       },
@@ -721,11 +751,17 @@
         ]
       },
       "fieldAccess": {
-        "title": "Zugriff: Minimum oder Erweitert",
+        "title": "Lesen: welche ARs das Feld bekommen",
         "paragraphs": [
-          "Minimum: Das Feld gehört zur Grundansicht des Kerns. Wer ein Dokument überhaupt sehen darf (readAcl, isPublic oder seine guid in userGrantedAccess), bekommt es immer, auch ohne die Rolle <KERN>_FULL. id ist immer Minimum.",
-          "Erweitert: Das Feld bekommt nur, wer die Rolle <KERN>_FULL hat oder dem es für diesen Kern einzeln freigegeben ist. Alle anderen sehen es nie, dürfen nicht danach auflösen, sortieren oder facettieren und erfahren nicht, dass es das Feld gibt.",
-          "Neue Felder sind Erweitert. Der Schalter steht nur in unserer Felddefinition, nicht in Solr: Der Abgleich ignoriert ihn, die Lesedienste bauen daraus, welche Felder sie anfordern (fl)."
+          "Jedes Feld trägt die ARs, deren Inhaber es lesen dürfen. Hat ein User eine davon im Token, steht das Feld in seiner Antwort (fl), und er darf danach filtern, sortieren, facettieren und auflösen. Ohne AR liest niemand außer SOLR_USERS_VIEW_ALL: Ein neues Feld ist unsichtbar, bis eine AR angekreuzt ist.",
+          "„Immer“ heißt: USER steht dran, die Grundmenge. Dann bekommt es jeder, der das Dokument überhaupt sieht. Sensible Felder bekommen stattdessen eine Feld-AR wie SOLR_FIELD_VIEW_CONFIDENTIAL oder SOLR_FIELD_VIEW_SUPPLY. SOLR_USERS_VIEW_ALL und SOLR_USERS_VIEW_HOOKS stehen nie an einem Feld, das sind Rechte eines Users.",
+          "Nur in unserer Felddefinition, nicht in Solr: Der Abgleich ignoriert die Liste, die Lesedienste bauen daraus, welche Felder sie anfordern. Ob ein User das Dokument überhaupt sieht, entscheidet die Dokumentgrenze (readAcl, Freigabe), nicht diese Liste."
+        ]
+      },
+      "backendOnly": {
+        "title": "nur Backend: nie zum Client",
+        "paragraphs": [
+          "Das Feld geht in keiner Antwort zum Client, auch nicht mit SOLR_USERS_VIEW_ALL. Das Backend liest es für sich, z. B. sftpPath für den Download oder searchableWords für die Suche. Mit dem Haken ist die Leseliste leer."
         ]
       },
       "clientWriteRule": {
@@ -742,15 +778,8 @@
         "paragraphs": [
           "string: der Wert so, wie er kommt, nicht zerlegt, nicht klein geschrieben. Trifft nur exakt. Für Keys, Status, Nummern, Hashes. Der ganze Wert ist ein Term, und ein Term darf höchstens 32766 Bytes haben: Das gilt mit indexed und mit docValues, Umlaute zählen doppelt. Nur gespeichert (beides aus) darf ein string beliebig groß sein, so wie ein Vorschaubild.",
           "long: ganze Zahl mit 64 Bit, für Bereiche und Sortierung. Es gibt kein int, ganze Zahlen sind bei uns immer long. double: Kommazahl mit 64 Bit. date: Zeitpunkt nach ISO 8601 in UTC, für Bereiche und Sortierung. boolean: wahr oder falsch.",
-          "text_minimal: zerlegt an Leerzeichen, alles klein. Satzzeichen bleiben am Token, ein Dateiname bleibt so wortweise treffbar. text_word: zerlegt auch an Satzzeichen (StandardTokenizer), alles klein, für Beschreibungen und mehrsprachiges JSON. text_words: nimmt fertige Token vom Backend, das vorher stemmt und Komposita zerlegt, Solr vergleicht nur noch. Jede Suche muss ihre Eingabe genauso aufbereiten. Bei allen Texttypen gilt das Term-Limit je Token, der Wert selbst darf beliebig groß sein.",
+          "text_edge: zerlegt an Leerzeichen und Satzzeichen, alles klein, beim Indexieren dazu jeder Wortanfang ab 3 Zeichen: „rech“ findet „Rechnung“ im Feld selbst, ohne Zwilling. Für alles, was ein User tippt und beim Tippen wiederfinden will: Dateiname, Index, Beschreibung. text_suche: der Volltext, jedes Wort einzeln, Stammform, Komposita zerlegt, mit Synonymen: „Rechnungen“ findet „Rechnung“, „Boot“ findet die Kapitänschifffahrtsmütze. Bei beiden gilt das Term-Limit je Token, der Wert selbst darf beliebig groß sein.",
           "Einen Typ nachträglich zu ändern heißt den Kern neu aufbauen, Solr schreibt alte Dokumente nicht um."
-        ]
-      },
-      "id": {
-        "title": "ID: der Primärschlüssel des Kerns",
-        "paragraphs": [
-          "Der Schlüssel steht an id, dem Primärschlüssel jedes Kerns (uniqueKey in Solr). Solr lässt ihn nach dem Anlegen des Kerns nicht mehr ändern, deshalb heißt er überall id, kommt mit jedem Kern von selbst und steht fest: string, indexed, required, nie multiValued, nicht löschbar. stored, docValues, Beschreibung und Position sind frei.",
-          "Was hineinkommt, steht in der Beschreibung des Feldes, z. B. beim DMS der Hash der Bytes (sha256). Danach richtet sich, wer den Kern befüllt. Dokumente ohne id lehnt Solr ab."
         ]
       }
     }

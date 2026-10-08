@@ -182,8 +182,19 @@ const router = createBrowserRouter([
           // ein einzelnes Dokument: in der URL steht nur die id, das Backend prüft die Leseprüfung des Users
           { path: 'solr-document/:id', element: <DmsSolrDocumentPage mode="details" /> },
           { path: 'solr-document/:id/edit', element: <DmsSolrDocumentPage mode="edit" /> },
-          { path: 'solr-document/:id/viewer', element: <DmsSolrDocumentViewerPage /> },
+          // der feste Verweis über die Versionskette: die Seite löst den Kopf auf und zeigt die geltende Fassung
+          { path: 'version-chain/:versionChain', element: <DmsSolrDocumentPage mode="details" /> },
         ],
+      },
+      {
+        // der Viewer außerhalb des DMS-Moduls, wie in der Vorlage: eigener subheader mit den Angaben zur Datei, keine
+        // Tabs, keine ContentBox, die Datei bekommt die ganze Fläche. In der URL steht nur die id.
+        path: 'dms/viewer/:id',
+        element: (
+          <RequireLogin accessRoleKey={DMS_ACCESS_ROLE_KEY}>
+            <DmsSolrDocumentViewerPage />
+          </RequireLogin>
+        ),
       },
       {
         // die Suche über alle Kerne. Die Route verlangt die Such-Rolle des ersten Kerns, welche Kerne der User

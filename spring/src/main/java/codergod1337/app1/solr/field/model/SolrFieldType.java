@@ -2,8 +2,12 @@ package codergod1337.app1.solr.field.model;
 
 /**
  * Unser Typkatalog für Solr-Felder. Jeder Eintrag ist ein fieldType im Basis-Schema, die Maske wählt nur aus, nie rohe
- * Analyzer-Ketten. Der Suggest-Zwilling wählt sich seinen Typ selbst: wortweise bei Texten, ganzwertig bei String und
- * Zahlen, gar keinen bei Boolean und Datum.
+ * Analyzer-Ketten. Der Suggest-Zwilling (code_suggest) gibt es nur bei String und Zahlen: Texte brauchen keinen,
+ * text_edge ist selbst per Wortanfang suchbar. Ein neuer Typ hier braucht denselben Typ im Basis-Configset, und ein
+ * bestehender Kern kennt ihn erst nach dem Neuaufbau, denn das Configset wird nur beim Anlegen des Kerns kopiert.
+ *
+ * Genau zwei Texttypen (User 2026-10-09): text_edge für alles, was ein User tippt und beim Tippen wiederfinden will,
+ * text_suche für den Volltext.
  */
 public enum SolrFieldType {
 
@@ -21,14 +25,17 @@ public enum SolrFieldType {
 	/** Zeitpunkt, ISO 8601 in UTC */
 	DATE("pdate", null),
 
-	/** Leerzeichen trennen, Kleinschreibung, sonst nichts: z. B. Dateinamen */
-	TEXT_MINIMAL("text_minimal", "text_suggest"),
+	/**
+	 * Text, der selbst wortweise per Wortanfang suchbar ist (EdgeNGram beim Indexieren): „rech“ findet „Rechnung“ im
+	 * Feld selbst. Dateiname, Index, Beschreibung, alles, was ein User tippt.
+	 */
+	TEXT_EDGE("text_edge", null),
 
-	/** auch Satzzeichen trennen: Beschreibungen, mehrsprachiges JSON */
-	TEXT_WORD("text_word", "text_suggest"),
-
-	/** vom Backend aufbereitete Token, der Volltext. Die Suche muss ihre Eingabe genauso aufbereiten. */
-	TEXT_WORDS("text_words", "text_suggest");
+	/**
+	 * Der Volltext: jedes Wort einzeln, Stammform, dazu Komposita-Zerlegung und Synonyme, sobald die Dateien dafür da
+	 * sind. „Rechnungen“ findet „Rechnung“, „Kapitänschifffahrtsmütze“ soll über kapitän, schiff und mütze treffen.
+	 */
+	TEXT_SUCHE("text_suche", null);
 
 	private final String solrFieldType;
 	private final String suggestSolrFieldType;
@@ -50,6 +57,11 @@ public enum SolrFieldType {
 
 	public boolean isSuggestable() {
 		return suggestSolrFieldType != null;
+	}
+
+	/** Ein Textfeld: Werte werden zerlegt, exakte Bedingungen gehen als Phrase, nicht über den terms-Parser */
+	public boolean isText() {
+		return this == TEXT_EDGE || this == TEXT_SUCHE;
 	}
 
 }

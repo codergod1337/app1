@@ -34,8 +34,8 @@ function paragraphs(
     | 'required'
     | 'suggest'
     | 'type'
-    | 'id'
     | 'fieldAccess'
+    | 'backendOnly'
     | 'clientWriteRule',
 ): string[] {
   const value: unknown = t(`solrmanager.hints.${key}.paragraphs`, { returnObjects: true })
@@ -95,13 +95,14 @@ export function solrFieldTypeHint(t: TFunction): ReactNode {
   return explanation(t('solrmanager.hints.type.title'), ...paragraphs(t, 'type'))
 }
 
-export function solrFieldIdHint(t: TFunction): ReactNode {
-  return explanation(t('solrmanager.hints.id.title'), ...paragraphs(t, 'id'))
-}
-
-/** Die Erklärung des Umschaltknopfs Minimum gegen Erweitert */
+/** Die Erklärung der Spalte Lesen: die ARs, deren Inhaber das Feld bekommen */
 export function solrFieldAccessHint(t: TFunction): ReactNode {
   return explanation(t('solrmanager.hints.fieldAccess.title'), ...paragraphs(t, 'fieldAccess'))
+}
+
+/** Die Erklärung des Schalters nur Backend: nie zum Client */
+export function solrFieldBackendOnlyHint(t: TFunction): ReactNode {
+  return explanation(t('solrmanager.hints.backendOnly.title'), ...paragraphs(t, 'backendOnly'))
 }
 
 /** Die Erklärung des Umschaltknopfs der Schreibregel: Backend, nur beim Anlegen, Client */
@@ -110,10 +111,10 @@ export function solrFieldClientWriteRuleHint(t: TFunction): ReactNode {
 }
 
 /**
- * Die Beschreibung eines Feldes (wozu, welche Daten) als Hoverlay am Feldnamen, zusätzlich zur Spalte. Ohne Beschreibung
- * null: Dann umhüllt das Hoverlay nichts.
+ * Der Solr-Name eines Feldes mit seiner Beschreibung (wozu, welche Daten) als Hoverlay am Info-Symbol der Zeile
+ * (User 2026-10-09: die Namen brauchen in der Spalte zu viel Platz). Ohne Beschreibung steht nur der Name.
  */
-export function solrFieldDescriptionHint(name: string, description: string | null, language: LanguageCode): ReactNode {
+export function solrFieldNameHint(name: string, description: string | null, language: LanguageCode): ReactNode {
   const text = translate(description, language)
-  return text !== '' ? explanation(name, text) : null
+  return text !== '' ? explanation(name, text) : explanation(name)
 }

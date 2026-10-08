@@ -141,7 +141,7 @@
       "title": "Resolve",
       "intro": "Exact by field and value: several values of one field with OR, several fields with AND. Without a condition you get everything you may see. The hits carry only the fields you may read.",
       "fullFields": "full sight: all fields (DMS_FULL or DMS_SUCHE)",
-      "limitedFields": "grants only: minimum fields plus field grants",
+      "limitedFields": "grants only: “always” fields plus field grants",
       "searchAllowed": "search allowed (DMS_SUCHE)",
       "searchNotAllowed": "no search",
       "readableFields_one": "{{count}} field you get",
@@ -174,6 +174,9 @@
       "mimeType": "MIME type",
       "documentLanguage": "Language",
       "downloadCount": "Downloads",
+      "isPublic": "Public access",
+      "isPublicYes": "yes, visible without login",
+      "isPublicNo": "no",
       "createdAt": "created",
       "uploadedAt": "uploaded",
       "lastChangedAt": "last changed",
@@ -191,6 +194,7 @@
       "details": "details of {{name}}",
       "download": "download {{name}}",
       "edit": "edit {{name}}",
+      "newVersion": "upload a new version of {{name}}",
       "grant": "grant {{name}}",
       "delete": "delete {{name}}",
       "deleteTitle": "Delete document",
@@ -200,8 +204,32 @@
       "pickerLabel": "Document language",
       "none": "no language"
     },
+    "versionChain": {
+      "title_one": "{{count}} version",
+      "title_other": "{{count}} versions",
+      "current": "this version"
+    },
+    "revisions": {
+      "title_one": "{{count}} revision",
+      "title_other": "{{count}} revisions",
+      "loadFailed": "The revisions could not be loaded",
+      "revision": "Rev. {{revisionNo}}",
+      "delta": {
+        "field": "Field",
+        "before": "before",
+        "after": "after"
+      },
+      "noDifference": "No difference.",
+      "restore": "restore",
+      "restoreTitle": "Restore revision",
+      "restoreQuestion": "Restore revision <strong>{{revisionNo}}</strong>? Every field gets the saved state, including status, file type and access rights. The current state is saved as a revision first, nothing is lost.",
+      "restored": "Revision {{revisionNo}} restored",
+      "restoreFailed": "Restore failed"
+    },
     "viewer": {
       "title": "Viewer",
+      "showHooks": "show all hooks of this document",
+      "hooksTitle": "Hooks of {{name}}",
       "noViewer": "There is no viewer for this file type, the file can only be downloaded.",
       "showNativeSize": "click: show in full size (1:1)",
       "fitAgain": "click: fit again"
@@ -222,6 +250,10 @@
       "toastRunning": "Upload running",
       "toastDone": "Upload finished",
       "toastSummary": "{{done}} uploaded, {{failed}} failed",
+      "newVersionTitle": "New version of {{name}}, becomes v{{version}}",
+      "newVersionDropzone": "drag the new version here or click",
+      "fileSubClassLocked": "file sub class from the head of the chain, not selectable",
+      "chainNotFound": "There is no visible version in this version chain.",
       "columns": {
         "state": "State",
         "fileSubClass": "Class",
@@ -235,6 +267,7 @@
         "new": "new",
         "merge": "adds hooks",
         "exists": "other class",
+        "sameBytes": "already in the DMS",
         "deleted": "deleted",
         "extension": "extension blocked",
         "error": "unchecked",
@@ -245,6 +278,7 @@
         "MERGED": "hooks added"
       },
       "reason": {
+        "sameBytes": "The same bytes are already in the DMS, id {{id}}. A new version needs new bytes.",
         "exists": "The same bytes already exist under the file sub class {{key}}. Only editing changes the class.",
         "deleted": "This document is deleted in the DMS, id {{id}}. An admin can bring it back.",
         "error": "The browser could not check the file (too large or no secure context). The backend checks on upload."
@@ -340,7 +374,7 @@
     },
     "documents": {
       "title": "Document grants",
-      "intro": "Choose a core, set conditions as when resolving, resolve: the hit list shows what you may write yourself and can therefore grant. Granting writes the recipient's guid into userGrantedAccess of every hit, per core through its own grant service. A snapshot, later documents are not included. The recipient gets the minimum fields with it, advanced fields need a field grant.",
+      "intro": "Choose a core, set conditions as when resolving, resolve: the hit list shows what you may write yourself and can therefore grant. Granting writes the recipient's guid into userGrantedAccess of every hit, per core through its own grant service. A snapshot, later documents are not included. The recipient gets the “always” fields with it, “by grant” fields need a field grant or full sight.",
       "noGrantServiceForCore": "The core {{core}} has no grant service yet. Only the register can be viewed here.",
       "expire": "Clean up expired in {{core}}",
       "expired": "{{count}} document grants in core {{core}} set to expired",
@@ -426,6 +460,7 @@
       "DMS": "DMS"
     },
     "allCores": "all cores",
+    "missingRole": "You are missing the AccessRole {{role}} for this.",
     "noCores": "There is no core you may search.",
     "running": "searching",
     "hint": {
@@ -433,18 +468,8 @@
       "TOO_MANY_SEARCH_WORDS": "At most {{max}} search words: shorten the input or set filters."
     },
     "filters": {
-      "chooseField": "choose field",
-      "hooks": "Hooks",
-      "fieldsOfCore": "Fields {{core}}",
-      "dateFields": "Date range",
-      "value": "value",
-      "from": "from",
-      "to": "to",
-      "add": "Set filter",
       "addValue": "Set {{field}} {{value}} as filter",
-      "remove": "Remove filter {{field}} {{value}}",
-      "removeDateRange": "Remove date range {{field}}",
-      "open": "open"
+      "remove": "Remove filter {{field}} {{value}}"
     },
     "fsc": {
       "hint": "Pick a file sub class: click or Enter sets it as a filter, Escape cancels."
@@ -455,9 +480,6 @@
     "offers": {
       "title": "Suggestions:",
       "tabHint": "Tab sets the first suggestion"
-    },
-    "matched": {
-      "fullText": "Full text"
     }
   },
   "graph": {
@@ -523,6 +545,8 @@
       "added": "added",
       "replaced": "adjusted",
       "copyFieldsAdded": "copyFields added",
+      "maxBooleanClauses": "clause limit (maxBooleanClauses)",
+      "maxBooleanClausesSet": "just set",
       "onlyInSolr": "only in Solr, not deleted",
       "typeConflicts": "type conflicts, rebuild needed",
       "syncedAt": "last",
@@ -561,7 +585,8 @@
         "group": "Group",
         "noGroup": "no group",
         "asFilter": "as filter",
-        "onDocument": "on the document"
+        "onDocument": "on the document",
+        "readAccess": "Read: the ARs whose holders get the hook, in every core. Without a tick nobody reads it except SOLR_USERS_VIEW_ALL and SOLR_USERS_VIEW_HOOKS."
       },
       "picker": {
         "placeholder": "field name or display name",
@@ -631,18 +656,23 @@
       "gradient": "Gradient"
     },
     "sheet": {
-      "id": "ID",
+      "name": "Name",
       "fieldName": "Field name in Solr",
       "type": "Type",
+      "displayName": "Display name",
       "description": "Description: what for, which data",
       "status": "Status",
       "newField": "new field",
       "settingFor": "{{setting}} for {{name}}",
       "typeOf": "type of {{name}}",
-      "fieldAccess": "Access",
-      "fieldAccessMinimum": "Minimum",
-      "fieldAccessAdvanced": "Advanced",
-      "fieldAccessOf": "access of {{name}}, click switches between minimum and advanced",
+      "everyCore": "in every core: the same row in every core tab",
+      "fieldAccess": "Read",
+      "fieldAccessOf": "read access of {{name}}, click opens the ARs to tick",
+      "fieldAccessNone": "nobody",
+      "fieldAccessEdit": "Read: {{name}}",
+      "fieldAccessIntro": "Whoever has one of these ARs in their token gets the field in every response and may filter by it. USER is the base set: everyone who sees the document. SOLR_USERS_VIEW_ALL gets every field without a tick. Every tick saves immediately.",
+      "backendOnly": "backend only",
+      "backendOnlyOf": "backend only for {{name}}: never to the client",
       "clientWriteRule": "Write rule",
       "clientWriteRuleOf": "write rule of {{name}}, click switches between backend, on create only and client",
       "clientWriteRules": {
@@ -651,7 +681,6 @@
         "CLIENT_SETS_AND_CHANGES": "Client"
       },
       "empty": "no fields",
-      "idHoverlay": "the primary key of the core (uniqueKey), what goes in is described in the description",
       "deleteTitle": "Delete field",
       "deleteQuestion": "Really delete the field <strong>{{name}}</strong> from the core <strong>{{core}}</strong>? What happens to the field in Solr is decided by the sync."
     },
@@ -706,9 +735,10 @@
         ]
       },
       "required": {
-        "title": "required: no document without a value",
+        "title": "required: mandatory on create",
         "paragraphs": [
-          "Solr rejects every document missing the value, with an error when writing. For mandatory fields like id.",
+          "The client must send the field on create, otherwise the backend rejects the upload. Solr additionally rejects every document missing the value.",
+          "Only for fields the client sets: with the write rule backend the box is off and locked, the backend sets the field itself.",
           "Careful when adding it later: old documents without the value can only be written again once they get the value, even on a partial update."
         ]
       },
@@ -721,11 +751,17 @@
         ]
       },
       "fieldAccess": {
-        "title": "Access: minimum or advanced",
+        "title": "Read: which ARs get the field",
         "paragraphs": [
-          "Minimum: the field belongs to the basic view of the core. Whoever may see a document at all (readAcl, isPublic or their guid in userGrantedAccess) always gets it, even without the role <KERN>_FULL. id is always minimum.",
-          "Advanced: only users with the role <KERN>_FULL get the field, or users to whom it was granted individually for this core. Everyone else never sees it, may not resolve, sort or facet by it, and does not learn that the field exists.",
-          "New fields are advanced. The switch lives only in our field definition, not in Solr: the sync ignores it, the read services derive from it which fields they request (fl)."
+          "Every field carries the ARs whose holders may read it. If a user has one of them in their token, the field is in their response (fl) and they may filter, sort, facet and resolve by it. Without an AR nobody reads it except SOLR_USERS_VIEW_ALL: a new field is invisible until an AR is ticked.",
+          "“Always” means: USER is ticked, the base set. Then everyone who sees the document at all gets it. Sensitive fields get a field AR instead, such as SOLR_FIELD_VIEW_CONFIDENTIAL or SOLR_FIELD_VIEW_SUPPLY. SOLR_USERS_VIEW_ALL and SOLR_USERS_VIEW_HOOKS are never set on a field, they are rights of a user.",
+          "Only in our field definition, not in Solr: the sync ignores the list, the read services derive from it which fields they request. Whether a user sees the document at all is decided by the document boundary (readAcl, grant), not by this list."
+        ]
+      },
+      "backendOnly": {
+        "title": "backend only: never to the client",
+        "paragraphs": [
+          "The field never goes to the client in any response, not even with SOLR_USERS_VIEW_ALL. The backend reads it for itself, e.g. sftpPath for the download or searchableWords for the search. With the tick the read list is empty."
         ]
       },
       "clientWriteRule": {
@@ -742,15 +778,8 @@
         "paragraphs": [
           "string: the value as it comes, not split, not lower-cased. Only matches exactly. For keys, status, numbers, hashes. The whole value is one term, and a term may have at most 32766 bytes: this applies with indexed and with docValues, umlauts count twice. Stored only (both off), a string may be arbitrarily large, like a preview image.",
           "long: whole number with 64 bits, for ranges and sorting. There is no int, whole numbers are always long for us. double: decimal number with 64 bits. date: point in time per ISO 8601 in UTC, for ranges and sorting. boolean: true or false.",
-          "text_minimal: split at spaces, all lower case. Punctuation stays on the token, so a file name stays hittable word by word. text_word: also split at punctuation (StandardTokenizer), all lower case, for descriptions and multilingual JSON. text_words: takes finished tokens from the backend, which stems and splits compounds beforehand, Solr only compares. Every search must prepare its input the same way. For all text types the term limit applies per token, the value itself may be arbitrarily large.",
+          "text_edge: split at spaces and punctuation, all lower case, plus every word prefix from 3 characters when indexing: “rech” finds “Rechnung” in the field itself, without a twin. For everything a user types and wants to find again while typing: file name, index, description. text_suche: the full text, every word on its own, stemmed, compounds split, with synonyms: “Rechnungen” finds “Rechnung”, “Boot” finds the Kapitänschifffahrtsmütze. For both the term limit applies per token, the value itself may be arbitrarily large.",
           "Changing a type later means rebuilding the core, Solr does not rewrite old documents."
-        ]
-      },
-      "id": {
-        "title": "ID: the primary key of the core",
-        "paragraphs": [
-          "The key marks id, the primary key of every core (uniqueKey in Solr). Solr does not allow changing it after the core is created, so it is called id everywhere, comes with every core by itself and is fixed: string, indexed, required, never multiValued, not deletable. stored, docValues, description and position are free.",
-          "What goes in is described in the description of the field, e.g. the hash of the bytes (sha256) for the DMS. Whoever fills the core follows that. Solr rejects documents without id."
         ]
       }
     }

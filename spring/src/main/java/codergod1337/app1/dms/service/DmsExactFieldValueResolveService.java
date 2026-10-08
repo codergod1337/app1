@@ -43,8 +43,10 @@ import tools.jackson.databind.node.ObjectNode;
  * Ohne mindestens eine Bedingung mit Wert gibt es kein Auflösen: Auflösen gibt nie alles aus, das ist Sache der Suche.
  *
  * Das Lese-fq (readAcl oder userGrantedAccess) hängt an jeder Abfrage, oder mit Schreibcheck allein das Schreib-fq
- * (writeAcl), denn Schreiben impliziert kein Lesen. fl ist die Feldgrenze des Users oder, fürs Backend, eine genannte
- * Feldliste, die nie zum Client geht. Werte gehen nie als Query-String zusammengeklebt nach Solr: bei string, Zahlen,
+ * (writeAcl), denn Schreiben impliziert kein Lesen. Dazu an jeder Abfrage der Status: Ein User bekommt nur ACTIVE und
+ * ARCHIVED (User 2026-10-08), auch beim Auflösen über die Versionskette und beim Schreibcheck; ein gelöschtes Dokument
+ * gibt es für ihn auf keinem Weg, zurückholen kann es der Admin im DMS-Manager. fl ist die Feldgrenze des Users oder,
+ * fürs Backend, eine genannte Feldliste, die nie zum Client geht. Werte gehen nie als Query-String zusammengeklebt nach Solr: bei string, Zahlen,
  * boolean und date über den terms-Parser mit den Werten als eigenem Parameter, bei Textfeldern als escaped Phrasen.
  */
 @Service
@@ -81,6 +83,9 @@ public class DmsExactFieldValueResolveService {
 
 	/** Neueste Dokumente zuerst, wenn der User das Feld lesen darf, sonst in Indexreihenfolge */
 	private static final String MY_GRANTS_SORT_FIELD_NAME = DmsSolrDocumentFieldNames.DOCUMENT_CREATED_AT;
+
+	/** Alle stored fields: der Stand eines Dokuments vor einem revisionierten Schreiben, fürs ZIP */
+	private static final List<String> WHOLE_DOCUMENT_FIELD_NAMES = List.of("*");
 
 	private final SolrCurrentUserCoreAccessService solrCurrentUserCoreAccessService;
 	private final DmsSolrDocumentChecker dmsSolrDocumentChecker;
@@ -176,6 +181,17 @@ public class DmsExactFieldValueResolveService {
 	}
 
 	/**
+	 * Vor einem revisionierten Schreibvorgang: das ganze Dokument, alle stored fields, allein mit dem Schreib-fq.
+	 * Derselbe Schreibcheck wie {@link #loadDmsSolrDocumentFieldsForWrite}, nur dass der Stand danach als ZIP gesichert
+	 * wird und der Schreibservice daran erkennt, welche Felder sich wirklich ändern. null, wenn es das Dokument nicht
+	 * gibt oder der User es nicht schreiben darf. Nie zum Client.
+	 */
+	@PreAuthorize("hasRole('DMS')")
+	public Map<String, Object> loadWholeDmsSolrDocumentForWrite(String id) {
+		return firstOrNull(resolveBackendFields(idCondition(id), WHOLE_DOCUMENT_FIELD_NAMES, true));
+	}
+
+	/**
 	 * Eine neue Fassung oder ein Dateiartwechsel: alle Glieder der Kette, die der User sehen darf, mit version, status
 	 * und Dateiart, nach id sortiert. Leer, wenn es die Kette nicht gibt oder er sie nicht sieht.
 	 */
@@ -183,6 +199,21 @@ public class DmsExactFieldValueResolveService {
 	public List<Map<String, Object>> loadDmsVersionChainMembers(String versionChain) {
 		return resolveBackendFields(backendCondition(DmsSolrDocumentFieldNames.VERSION_CHAIN, versionChain),
 				VERSION_CHAIN_MEMBER_FIELD_NAMES, false);
+	}
+
+	/**
+	 * Der Fahrplan der Versionskette und die Maske der neuen Fassung (gebaut 2026-10-08): alle Glieder der Kette, die
+	 * der User sehen darf, mit seiner Feldgrenze, aufsteigend nach version, wenn er das Feld lesen darf, sonst in
+	 * Indexreihenfolge und die Maske sortiert selbst. Ein Auflösen, keine Suche: keine Such-Rolle, das Tor ist die
+	 * Lese-ACL jeder Fassung. Leer, wenn es die Kette nicht gibt oder er nichts davon sieht.
+	 */
+	@PreAuthorize("hasRole('DMS')")
+	public List<Map<String, Object>> resolveDmsVersionChainForClient(String versionChain) {
+		String sortFieldName = access().isReadableByCurrentUser(DmsSolrDocumentFieldNames.VERSION)
+				? DmsSolrDocumentFieldNames.VERSION
+				: null;
+		return resolveClientPage(null, backendCondition(DmsSolrDocumentFieldNames.VERSION_CHAIN, versionChain), 0,
+				MAX_PAGE_SIZE, sortFieldName, false, false).documents();
 	}
 
 	/**
@@ -355,7 +386,10 @@ public class DmsExactFieldValueResolveService {
 		}
 	}
 
-	/** q=*:*, das Lese-fq des Users oder allein das Schreib-fq, und je Feld ein fq für die Bedingungen */
+	/**
+	 * q=*:*, das Lese-fq des Users oder allein das Schreib-fq, der Status ACTIVE oder ARCHIVED, und je Feld ein fq für
+	 * die Bedingungen
+	 */
 	private SolrQuery queryWithCurrentUserCheck(SolrCurrentUserReadAndWriteAccessForCore access,
 			Map<String, List<Object>> fieldValues, boolean requireWriteAclMatch) {
 		SolrQuery query = new SolrQuery("*:*");
@@ -364,11 +398,12 @@ public class DmsExactFieldValueResolveService {
 		for (String filterQuery : filterQueries) {
 			query.addFilterQuery(filterQuery);
 		}
+		query.addFilterQuery(DmsStateService.VISIBLE_STATUS_FILTER_QUERY);
 		int index = 0;
 		for (Map.Entry<String, List<Object>> condition : fieldValues.entrySet()) {
 			String fieldName = condition.getKey();
 			SolrFieldType type = dmsSolrDocumentChecker.solrFieldTypeOf(fieldName);
-			if (type == SolrFieldType.TEXT_MINIMAL || type == SolrFieldType.TEXT_WORD || type == SolrFieldType.TEXT_WORDS) {
+			if (type != null && type.isText()) {
 				// Textfelder als escaped Phrasen: der Analyzer läuft über die Eingabe wie über den Index
 				List<String> phrases = new ArrayList<>();
 				for (Object value : condition.getValue()) {

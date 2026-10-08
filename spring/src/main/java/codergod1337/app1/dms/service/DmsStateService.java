@@ -1,5 +1,7 @@
 package codergod1337.app1.dms.service;
 
+import codergod1337.app1.dms.model.DmsSolrDocumentFieldNames;
+
 import codergod1337.app1.system.state.model.EntityState;
 import codergod1337.app1.system.state.service.EntityStateService;
 import jakarta.annotation.PostConstruct;
@@ -21,6 +23,15 @@ public class DmsStateService {
 	public static final String ARCHIVED = "ARCHIVED";
 	public static final String PENDING_ADMIN = "PENDING_ADMIN";
 	public static final String DELETED = "DELETED";
+
+	/**
+	 * Das fq jeder User-Abfrage im Kern DMS (User 2026-10-08): Ein User bekommt nur ACTIVE und ARCHIVED, in der Suche,
+	 * beim Auflösen, auf der Dokumentseite, in der Versionskette, beim Download und beim Schreibcheck. DELETED und
+	 * PENDING_ADMIN sieht nur der Admin im DMS-Manager. Nur der Existenzcheck läuft ohne, die Upload-Maske muss
+	 * „gelöscht“ erkennen.
+	 */
+	public static final String VISIBLE_STATUS_FILTER_QUERY = DmsSolrDocumentFieldNames.STATUS + ":(" + ACTIVE + " OR "
+			+ ARCHIVED + ")";
 
 	private final EntityStateService entityStateService;
 

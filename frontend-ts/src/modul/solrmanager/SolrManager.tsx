@@ -6,9 +6,9 @@ import { translate } from '../../components/multilingual.ts'
 import { Subheader, type SubheaderTab } from '../../components/Subheader.tsx'
 
 /**
- * SolrManager: eine stark abgespeckte Solr-Admin-Oberfläche. Feste Tabs „Hooks“, „Hook-Gruppen“ und „Kerne“, dahinter je Kern ein
- * eigener Tab aus den Stammdaten, mit seinem Symbol in seiner Hauptfarbe. Subheader mit den Tabs, darunter der gewählte
- * Tab.
+ * SolrManager: eine stark abgespeckte Solr-Admin-Oberfläche. Feste Tabs „Hooks“, „Hook-Gruppen“ und „Kerne“, dahinter je
+ * Kern ein eigener Tab aus den Stammdaten, mit seinem Symbol in seiner Hauptfarbe. Subheader mit den Tabs, darunter der
+ * gewählte Tab.
  */
 export function SolrManager() {
   const { t } = useTranslation()

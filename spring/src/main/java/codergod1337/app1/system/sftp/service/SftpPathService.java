@@ -21,6 +21,9 @@ public class SftpPathService {
 
 	private static final Pattern SHA256_HEX = Pattern.compile("[0-9a-f]{64}");
 
+	/** Ein Dateiname, wie der SftpService ihn als Pfadsegment annimmt */
+	private static final Pattern FILE_NAME = Pattern.compile("[A-Za-z0-9._-]+");
+
 	private final int maxFilesPerDirectory;
 	private LocalDate counterDate = LocalDate.now();
 	private int storedOnCounterDate;
@@ -51,6 +54,19 @@ public class SftpPathService {
 			throw new IllegalArgumentException("sha256Hex ist kein SHA-256 als Hex");
 		}
 		return nextRelativeDirectory() + "/" + normalized + FILE_SUFFIX;
+	}
+
+	/**
+	 * Derselbe Tagesordner für eine Datei mit beliebigem Namen, z. B. die Revisions-ZIPs des DMS
+	 * ({@code <id>_<revisionNo>.zip}): Tageslogik und Zähler sind dieselben wie bei den Dateien, nur der Name kommt vom
+	 * Aufrufer. Die Beruhigung über den Hash gilt hier nicht: Zwei gleiche Namen am selben Tag überschrieben sich, für
+	 * eindeutige Namen sorgt der Aufrufer.
+	 */
+	public String relativePathForFileName(String fileName) {
+		if (fileName == null || !FILE_NAME.matcher(fileName).matches()) {
+			throw new IllegalArgumentException("fileName darf nur A–Z, a–z, 0–9, Punkt, Unterstrich und Minus enthalten");
+		}
+		return nextRelativeDirectory() + "/" + fileName;
 	}
 
 }

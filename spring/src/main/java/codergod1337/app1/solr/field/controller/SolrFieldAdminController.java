@@ -32,14 +32,15 @@ public class SolrFieldAdminController {
 		this.solrFieldService = solrFieldService;
 	}
 
-	/** Alle Felder außer id. Kern und name prüft der Service. */
+	/** Alle Felder außer id. Kern (leer heißt jeder Kern), name und ARs prüft der Service. */
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public SolrField createSolrField(@Valid @RequestBody SolrField newSolrFieldData) {
 		return solrFieldService.createSolrField(newSolrFieldData.getCoreKey(), newSolrFieldData.getName(),
 				newSolrFieldData.getType(), newSolrFieldData.isIndexed(), newSolrFieldData.isStored(),
 				newSolrFieldData.isMultiValued(), newSolrFieldData.isDocValues(), newSolrFieldData.isRequired(),
-				newSolrFieldData.isSuggest(), newSolrFieldData.getReadAccessLevel(), newSolrFieldData.getClientWriteRule(),
+				newSolrFieldData.isSuggest(), newSolrFieldData.getReadAccessRoleKeys(), newSolrFieldData.isBackendOnly(),
+				newSolrFieldData.getClientWriteRule(), newSolrFieldData.getDisplayName(),
 				newSolrFieldData.getDescription(), newSolrFieldData.getListingPosition());
 	}
 
@@ -49,7 +50,8 @@ public class SolrFieldAdminController {
 		return solrFieldService.updateSolrField(changedSolrFieldData.getId(), changedSolrFieldData.getType(),
 				changedSolrFieldData.isIndexed(), changedSolrFieldData.isStored(), changedSolrFieldData.isMultiValued(),
 				changedSolrFieldData.isDocValues(), changedSolrFieldData.isRequired(), changedSolrFieldData.isSuggest(),
-				changedSolrFieldData.getReadAccessLevel(), changedSolrFieldData.getClientWriteRule(),
+				changedSolrFieldData.getReadAccessRoleKeys(), changedSolrFieldData.isBackendOnly(),
+				changedSolrFieldData.getClientWriteRule(), changedSolrFieldData.getDisplayName(),
 				changedSolrFieldData.getDescription(), changedSolrFieldData.getListingPosition());
 	}
 
@@ -77,7 +79,7 @@ public class SolrFieldAdminController {
 		return solrFieldService.changeSolrFieldPositions(checkedPositionById);
 	}
 
-	/** Nur per id. 200 mit dem gelöschten Feld, 400 bei ungültiger id, 404 wenn es das Feld nicht gibt, 409 beim Feld id. */
+	/** Nur per id. 200 mit dem gelöschten Feld, 400 bei ungültiger id, 404 wenn es das Feld nicht gibt. */
 	@DeleteMapping
 	public SolrField deleteSolrField(@RequestBody Map<String, Object> solrFieldToDelete) {
 		Long id = readId(solrFieldToDelete.get("id"));

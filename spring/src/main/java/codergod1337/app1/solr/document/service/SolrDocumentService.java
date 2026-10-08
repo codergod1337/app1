@@ -10,12 +10,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.request.SolrQuery;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -41,6 +44,8 @@ public class SolrDocumentService {
 	public static final String ID_FIELD_NAME = "id";
 	public static final String VERSION_FIELD_NAME = "_version_";
 
+	private static final Logger log = LoggerFactory.getLogger(SolrDocumentService.class);
+
 	private final SolrClientRegistry solrClientRegistry;
 
 	public SolrDocumentService(SolrClientRegistry solrClientRegistry) {
@@ -62,7 +67,8 @@ public class SolrDocumentService {
 	 */
 	public SolrQueriedDocumentsPage queryDocumentsPage(String coreKey, SolrQuery query) {
 		try {
-			QueryResponse response = client(coreKey).query(query);
+			// per POST wie in der Vorlage: eine qf mit allen Hooks und Zwillingen plus Highlighting sprengt sonst die URL
+			QueryResponse response = client(coreKey).query(query, SolrRequest.METHOD.POST);
 			List<Map<String, Object>> documents = new ArrayList<>();
 			for (SolrDocument document : response.getResults()) {
 				documents.add(toMap(document));
@@ -73,6 +79,9 @@ public class SolrDocumentService {
 		} catch (SolrServerException | IOException e) {
 			throw unavailable(coreKey, e);
 		} catch (SolrException e) {
+			// die ganze Abfrage ins Log: Welches Feld oder welcher Parameter Solr nicht passt, steht sonst nirgends
+			log.warn("Solr lehnt die Abfrage ab (Kern {}, HTTP {}): {} | Abfrage: {}", coreKey, e.code(), e.getMessage(),
+					query);
 			if (e.code() == HttpStatus.BAD_REQUEST.value()) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
 						"Solr lehnt die Abfrage ab (Kern " + coreKey + "): " + e.getMessage(), e);

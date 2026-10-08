@@ -12,6 +12,8 @@ import { useSession } from '../login/sessionContext.ts'
 import { solrHookValuesOf } from '../solrmanager/SolrHook.ts'
 import { SolrHookFields, type SolrHookValuesByKey } from '../solrmanager/SolrHookFields.tsx'
 import {
+  dmsFieldLabel,
+  DMS_PUBLIC_ACCESS_ROLE_KEY,
   DOCUMENT_LANGUAGE_FIELD_NAME,
   FILE_SUB_CLASS_FIELD_NAME,
   patchDmsSolrDocument,
@@ -36,17 +38,21 @@ function dayOf(value: unknown): string {
 /**
  * Ein DMS-Dokument bearbeiten, nur eine ContentBox wie die Details (nach DmsEdit der Vorlage). Änderbar: Dateiname,
  * Index, Erstelldatum als Tag, Beschreibung mehrsprachig, Dateiart (nur Klassen mit eigener Schreibrolle und
- * freigeschalteter Endung, der Wechsel schreibt die Rechte des Dokuments neu) und Hooks. Status und das Feststehende
- * sind Anzeige. Geschickt wird ein Patch: nur, was sich geändert hat, je Feld der Endwert, ein Hook als fertige Liste.
- * Das Backend prüft writeAcl und alle Regeln selbst.
+ * freigeschalteter Endung, der Wechsel schreibt die Rechte des Dokuments neu), Hooks und, nur mit der AR DMS_PUBLIC,
+ * die Internetfreigabe. Status und das Feststehende sind Anzeige. Geschickt wird ein Patch: nur, was sich geändert
+ * hat, je Feld der Endwert, ein Hook als fertige Liste. Das Backend prüft writeAcl und alle Regeln selbst.
  */
 export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDocumentEditBoxProps) {
   const { t } = useTranslation()
-  const { sessionInfo } = useSession()
-  const { fileSubClasses, solrHooks, fileExtensions, fileExtensionCollections } = useMasterData()
+  const { sessionInfo, hasAccessRole } = useSession()
+  /** die Internetfreigabe setzt und nimmt zurück, wer writeAcl am Dokument UND die AR DMS_PUBLIC hat; sonst kein Haken */
+  const canSetPublic = loaded.writeAclMatchForCurrentUser && hasAccessRole(DMS_PUBLIC_ACCESS_ROLE_KEY)
+  const { fileSubClasses, solrHooks, fileExtensions, fileExtensionCollections, solrFields } = useMasterData()
   const uiLanguage = useLanguage().language
   // die Sprache der Maske, startet mit der Oberfläche und lässt sich im Kopf der Box für die Beschreibung umschalten
   const [language, setLanguage] = useState<LanguageCode>(uiLanguage)
+  /** die Beschriftung eines Feldes aus der Felddefinition, sonst aus dem Sprachkatalog, in der Sprache der Oberfläche */
+  const labelOf = (name: string, fallback: string) => dmsFieldLabel(solrFields, name, fallback, uiLanguage)
 
   const document = loaded.document
   const id = String(document.id ?? '')
@@ -73,6 +79,8 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
   const [documentLanguage, setDocumentLanguage] = useState<string | null>(originalDocumentLanguage)
   const [fileSubClassKey, setFileSubClassKey] = useState<string | null>(originalFileSubClassKey)
   const [hooks, setHooks] = useState<SolrHookValuesByKey>(originalHooks)
+  const originalIsPublic = document.isPublic === true
+  const [isPublic, setIsPublic] = useState(originalIsPublic)
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -117,6 +125,9 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
     }
     if (fileSubClassKey !== null && fileSubClassKey !== originalFileSubClassKey) {
       fieldValuesByFieldName[FILE_SUB_CLASS_FIELD_NAME] = fileSubClassKey
+    }
+    if (canSetPublic && isPublic !== originalIsPublic) {
+      fieldValuesByFieldName.isPublic = isPublic
     }
     // je Hook die fertige Liste, nur wenn sie sich geändert hat; ein Hook, der aus der Maske verschwand, wird geleert
     for (const key of new Set([...Object.keys(originalHooks), ...Object.keys(hooks)])) {
@@ -167,7 +178,7 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
           <div className="row g-3">
             <div className="col-12 col-md-6">
               <label className="form-label" htmlFor="dms-edit-file-name">
-                {t('dms.document.fileName')}
+                {labelOf('fileName', t('dms.document.fileName'))}
               </label>
               <input
                 id="dms-edit-file-name"
@@ -181,7 +192,7 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
             </div>
             <div className="col-6 col-md-3">
               <label className="form-label" htmlFor="dms-edit-file-index">
-                {t('dms.document.fileIndex')}
+                {labelOf('fileIndex', t('dms.document.fileIndex'))}
               </label>
               <input
                 id="dms-edit-file-index"
@@ -194,7 +205,7 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
             </div>
             <div className="col-6 col-md-3">
               <label className="form-label" htmlFor="dms-edit-created-day">
-                {t('dms.document.createdAt')}
+                {labelOf('documentCreatedAt', t('dms.document.createdAt'))}
               </label>
               <input
                 id="dms-edit-created-day"
@@ -207,14 +218,14 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
             </div>
             {documentLanguageApplies && (
               <div className="col-12">
-                <span className="form-label d-block">{t('dms.document.documentLanguage')}</span>
+                <span className="form-label d-block">{labelOf(DOCUMENT_LANGUAGE_FIELD_NAME, t('dms.document.documentLanguage'))}</span>
                 <DmsDocumentLanguagePicker value={documentLanguage} onChange={setDocumentLanguage} disabled={saving} />
               </div>
             )}
           </div>
           <div>
             <label className="form-label" htmlFor="dms-edit-description">
-              {t('dms.document.description')}
+              {labelOf('fileDescription', t('dms.document.description'))}
             </label>
             <MultilingualInput
               id="dms-edit-description"
@@ -225,6 +236,21 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
               multiline
             />
           </div>
+          {canSetPublic && (
+            <div className="form-check">
+              <input
+                id="dms-edit-public"
+                type="checkbox"
+                className="form-check-input"
+                checked={isPublic}
+                disabled={saving}
+                onChange={(event) => setIsPublic(event.target.checked)}
+              />
+              <label className="form-check-label" htmlFor="dms-edit-public">
+                {labelOf('isPublic', t('dms.document.isPublic'))}
+              </label>
+            </div>
+          )}
         </form>
 
         <div>
@@ -235,7 +261,7 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
             onChange={setFileSubClassKey}
             language={language}
             disabled={saving}
-            title={t('dms.document.fileSubClass')}
+            title={labelOf(FILE_SUB_CLASS_FIELD_NAME, t('dms.document.fileSubClass'))}
           />
           {fileSubClassKey !== null && fileSubClassKey !== originalFileSubClassKey && (
             <p className="small text-warning mt-2 mb-0">

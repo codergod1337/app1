@@ -23,35 +23,3 @@ export function highlight(text: string, needle: string): ReactNode {
   pieces.push(text.slice(start))
   return pieces
 }
-
-/**
- * Die Fundstellen mehrerer Wörter im Text als mark, für den Treffergrund der Suche: jedes Wort klein, leere fallen
- * weg, Wörter, die sich überschneiden, markieren zusammen eine Stelle. Ohne Wörter der Text unverändert.
- */
-export function highlightWords(text: string, needles: readonly string[]): ReactNode {
-  const words = needles.map((needle) => needle.toLowerCase()).filter((needle) => needle !== '')
-  if (words.length === 0 || text === '') {
-    return text
-  }
-  const lower = text.toLowerCase()
-  const marked = new Array<boolean>(text.length).fill(false)
-  for (const word of words) {
-    let found = lower.indexOf(word)
-    while (found >= 0) {
-      marked.fill(true, found, found + word.length)
-      found = lower.indexOf(word, found + word.length)
-    }
-  }
-  const pieces: ReactNode[] = []
-  let start = 0
-  while (start < text.length) {
-    let end = start
-    while (end < text.length && marked[end] === marked[start]) {
-      end += 1
-    }
-    const piece = text.slice(start, end)
-    pieces.push(marked[start] ? <mark key={start}>{piece}</mark> : piece)
-    start = end
-  }
-  return pieces
-}

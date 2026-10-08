@@ -1,17 +1,26 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { Icon } from '../../components/Icon.tsx'
 import { useLanguage } from '../../components/languageContext.ts'
 import { useMasterData } from '../../components/masterDataContext.ts'
+import { translate } from '../../components/multilingual.ts'
 import type { OriginState } from '../../components/Origin.ts'
-import { Subheader } from '../../components/Subheader.tsx'
+import { Subheader, type SubheaderToggle } from '../../components/Subheader.tsx'
 import { useUsersSettings } from '../../components/usersSettingsContext.ts'
 import { DMS_CORE_KEY, FILE_SUB_CLASS_FIELD_NAME } from '../dms/Dms.ts'
 import { fileSubClassesStartingWith, fileSubClassNameOf, type FileSubClass } from '../filesubclass/FileSubClass.ts'
 import { useSession } from '../login/sessionContext.ts'
+import {
+  solrCoreColorStyle,
+  solrCoreMainColor,
+  solrCoreOfKey,
+  solrCoreTextColor,
+  type SolrCore,
+} from '../solrmanager/SolrCore.ts'
+import { SolrCoreEmblem } from '../solrmanager/SolrCoreEmblem.tsx'
 import {
   FILE_SUB_CLASS_MODE_PREFIX,
   hasSearchWord,
@@ -22,29 +31,35 @@ import {
   SEARCH_MAX_WORDS,
   SEARCH_MIN_CHARACTERS,
   SEARCH_PATH,
+  SEARCH_TEXT_PARAM,
+  searchFiltersOfParams,
+  searchParamsOf,
   searchRequestOf,
   searchWordsOf,
   useSearchPrefill,
   type SearchCoreFilterOffer,
-  type SearchDateRangeFilter,
   type SearchFilter,
   type SearchFilterOffer,
   type SearchResultPage,
 } from './Search.ts'
-import { searchCoresOf, type SearchCore } from './searchCores.ts'
+import { SEARCH_CORES, searchCoresOf, type SearchCore } from './searchCores.ts'
 import { SearchFileSubClassTiles } from './SearchFileSubClassTiles.tsx'
-import { SearchFilterEditor } from './SearchFilterEditor.tsx'
+import { SearchFilterChips } from './SearchFilterChips.tsx'
+import {
+  cachedSearchOffers,
+  cachedSearchResult,
+  rememberSearchOffers,
+  rememberSearchResult,
+} from './searchResultCache.ts'
 import { SearchSuggestions } from './SearchSuggestions.tsx'
-
-/** Beim Verlassen der Suche mitgeben, damit Dokumentseite und Viewer hierher zurückführen. Das label ist ein Schlüssel des Katalogs. */
-const ORIGIN_STATE: OriginState = { origin: { path: SEARCH_PATH, label: 'search.title' } }
 
 /**
  * Die Suchmaske nach der SuchePage der Vorlage, ein Modul über alle Kerne: ein Eingabefeld, gesucht wird in allen
  * angewählten Kernen zugleich, zu denen der User die Such-Rolle hat. Die Kernschalter sind keine Seiten, sondern
  * Filter, welche Kerne der User durchsucht, merkt sich seine UsersSetting. Je Kern läuft seine eigene Suche mit eigener
  * Laufnummer, eigenem Fehler und eigener Blätterleiste: Ein langsamer Kern hält die anderen nicht auf. Über der Eingabe
- * die Filter als Chips, darunter die Treffer je Kern in seiner Darstellung.
+ * die Filter als Chips, darunter die Treffer je Kern in seiner Darstellung. Keine Feldauswahl: Filter kommen aus den
+ * Angeboten der Vervollständigung, aus „fsc.“, aus Hook-Werten in Treffern und auf der Dokumentseite.
  *
  * Nie ins Leere suchen: ohne Suchwort ab drei Zeichen und ohne Filter wird nicht einmal gefragt. Höchstens sechs
  * Suchwörter, dieselbe Grenze wie im Backend. „fsc.“ in der Eingabe öffnet die Dateiarten als Kacheln, die Wahl wird
@@ -53,22 +68,31 @@ const ORIGIN_STATE: OriginState = { origin: { path: SEARCH_PATH, label: 'search.
  *
  * Beim Tippen läuft je Kern neben der Suche die Vervollständigung: Ihre Filterangebote stehen über der Eingabe, Tab
  * loggt das erste ein, Klick jedes. Ihre kompakten Treffer zeigt die Seite nicht, die Suche darunter läuft ohnehin.
+ * Der Treffergrund kommt immer mit, es gibt keinen Schalter dafür (User 2026-10-07).
+ *
+ * Suchwörter und Chips stehen in der Adresse (User 2026-10-07: ?q=… und f=feld:wert), die Seite schreibt sie bei jeder
+ * Änderung hinein, ohne neuen Verlaufseintrag. Zurück aus einem Treffer, der Knopf „zurück zu Suche“ und ein Reload
+ * stellen damit den Stand wieder her. Kommt eine Adresse von außen (Lupe, Zurück im Browser, Link), gilt sie.
  */
 export function Search() {
   const { t } = useTranslation()
   const { language } = useLanguage()
   const navigate = useNavigate()
   const location = useLocation()
-  const { hasAccessRole } = useSession()
-  const { fileSubClasses } = useMasterData()
+  const { hasAccessRole, sessionInfo } = useSession()
+  const usersGuid = sessionInfo?.usersGuid ?? null
+  const { fileSubClasses, solrCores } = useMasterData()
   const { settingValue, changeSetting } = useUsersSettings()
   const prefill = useSearchPrefill()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const cores = searchCoresOf(hasAccessRole)
   const [chosenCoreKeys, setChosenCoreKeys] = useState<string[] | null>(null)
-  const [searchText, setSearchText] = useState('')
-  const [filters, setFilters] = useState<SearchFilter[]>([])
-  const [dateRanges, setDateRanges] = useState<SearchDateRangeFilter[]>([])
+  // der Stand aus der Adresse, z. B. nach Zurück aus einem Treffer oder einem Reload
+  const [searchText, setSearchText] = useState(() => searchParams.get(SEARCH_TEXT_PARAM) ?? '')
+  const [filters, setFilters] = useState<SearchFilter[]>(() => searchFiltersOfParams(searchParams))
+  /** die Adresse, die diese Seite zuletzt selbst geschrieben hat: nur eine andere kommt von außen */
+  const writtenSearchRef = useRef<string | null>(null)
   const [resultByCore, setResultByCore] = useState<Record<string, SearchResultPage>>({})
   const [errorByCore, setErrorByCore] = useState<Record<string, string | null>>({})
   const [offersByCore, setOffersByCore] = useState<Record<string, SearchFilterOffer[]>>({})
@@ -99,11 +123,19 @@ export function Search() {
     chooseCores(activeCoreKeys.includes(key) ? activeCoreKeys.filter((entry) => entry !== key) : [...activeCoreKeys, key])
   }
 
-  // Das Feld hat den Cursor, sobald man hier landet, auch beim Klick auf die Lupe, wenn man schon hier steht
+  // Eine Adresse von außen (Lupe, Zurück im Browser, Link, Reload): ihr Stand gilt, das Feld bekommt den Cursor mit
+  // markiertem Text. Die selbst geschriebene Adresse löst nichts aus, sonst stünde nach jeder Taste alles markiert.
   useEffect(() => {
+    if (writtenSearchRef.current === location.search) {
+      return
+    }
+    writtenSearchRef.current = location.search
+    const params = new URLSearchParams(location.search)
+    setSearchText(params.get(SEARCH_TEXT_PARAM) ?? '')
+    setFilters(searchFiltersOfParams(params))
     inputRef.current?.focus()
     inputRef.current?.select()
-  }, [location.key])
+  }, [location.search])
 
   // Die Vorbelegung von anderswo, einmal je Ankunft: Filter kommen dazu, ohne Doppelte, der Text ersetzt
   useEffect(() => {
@@ -133,8 +165,7 @@ export function Search() {
   const readableFileSubClasses = (fileSubClasses ?? []).filter((fileSubClass) =>
     (fileSubClass.readAccessRoleKeys ?? []).some(hasAccessRole),
   )
-  const searchable =
-    !fileSubClassMode && !tooManyWords && (hasSearchWord(searchText) || filters.length > 0 || dateRanges.length > 0)
+  const searchable = !fileSubClassMode && !tooManyWords && (hasSearchWord(searchText) || filters.length > 0)
   /** Vervollständigt wird nur mit einem Suchwort: Ohne Eingabe gibt es keinen Anfang, den ein Wert treffen könnte */
   const suggestable = !fileSubClassMode && !tooManyWords && hasSearchWord(searchText)
 
@@ -160,14 +191,6 @@ export function Search() {
     setFilters((previous) => previous.filter((existing) => !isSameSearchFilter(existing, filter)))
   }
 
-  function addDateRange(dateRange: SearchDateRangeFilter) {
-    setDateRanges((previous) => [...previous.filter((existing) => existing.fieldName !== dateRange.fieldName), dateRange])
-  }
-
-  function removeDateRange(fieldName: string) {
-    setDateRanges((previous) => previous.filter((existing) => existing.fieldName !== fieldName))
-  }
-
   function pickFileSubClass(fileSubClass: FileSubClass) {
     addFilter({
       fieldName: FILE_SUB_CLASS_FIELD_NAME,
@@ -183,12 +206,14 @@ export function Search() {
     setSearchText('')
   }
 
-  function runSuggest(core: SearchCore, text: string, currentFilters: SearchFilter[], currentRanges: SearchDateRangeFilter[]) {
+  function runSuggest(core: SearchCore, text: string, currentFilters: SearchFilter[]) {
     const run = (suggestRunByCore.current[core.key] ?? 0) + 1
     suggestRunByCore.current[core.key] = run
+    const request = searchRequestOf(text, currentFilters, [], 0)
     core
-      .suggest(searchRequestOf(text, currentFilters, currentRanges, 0))
+      .suggest(request)
       .then(({ data }) => {
+        rememberSearchOffers(usersGuid, core.key, request, data.filterOffers)
         if (suggestRunByCore.current[core.key] === run) {
           setOffersByCore((previous) => ({ ...previous, [core.key]: data.filterOffers }))
         }
@@ -199,13 +224,22 @@ export function Search() {
       })
   }
 
-  function runSearch(core: SearchCore, page: number, text: string, currentFilters: SearchFilter[], currentRanges: SearchDateRangeFilter[]) {
+  function runSearch(core: SearchCore, page: number, text: string, currentFilters: SearchFilter[]) {
     const run = (runByCore.current[core.key] ?? 0) + 1
     runByCore.current[core.key] = run
+    const request = searchRequestOf(text, currentFilters, [], page)
+    // schon gesehen: sofort aus dem Zwischenspeicher, kein Request, kein Direktsprung (der führte zurück und wieder hin)
+    const cached = cachedSearchResult(usersGuid, core.key, request)
+    if (cached !== undefined) {
+      setResultByCore((previous) => ({ ...previous, [core.key]: cached }))
+      setErrorByCore((previous) => ({ ...previous, [core.key]: null }))
+      return
+    }
     setRunning((count) => count + 1)
     core
-      .search(searchRequestOf(text, currentFilters, currentRanges, page))
+      .search(request)
       .then(({ data }) => {
+        rememberSearchResult(usersGuid, core.key, request, data)
         if (runByCore.current[core.key] !== run) {
           return
         }
@@ -215,7 +249,7 @@ export function Search() {
           const direct = data.hits.find((hit) => core.idOf(hit.document)?.toLowerCase() === typed)
           const path = direct ? core.directPathOf(direct.document) : null
           if (path !== null) {
-            navigate(path, { state: ORIGIN_STATE })
+            navigate(path, { state: { origin: { path: `${SEARCH_PATH}${location.search}`, label: 'search.title' } } })
             return
           }
         }
@@ -236,10 +270,28 @@ export function Search() {
 
   // Stabile Schlüssel statt Array-Referenzen, sonst feuert der Effekt bei jedem Render
   const filtersKey = JSON.stringify(filters)
-  const dateRangesKey = JSON.stringify(dateRanges)
   const activeCoresKey = activeCoreKeys.join(',')
 
-  // Eine Abfrage je Tipp-Pause, je angewähltem Kern eine Suche ab Seite 0 und eine Vervollständigung
+  // Der Stand in die Adresse, der Eintrag im Verlauf wird ersetzt, nicht vermehrt: Zurück führt aus der Suche heraus,
+  // nicht durch jede getippte Taste. Der Router-State fällt dabei weg, die Vorbelegung ist da schon eingearbeitet.
+  useEffect(() => {
+    const params = searchParamsOf(searchText, filters)
+    const nextSearch = params.size === 0 ? '' : `?${params.toString()}`
+    if (nextSearch === location.search) {
+      writtenSearchRef.current = nextSearch
+      return
+    }
+    writtenSearchRef.current = nextSearch
+    setSearchParams(params, { replace: true })
+    // filters über ihren Schlüssel; location.search und setSearchParams ändern sich nur durch diesen Effekt selbst
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText, filtersKey])
+
+  /** Beim Verlassen der Suche mitgeben, mit dem aktuellen Stand in der Adresse, damit „zurück zu Suche“ ihn wiederherstellt */
+  const originState: OriginState = { origin: { path: `${SEARCH_PATH}${location.search}`, label: 'search.title' } }
+
+  // Je angewähltem Kern eine Suche ab Seite 0 und eine Vervollständigung. Was der Zwischenspeicher schon hat, steht
+  // sofort da, ohne Tipp-Pause (Zurück aus einem Treffer, Backspace auf Gesehenes); der Rest nach 250 ms Tipp-Pause.
   useEffect(() => {
     if (!searchable) {
       setResultByCore({})
@@ -251,20 +303,43 @@ export function Search() {
     if (!searchable && !suggestable) {
       return
     }
+    const pendingSearch: SearchCore[] = []
+    const pendingSuggest: SearchCore[] = []
+    const request = searchRequestOf(searchText, filters, [], 0)
+    for (const core of activeCores) {
+      if (searchable) {
+        const cached = cachedSearchResult(usersGuid, core.key, request)
+        if (cached !== undefined) {
+          setResultByCore((previous) => ({ ...previous, [core.key]: cached }))
+          setErrorByCore((previous) => ({ ...previous, [core.key]: null }))
+        } else {
+          pendingSearch.push(core)
+        }
+      }
+      if (suggestable) {
+        const cachedOffers = cachedSearchOffers(usersGuid, core.key, request)
+        if (cachedOffers !== undefined) {
+          setOffersByCore((previous) => ({ ...previous, [core.key]: cachedOffers }))
+        } else {
+          pendingSuggest.push(core)
+        }
+      }
+    }
+    if (pendingSearch.length === 0 && pendingSuggest.length === 0) {
+      return
+    }
     const timer = setTimeout(() => {
-      for (const core of activeCores) {
-        if (searchable) {
-          runSearch(core, 0, searchText, filters, dateRanges)
-        }
-        if (suggestable) {
-          runSuggest(core, searchText, filters, dateRanges)
-        }
+      for (const core of pendingSearch) {
+        runSearch(core, 0, searchText, filters)
+      }
+      for (const core of pendingSuggest) {
+        runSuggest(core, searchText, filters)
       }
     }, SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
-    // die Kerne stehen über activeCoresKey drin, filters und dateRanges über ihre Schlüssel
+    // die Kerne stehen über activeCoresKey drin, filters über ihren Schlüssel
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchText, filtersKey, dateRangesKey, activeCoresKey, searchable, suggestable])
+  }, [searchText, filtersKey, activeCoresKey, searchable, suggestable])
 
   function keyDown(event: KeyboardEvent<HTMLInputElement>) {
     // Tab loggt das erste Angebot ein, wie in der Vorlage; ohne Angebot bleibt Tab, was es ist
@@ -287,34 +362,34 @@ export function Search() {
     }
   }
 
-  const coreToggles = (
-    <span className="search-core-toggles">
-      {cores.length > 1 && (
-        <button
-          type="button"
-          className={allActive ? 'search-core-toggle active' : 'search-core-toggle'}
-          aria-pressed={allActive}
-          onClick={() => chooseCores(allActive ? [] : cores.map((core) => core.key))}
-        >
-          {t('search.allCores')}
-        </button>
-      )}
-      {cores.map((core) => {
-        const active = activeCoreKeys.includes(core.key)
-        return (
-          <button
-            key={core.key}
-            type="button"
-            className={active ? 'search-core-toggle active' : 'search-core-toggle'}
-            aria-pressed={active}
-            onClick={() => toggleCore(core.key)}
-          >
-            {t(`search.cores.${core.labelKey}`)}
-          </button>
-        )
-      })}
-    </span>
-  )
+  // Die Kernschalter im subheader wie die Kernreiter der Vorlage: keine Seiten, sondern Filter, welche Kerne suchen.
+  // „alle Kerne“ leuchtet nur, wenn wirklich keiner fehlt. Ein Kern ohne Such-Rolle ist gesperrt, nicht versteckt:
+  // Man soll sehen, was es gäbe. Gesperrte Knöpfe sind eine Bequemlichkeit, keine Sicherung, das Tor ist das Backend.
+  const coreToggles: SubheaderToggle[] = [
+    {
+      key: 'all',
+      label: t('search.allCores'),
+      active: allActive,
+      disabled: cores.length === 0,
+      onClick: () => chooseCores(allActive ? [] : cores.map((core) => core.key)),
+    },
+  ]
+  for (const core of SEARCH_CORES) {
+    const allowed = cores.some((candidate) => candidate.key === core.key)
+    // Name, Symbol und Farbe des Kerns aus den Stammdaten (look des Kerns), wie die Kernfarbe der Vorlage
+    const solrCore = solrCoreOfKey(solrCores, core.key)
+    coreToggles.push({
+      key: core.key,
+      label: (solrCore ? translate(solrCore.displayName, language) : '') || t(`search.cores.${core.labelKey}`),
+      symbol: solrCore?.look.symbol ?? undefined,
+      color: solrCoreMainColor(solrCore),
+      textColor: solrCoreTextColor(solrCore),
+      active: allowed && activeCoreKeys.includes(core.key),
+      disabled: !allowed,
+      hint: allowed ? undefined : t('search.missingRole', { role: core.searchAccessRoleKey }),
+      onClick: () => toggleCore(core.key),
+    })
+  }
 
   let inputHint: string | null = null
   if (tooManyWords) {
@@ -331,25 +406,17 @@ export function Search() {
             <Icon name="search" /> {t('search.title')}
           </>
         }
+        toggles={coreToggles}
         sticky
       />
       <div className="main-content">
-        <ContentBox title={t('search.title')} actions={coreToggles}>
+        <ContentBox title={t('search.title')}>
           {cores.length === 0 ? (
             <p className="mb-0">{t('search.noCores')}</p>
           ) : (
             <div className="d-flex flex-column gap-3">
               <p className="form-text mb-0">{t('search.intro')}</p>
-              <SearchFilterEditor
-                cores={activeCores}
-                filters={filters}
-                dateRanges={dateRanges}
-                onAddFilter={addFilter}
-                onRemoveFilter={removeFilter}
-                onAddDateRange={addDateRange}
-                onRemoveDateRange={removeDateRange}
-                language={language}
-              />
+              <SearchFilterChips filters={filters} onRemove={removeFilter} language={language} />
               <SearchSuggestions offers={visibleOffers} language={language} onPick={pickOffer} />
               <div className="d-flex align-items-center gap-2">
                 <input
@@ -389,10 +456,12 @@ export function Search() {
             <SearchCoreResults
               key={core.key}
               core={core}
+              solrCore={solrCoreOfKey(solrCores, core.key)}
               result={resultByCore[core.key] ?? null}
               errorMessage={errorByCore[core.key] ?? null}
               busy={running > 0}
-              onPage={(page) => runSearch(core, page, searchText, filters, dateRanges)}
+              origin={originState}
+              onPage={(page) => runSearch(core, page, searchText, filters)}
               onFilter={addFilter}
             />
           ))}
@@ -403,17 +472,29 @@ export function Search() {
 
 interface SearchCoreResultsProps {
   core: SearchCore
+  /** der Kern aus den Stammdaten, für Emblem und Farbe; null, solange sie laden */
+  solrCore: SolrCore | null
   result: SearchResultPage | null
   errorMessage: string | null
   busy: boolean
+  /** woher man kommt, mit dem Stand der Suche in der Adresse */
+  origin: OriginState
   onPage: (page: number) => void
   onFilter: (filter: SearchFilter) => void
 }
 
-/** Die Treffer eines Kerns: Titel mit Zahl, der Fehler oder Hinweis, die Liste in der Darstellung des Kerns, unten das Blättern */
-function SearchCoreResults({ core, result, errorMessage, busy, onPage, onFilter }: SearchCoreResultsProps) {
+/**
+ * Die Treffer eines Kerns: Emblem und Zahl im Kopf, der Fehler oder Hinweis, die Liste in der Darstellung des Kerns in
+ * seiner Farbe (Marken des Treffergrunds, Rand der Treffer), unten das Blättern.
+ */
+function SearchCoreResults({ core, solrCore, result, errorMessage, busy, origin, onPage, onFilter }: SearchCoreResultsProps) {
   const { t } = useTranslation()
-  const coreName = t(`search.cores.${core.labelKey}`)
+  const { language } = useLanguage()
+  const coreName = solrCore ? (
+    <SolrCoreEmblem solrCore={solrCore} language={language} />
+  ) : (
+    t(`search.cores.${core.labelKey}`)
+  )
   const total = result?.totalFound ?? 0
   const size = result?.size ?? 1
   const page = result?.page ?? 0
@@ -460,12 +541,21 @@ function SearchCoreResults({ core, result, errorMessage, busy, onPage, onFilter 
   } else if (result.hits.length === 0) {
     body = <p className="mb-0 text-muted">{t('resolve.empty')}</p>
   } else {
-    body = <ResultList hits={result.hits} origin={ORIGIN_STATE} onFilter={onFilter} />
+    body = <ResultList hits={result.hits} origin={origin} onFilter={onFilter} />
   }
 
+  const title = (
+    <span className="d-inline-flex align-items-center gap-2">
+      {coreName}
+      {result !== null && result.hint === null && <span className="fw-normal">{t('resolve.total', { count: total })}</span>}
+    </span>
+  )
+
   return (
-    <ContentBox title={result !== null && result.hint === null ? `${coreName} · ${t('resolve.total', { count: total })}` : coreName} footer={footer}>
-      {body}
+    <ContentBox title={title} footer={footer}>
+      <div className="search-core" style={solrCoreColorStyle(solrCore)}>
+        {body}
+      </div>
     </ContentBox>
   )
 }

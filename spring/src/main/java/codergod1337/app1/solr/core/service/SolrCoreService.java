@@ -3,8 +3,6 @@ package codergod1337.app1.solr.core.service;
 import codergod1337.app1.solr.SolrLook;
 import codergod1337.app1.solr.core.model.SolrCore;
 import codergod1337.app1.solr.core.repository.SolrCoreRepository;
-import codergod1337.app1.solr.field.model.SolrFieldReadAccessLevel;
-import codergod1337.app1.solr.field.model.SolrFieldType;
 import codergod1337.app1.solr.field.service.SolrFieldService;
 import codergod1337.app1.solr.sync.SolrDefinitionChangedEvent;
 import codergod1337.app1.system.HelperInputs;
@@ -47,9 +45,8 @@ public class SolrCoreService {
 	private final SolrCoreRepository solrCoreRepository;
 
 	/**
-	 * ZIRKELSCHLUSS: Dieser Service legt beim Anlegen eines Kerns dessen Feld id an und löscht beim Löschen alle Felder,
-	 * beides über den SolrFieldService. Der müsste umgekehrt „gibt es diesen Kern?“ hier fragen, nutzt dafür aber
-	 * ausnahmsweise direkt das SolrCoreRepository.
+	 * ZIRKELSCHLUSS: Dieser Service löscht beim Löschen eines Kerns dessen Felder über den SolrFieldService. Der müsste
+	 * umgekehrt „gibt es diesen Kern?“ hier fragen, nutzt dafür aber ausnahmsweise direkt das SolrCoreRepository.
 	 */
 	private final SolrFieldService solrFieldService;
 
@@ -75,51 +72,14 @@ public class SolrCoreService {
 		return HelperInputs.isValidKey(key) && !RESERVED_KEYS.contains(key);
 	}
 
-	/**
-	 * Beim Start: die Tabelle laden und jedem Kern seine festen Felder nachziehen, falls sie fehlen, z. B. bei Kernen,
-	 * die vor diesen Feldern angelegt wurden.
-	 */
 	@PostConstruct
 	void loadSolrCores() {
 		reloadSolrCores();
-		for (SolrCore solrCore : solrCoresByKey.values()) {
-			createBuiltInSolrFields(solrCore.getKey());
-		}
 	}
 
 	/**
-	 * Die Felder, die jeder Kern hat (SolrCore.BUILT_IN_FIELD_NAMES), angelegt mit dem Kern. Danach stehen sie in der
-	 * Tabelle wie jedes andere Feld, der SolrFieldService lässt sie aber nicht löschen und hält ihren Typ fest, bei id
-	 * auch indexed, required und multiValued. Gibt es ein Feld schon, bleibt es, wie es ist.
-	 *
-	 * id: der Primärschlüssel (uniqueKey) in Solr, String, indexed, stored, required, immer Minimum. Was hineinkommt,
-	 * schreibt der Admin in die Beschreibung. cursorDate: der Fortschrittszeiger eines Reindex-Laufs, Datum, indexed,
-	 * stored, docValues für Bereich und Sortierung. userGrantedAccess: die guids mit Dateifreigabe, string, indexed,
-	 * stored, multiValued, docValues, die Dokumentgrenze filtert danach (fq). Beide beginnen als Erweitert: Wer sie
-	 * lesen darf, entscheidet der Admin, die Liste der freigegebenen User geht niemanden sonst etwas an.
-	 */
-	private void createBuiltInSolrFields(String coreKey) {
-		// mehrsprachige Texte immer in de, en und bg
-		solrFieldService.createSolrFieldIfMissing(coreKey, SolrCore.ID_FIELD_NAME, SolrFieldType.STRING, true, true,
-				false, false, true, SolrFieldReadAccessLevel.MINIMUM_SET_EVERY_READER,
-				"{\"de\":\"Der Primärschlüssel des Dokuments, der uniqueKey des Kerns. Hier beschreiben, was hineinkommt.\","
-						+ "\"en\":\"The primary key of the document, the uniqueKey of the core. Describe here what goes in.\","
-						+ "\"bg\":\"Първичният ключ на документа, uniqueKey на ядрото. Опишете тук какво се записва.\"}");
-		solrFieldService.createSolrFieldIfMissing(coreKey, SolrCore.CURSOR_DATE_FIELD_NAME, SolrFieldType.DATE, true,
-				true, false, true, false, SolrFieldReadAccessLevel.ADVANCED_FULL_SIGHT_OR_FIELD_GRANT,
-				"{\"de\":\"Wann ein Reindex-Lauf dieses Dokument zuletzt angefasst hat, der Fortschrittszeiger eines Laufs: Er holt immer die nächsten N, deren cursorDate älter ist als sein Start. In jedem Kern, vom Backend angelegt.\","
-						+ "\"en\":\"When a reindex run last touched this document, the progress marker of a run: it always fetches the next N whose cursorDate is older than its start. In every core, created by the backend.\","
-						+ "\"bg\":\"Кога реиндексиране последно е обработило този документ, маркерът за напредък на едно изпълнение: то винаги взема следващите N, чиято cursorDate е по-стара от неговия старт. Във всяко ядро, създадено от бекенда.\"}");
-		solrFieldService.createSolrFieldIfMissing(coreKey, SolrCore.USER_GRANTED_ACCESS_FIELD_NAME,
-				SolrFieldType.STRING, true, true, true, true, false, SolrFieldReadAccessLevel.ADVANCED_FULL_SIGHT_OR_FIELD_GRANT,
-				"{\"de\":\"Die guids der User, denen dieses Dokument per Dateifreigabe geöffnet ist. Steht gleichwertig neben readAcl: Wer hier steht, kommt an das Dokument und bekommt seine Minimum-Felder. Setzt nur das Backend beim Freigeben, in jedem Kern.\","
-						+ "\"en\":\"The guids of the users who were granted this document. Equal to readAcl: whoever is listed here reaches the document and gets its minimum fields. Set only by the backend when granting, in every core.\","
-						+ "\"bg\":\"guid-ите на потребителите, на които този документ е споделен. Равностойно на readAcl: който е тук, достига документа и получава минималните му полета. Задава се само от бекенда при споделяне, във всяко ядро.\"}");
-	}
-
-	/**
-	 * Neuer Kern. 400 wenn der key ungültig ist, 409 wenn er vergeben ist. Mit dem Kern entstehen seine festen Felder
-	 * id, cursorDate und userGrantedAccess (createBuiltInSolrFields).
+	 * Neuer Kern. 400 wenn der key ungültig ist, 409 wenn er vergeben ist. Seine Felder kommen aus solr_field: die ohne
+	 * Kern hat er sofort, seine eigenen legt der Admin im Kern-Tab an oder der Initialisierer des Kerns im Code.
 	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
@@ -132,7 +92,24 @@ public class SolrCoreService {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "key ist bereits vergeben");
 		}
 		SolrCore solrCore = solrCoreRepository.save(new SolrCore(key, displayName, look, listingPosition));
-		createBuiltInSolrFields(key);
+		reloadSolrCoresAfterCommit();
+		return solrCore;
+	}
+
+	/**
+	 * Der Initialisierer eines Kerns beim Start, ohne Token, deshalb ohne @PreAuthorize: Gibt es den Kern, bleibt er,
+	 * wie der Admin ihn gestaltet hat. Sonst entsteht er mit diesen Werten.
+	 */
+	@Transactional
+	public SolrCore createSolrCoreIfMissing(String key, String displayName, SolrLook look, int listingPosition) {
+		if (!isValidSolrCoreKey(key)) {
+			throw new IllegalArgumentException("Kern-Key aus dem Code ist ungültig: " + key);
+		}
+		SolrCore existing = solrCoreRepository.findById(key).orElse(null);
+		if (existing != null) {
+			return existing;
+		}
+		SolrCore solrCore = solrCoreRepository.save(new SolrCore(key, displayName, look, listingPosition));
 		reloadSolrCoresAfterCommit();
 		return solrCore;
 	}

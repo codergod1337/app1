@@ -1,11 +1,14 @@
 import { request } from '../../api/client.ts'
+import type { LanguageCode } from '../../branding/languages.ts'
+import { translate } from '../../components/multilingual.ts'
 
-/** Unser Typkatalog (SolrFieldType.java): jeder Eintrag ist ein fieldType im Basis-Schema */
-export type SolrFieldType = 'STRING' | 'BOOLEAN' | 'LONG' | 'DOUBLE' | 'DATE' | 'TEXT_MINIMAL' | 'TEXT_WORD' | 'TEXT_WORDS'
+/** Unser Typkatalog (SolrFieldType.java): jeder Eintrag ist ein fieldType im Basis-Schema. Genau zwei Texttypen. */
+export type SolrFieldType = 'STRING' | 'BOOLEAN' | 'LONG' | 'DOUBLE' | 'DATE' | 'TEXT_EDGE' | 'TEXT_SUCHE'
 
 /**
  * Die Typen, nur der Name: Das ist ein Adminmodul, die Erklärung steht im Hoverlay der Spalte. Ganze Zahlen sind
- * immer long, es gibt kein int. suggestable: ob ein Suggest-Zwilling möglich ist (nicht bei boolean und date).
+ * immer long, es gibt kein int. suggestable: ob ein Suggest-Zwilling möglich ist, nur bei string und Zahlen; Texte
+ * brauchen keinen, text_edge ist selbst per Wortanfang suchbar.
  */
 export const SOLR_FIELD_TYPES: { type: SolrFieldType; label: string; suggestable: boolean }[] = [
   { type: 'STRING', label: 'string', suggestable: true },
@@ -13,9 +16,8 @@ export const SOLR_FIELD_TYPES: { type: SolrFieldType; label: string; suggestable
   { type: 'LONG', label: 'long', suggestable: true },
   { type: 'DOUBLE', label: 'double', suggestable: true },
   { type: 'DATE', label: 'date', suggestable: false },
-  { type: 'TEXT_MINIMAL', label: 'text_minimal', suggestable: true },
-  { type: 'TEXT_WORD', label: 'text_word', suggestable: true },
-  { type: 'TEXT_WORDS', label: 'text_words', suggestable: true },
+  { type: 'TEXT_EDGE', label: 'text_edge', suggestable: false },
+  { type: 'TEXT_SUCHE', label: 'text_suche', suggestable: false },
 ]
 
 export function isSuggestable(type: SolrFieldType): boolean {
@@ -24,23 +26,6 @@ export function isSuggestable(type: SolrFieldType): boolean {
 
 /** Die sechs Solr-Schalter, Spalten der Tabelle im Kern-Tab */
 export type SolrFieldSetting = 'indexed' | 'stored' | 'multiValued' | 'docValues' | 'required' | 'suggest'
-
-/**
- * Was am Feld id feststeht: Es ist der Primärschlüssel (uniqueKey) jedes Kerns, also string, indexed, required und nie
- * multiValued. Das Backend lehnt jede Änderung daran ab und löscht das Feld nicht. stored, docValues, Beschreibung und
- * Position sind frei wie bei jedem Feld.
- */
-export const SOLR_ID_FIELD_FIXED_SETTINGS: readonly SolrFieldSetting[] = ['indexed', 'multiValued', 'required']
-
-/**
- * Was am Feld userGrantedAccess feststeht: string, indexed, multiValued, nie required, sonst fände die Dokumentgrenze
- * nichts. Das Backend lehnt jede Änderung daran ab und löscht das Feld nicht.
- */
-export const SOLR_USER_GRANTED_ACCESS_FIELD_FIXED_SETTINGS: readonly SolrFieldSetting[] = [
-  'indexed',
-  'multiValued',
-  'required',
-]
 
 /** Die Erklärungen dazu stehen in solrFieldHints.tsx, fürs Hoverlay am Spaltenkopf */
 export const SOLR_FIELD_SETTINGS: { setting: SolrFieldSetting; label: string }[] = [
@@ -53,19 +38,11 @@ export const SOLR_FIELD_SETTINGS: { setting: SolrFieldSetting; label: string }[]
 ]
 
 /**
- * Wer ein Feld beim Lesen bekommt (SolrFieldReadAccessLevel.java). MINIMUM_SET_EVERY_READER: die Grundansicht, jeder,
- * der das Dokument sehen darf. ADVANCED_FULL_SIGHT_OR_FIELD_GRANT: nur mit Vollsicht (<KERN>_FULL oder <KERN>_SUCHE)
- * oder mit einer Feldfreigabe für diesen Kern. Nur in unserer Felddefinition, nie in Solr. Neue Felder sind Erweitert,
- * id ist immer Minimum.
- */
-export type SolrFieldReadAccessLevel = 'MINIMUM_SET_EVERY_READER' | 'ADVANCED_FULL_SIGHT_OR_FIELD_GRANT'
-
-/**
  * Wer ein Feld setzt, die Schreibregel je Feld (SolrFieldClientWriteRule.java, Vorgabe 2026-10-07).
  * CLIENT_SETS_AND_CHANGES: der Client setzt es beim Anlegen und ändert es beim Bearbeiten. CLIENT_SETS_ONCE: nur beim
  * Anlegen, danach ignoriert. BACKEND_ONLY: nie vom Client, der Schreibservice setzt es selbst. Schickt der Client ein
  * Feld, das er nicht darf, wird es ignoriert, nicht abgelehnt. Nur in unserer Felddefinition, nie in Solr. Neue Felder
- * sind BACKEND_ONLY, die eingebauten immer, und ein BACKEND_ONLY-Feld hat im Kern-Tab keinen Löschknopf.
+ * sind BACKEND_ONLY, und ein BACKEND_ONLY-Feld hat im Kern-Tab keinen Löschknopf.
  */
 export type SolrFieldClientWriteRule = 'CLIENT_SETS_AND_CHANGES' | 'CLIENT_SETS_ONCE' | 'BACKEND_ONLY'
 
@@ -87,28 +64,33 @@ export function isClientAllowedToChangeOnUpdate(rule: SolrFieldClientWriteRule):
 }
 
 /**
- * Ein normales Feld eines Kerns, wie es das Backend liefert (SolrField.java). Es gibt genau zwei Arten von
- * Solr-Feldern: Hooks, in jedem Kern gleich, und diese normalen Felder je Kern, auch id. Eindeutig ist das Paar coreKey
- * und name, die id ist nur die Zeile in der Datenbank. Gelesen wird über die Stammdaten.
+ * Ein normales Feld eines Kerns, wie es das Backend liefert (SolrField.java, neu gefasst 2026-10-09). Es gibt genau
+ * zwei Arten von Solr-Feldern: Hooks, in jedem Kern gleich, und diese normalen Felder. Der Name ist eindeutig über
+ * alle Kerne, coreKey null heißt in jedem Kern, so auch id auf Platz 1. Gelesen wird über die Stammdaten.
  */
 export interface SolrField {
   id: number
-  /** der Kern (SolrCore.key), ändert sich nie */
-  coreKey: string
-  /** der Name des Feldes in Solr, z. B. fileName, ändert sich nie */
+  /** der Kern (SolrCore.key), null heißt in jedem Kern, ändert sich nie */
+  coreKey: string | null
+  /** der Name des Feldes in Solr, z. B. fileName, eindeutig über alle Kerne, ändert sich nie */
   name: string
   type: SolrFieldType
   indexed: boolean
   stored: boolean
   multiValued: boolean
   docValues: boolean
+  /** der Client muss es beim Anlegen mitschicken, sonst lehnt das Backend ab; nur bei Feldern, die der Client setzt */
   required: boolean
   /** ein Zwilling <name>Suggested mit copyField, nicht bei jedem Typ */
   suggest: boolean
-  /** Minimum oder Erweitert: wer das Feld beim Lesen bekommt, der Umschaltknopf im Sheet */
-  readAccessLevel: SolrFieldReadAccessLevel
-  /** wer das Feld setzt, der zweite Umschaltknopf im Sheet */
+  /** die ARs, deren Inhaber das Feld lesen dürfen; leer heißt niemand außer SOLR_USERS_VIEW_ALL */
+  readAccessRoleKeys: string[]
+  /** nie zum Client, auch nicht mit SOLR_USERS_VIEW_ALL, z. B. sftpPath */
+  backendOnly: boolean
+  /** wer das Feld setzt, der Umschaltknopf im Sheet */
   clientWriteRule: SolrFieldClientWriteRule
+  /** mehrsprachiges JSON wie beim Hook: der Name, den ein User sieht; null heißt der technische Name */
+  displayName: string | null
   /** mehrsprachiges JSON: wozu das Feld da ist und welche Daten hinein gehören */
   description: string | null
   /** Reihenfolge in der Tabelle des Kerns */
@@ -118,16 +100,64 @@ export interface SolrField {
 /** Daten zum Anlegen: alles außer id, die vergibt das Backend. */
 export type SolrFieldData = Omit<SolrField, 'id'>
 
+/** Gehört das Feld zu diesem Kern: sein eigenes oder eines, das in jedem Kern liegt */
+export function isSolrFieldOfCore(solrField: Pick<SolrField, 'coreKey'>, coreKey: string): boolean {
+  return solrField.coreKey === null || solrField.coreKey === coreKey
+}
+
+/** Die Feld-ARs: nur ARs mit diesem Präfix werden als Leserecht an Feldern und Hooks angeboten (User 2026-10-09) */
+export const FIELD_READ_ACCESS_ROLE_KEY_PREFIX = 'SOLR_FIELD_'
+
+/** Die Grundmenge: Felder, die jeder User braucht, damit sich ein Dokument darstellen lässt, heißt „immer“ */
+export const EVERY_USER_ACCESS_ROLE_KEY = 'USER'
+
+/**
+ * Die ARs, die der Admin an ein Feld oder einen Hook hängen kann: USER für die Grundmenge und alle Feld-ARs mit dem
+ * Präfix SOLR_FIELD_, dazu die, die schon dranstehen, damit nichts stillschweigend verschwindet. SOLR_USERS_VIEW_ALL
+ * und SOLR_USERS_VIEW_HOOKS sind User-Rechte, keine Feld-Rechte, und werden nicht angeboten.
+ */
+export function fieldReadAccessRoleCandidates<T extends { key: string }>(
+  accessRoles: readonly T[],
+  selectedKeys: readonly string[],
+): T[] {
+  return accessRoles.filter(
+    (accessRole) =>
+      accessRole.key === EVERY_USER_ACCESS_ROLE_KEY ||
+      accessRole.key.startsWith(FIELD_READ_ACCESS_ROLE_KEY_PREFIX) ||
+      selectedKeys.includes(accessRole.key),
+  )
+}
+
+/** Der Name eines Feldes für einen User: der Anzeigename in der Sprache, sonst der technische Name (User 2026-10-07) */
+export function solrFieldLabel(solrField: Pick<SolrField, 'name' | 'displayName'>, language?: LanguageCode): string {
+  return translate(solrField.displayName, language) || solrField.name
+}
+
+/**
+ * Der Anzeigename eines Feldes, gesucht über Kern und Name in den Stammdaten, null wenn es das Feld nicht gibt oder es
+ * keinen Namen hat. Für Masken, die ein Feld nur beim Namen kennen und eine eigene Beschriftung als Rückfall haben.
+ */
+export function solrFieldDisplayNameOf(
+  solrFields: readonly SolrField[],
+  coreKey: string,
+  name: string,
+  language?: LanguageCode,
+): string | null {
+  const solrField = solrFields.find((candidate) => candidate.name === name && isSolrFieldOfCore(candidate, coreKey))
+  const label = solrField ? translate(solrField.displayName, language) : ''
+  return label === '' ? null : label
+}
+
 // ===== Endpunkte des SolrFieldAdminController. Gelesen wird über die Stammdaten (useMasterData). =====
 
 const SOLR_FIELD_ADMIN_PATH = '/api/rest/v1/admin/solr/field'
 
-/** Neues Feld. Hook-Namen und suggest an Typen ohne Zwilling lehnt das Backend ab. */
+/** Neues Feld. id, Hook-Namen, vergebene Namen und suggest an Typen ohne Zwilling lehnt das Backend ab. */
 export function createSolrField(newSolrFieldData: SolrFieldData) {
   return request<SolrField>('POST', SOLR_FIELD_ADMIN_PATH, newSolrFieldData)
 }
 
-/** Die id bestimmt das Feld. Kern und Name ändern sich nie, bei id und cursorDate auch nicht der Typ, bei id auch nicht indexed, required, multiValued. */
+/** Die id bestimmt das Feld. Kern und Name ändern sich nie, alles andere wird ersetzt. */
 export function updateSolrField(changedSolrField: SolrField) {
   return request<SolrField>('PUT', SOLR_FIELD_ADMIN_PATH, changedSolrField)
 }
@@ -137,7 +167,7 @@ export function changeSolrFieldPositions(newPositionById: Record<string, number>
   return request<SolrField[]>('POST', `${SOLR_FIELD_ADMIN_PATH}/position`, newPositionById)
 }
 
-/** Löscht das Feld aus unserer Tabelle. Die eingebauten Felder lehnt das Backend ab (409), die hat jeder Kern. Der Knopf fehlt bei BACKEND_ONLY. */
+/** Löscht das Feld aus unserer Tabelle. Der Knopf fehlt bei BACKEND_ONLY, denn das Backend braucht es. */
 export function deleteSolrField(id: number) {
   return request<SolrField>('DELETE', SOLR_FIELD_ADMIN_PATH, { id })
 }

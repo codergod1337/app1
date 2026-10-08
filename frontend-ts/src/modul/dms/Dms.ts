@@ -5,14 +5,22 @@ import type {
   SolrHookGrantAccess,
 } from '../grant/Grant.ts'
 import type { SearchRequest, SearchResultPage, SearchSuggestResult } from '../search/Search.ts'
+import { clearSearchResultCache } from '../search/searchResultCache.ts'
 import { SOLR_CORE_BUILT_IN_FIELD_NAMES } from '../solrmanager/SolrCore.ts'
-import { isClientAllowedToSetOnCreate, type SolrField } from '../solrmanager/SolrField.ts'
+import { isClientAllowedToSetOnCreate, solrFieldDisplayNameOf, type SolrField } from '../solrmanager/SolrField.ts'
+import type { LanguageCode } from '../../branding/languages.ts'
 
 /** Die AR, die das DMS-Modul sichtbar und den Upload erlaubt macht. Das Backend prüft dieselbe. */
 export const DMS_ACCESS_ROLE_KEY = 'DMS'
 
 /** Die AR der Suche im Kern DMS, dazu immer DMS. Ohne sie 403 vor Solr, auch für den Admin. */
 export const DMS_SEARCH_ACCESS_ROLE_KEY = 'DMS_SUCHE'
+
+/**
+ * Die AR der Internetfreigabe (User 2026-10-08): isPublic setzt und ändert nur, wer sie hat, beim Upload, beim
+ * Bearbeiten und beim Zurückladen. Ohne sie zeigen die Masken den Haken nicht, das Backend lehnt mit 403 ab.
+ */
+export const DMS_PUBLIC_ACCESS_ROLE_KEY = 'DMS_PUBLIC'
 
 /** Der Kern des DMS im SolrManager (DmsSolrDocumentFieldNames.CORE_KEY). Seine Felder aus den Stammdaten sind die Maske. */
 export const DMS_CORE_KEY = 'DMS'
@@ -71,6 +79,20 @@ export function dmsFieldInput(solrField: SolrField): DmsFieldInput {
     default:
       return 'free'
   }
+}
+
+/**
+ * Die Beschriftung eines Feldes des Kerns DMS in den Masken (User 2026-10-07): der Anzeigename aus der Felddefinition,
+ * wenn der Admin einen eingetragen hat, sonst die Beschriftung aus dem Sprachkatalog. Die Stammdaten sind null, solange
+ * sie laden, dann gilt der Rückfall.
+ */
+export function dmsFieldLabel(
+  solrFields: readonly SolrField[] | null,
+  name: string,
+  fallback: string,
+  language?: LanguageCode,
+): string {
+  return solrFieldDisplayNameOf(solrFields ?? [], DMS_CORE_KEY, name, language) ?? fallback
 }
 
 /** Bytes lesbar: 1,2 MB statt 1234567. Infobox, Trefferzeile der Suche. */
@@ -195,6 +217,8 @@ export function probeDmsUpload(file: File, document: Record<string, unknown>) {
  * onProgress meldet die gesendeten Bytes, nach 100 % arbeitet das Backend noch.
  */
 export function uploadDmsFile(file: File, document: Record<string, unknown>, onProgress?: UploadProgress) {
+  // ein Schreibvorgang: Die Treffer der Suche im Zwischenspeicher sind danach alt
+  clearSearchResultCache()
   return upload<DmsUploadResult>('/api/rest/v1/dms/upload', uploadFormData(file, document), onProgress)
 }
 
@@ -254,34 +278,13 @@ export function dmsFileDownloadUrl(id: string): string {
   return `/api/rest/v1/dms/download/${id}`
 }
 
-// ===== Endpunkt des DmsSearchController: die Suche im Kern DMS =====
+// ===== Endpunkte des DmsSearchController: die Suche im Kern DMS =====
 
 /**
- * Die Felder, nach denen die Suche im DMS exakt filtert (DmsSearchService.EXACT_FILTER_FIELD_NAMES), dazu jeder Hook
- * aus den Stammdaten. Ein Chip auf ein anderes Feld wird vom Backend überlesen, nicht abgelehnt.
+ * Die Suche: Tür DMS und DMS_SUCHE, Status ACTIVE oder ARCHIVED, alle Felder außer dem Volltext, mit Treffergrund.
+ * Filter sind Chips (Feld, Wert), die das Backend gegen seine feste Liste prüft (DmsSearchService.EXACT_FILTER_FIELD_NAMES
+ * plus Hooks), fremde überliest es.
  */
-export const DMS_SEARCH_EXACT_FILTER_FIELD_NAMES: readonly string[] = [
-  FILE_SUB_CLASS_FIELD_NAME,
-  'fileIndex',
-  'fileName',
-  VERSION_CHAIN_FIELD_NAME,
-  'fileExtension',
-  'mimeType',
-  DOCUMENT_LANGUAGE_FIELD_NAME,
-  'uploader',
-  STATUS_FIELD_NAME,
-  'isPublic',
-  'id',
-]
-
-/** Die Datumsfelder, für die die Suche einen Zeitraum nimmt (DmsSearchService.DATE_RANGE_FILTER_FIELD_NAMES) */
-export const DMS_SEARCH_DATE_RANGE_FILTER_FIELD_NAMES: readonly string[] = [
-  'documentCreatedAt',
-  'documentUploadedAt',
-  'lastChangedAt',
-]
-
-/** Die Suche: Tür DMS und DMS_SUCHE, Status ACTIVE oder ARCHIVED, alle Felder außer dem Volltext, mit Treffergrund */
 export function searchDmsDocuments(searchRequest: SearchRequest) {
   return request<SearchResultPage>('POST', '/api/rest/v1/dms/search', searchRequest)
 }
@@ -353,12 +356,97 @@ export function getDmsSolrDocument(id: string) {
 }
 
 export function patchDmsSolrDocument(patchData: DmsSolrDocumentPatchData) {
+  clearSearchResultCache()
   return request<DmsSolrDocumentForClient>('PATCH', '/api/rest/v1/dms/solr-document', patchData)
 }
 
-/** Weiches Löschen: Status DELETED, die Datei bleibt. */
+/** Weiches Löschen: Status DELETED, die Datei bleibt. Danach sieht der User das Dokument auf keinem Weg mehr. */
 export function softDeleteDmsSolrDocument(id: string) {
-  return request<DmsSolrDocumentForClient>('DELETE', '/api/rest/v1/dms/solr-document', { id })
+  clearSearchResultCache()
+  return request<void>('DELETE', '/api/rest/v1/dms/solr-document', { id })
+}
+
+// ===== Revisionen (DmsSolrDocumentRevisionService): der Stand vor jeder Änderung durch einen Menschen =====
+
+/**
+ * Eine Zeile der Revisionsliste (DmsSolrDocumentRevisionForClient.java), allein aus dem Register in Postgres: Die
+ * Zeile ist der gesicherte Stand und zugleich die Änderung, die ihn abgelöst hat, Zeitpunkt, User und Felder gehören
+ * zu dieser Änderung, changedFieldNames sind die Felder, deren Wert sich wirklich geändert hat. Revision 0 heißt: so
+ * wurde es hochgeladen.
+ */
+export interface DmsSolrDocumentRevision {
+  revisionNo: number
+  changedAt: string
+  changedByUsersGuid: string
+  changedByUsersDisplayName: string
+  changedFieldNames: string[]
+}
+
+/** Die Revisionen eines Dokuments, neueste zuerst. 404, wenn der User das Dokument nicht sehen darf. */
+export function getDmsSolrDocumentRevisions(id: string) {
+  return request<DmsSolrDocumentRevision[]>('GET', `/api/rest/v1/dms/solr-document/${id}/revisions`)
+}
+
+/** Eine Revision als Dokument, wie das Backend es aus dem ZIP liest, mit der Feldgrenze des Users wie die Dokumentseite */
+export function getDmsSolrDocumentRevision(id: string, revisionNo: number) {
+  return request<Record<string, unknown>>('GET', `/api/rest/v1/dms/solr-document/${id}/revision/${revisionNo}`)
+}
+
+/**
+ * Zurückladen: nur id und Nummer, kein Feldwert von hier, das Backend liest sein eigenes ZIP und schreibt jedes Feld
+ * zurück. Vorher sichert es den heutigen Stand selbst als Revision. null, wenn der User das Dokument danach nicht mehr
+ * sehen darf, denn das ZIP kann alte Zugriffsrechte zurückbringen.
+ */
+export function restoreDmsSolrDocumentRevision(id: string, revisionNo: number) {
+  clearSearchResultCache()
+  return request<DmsSolrDocumentForClient | null>('POST', '/api/rest/v1/dms/solr-document/revision/restore', {
+    id,
+    revisionNo,
+  })
+}
+
+// ===== Versionskette (resolveDmsVersionChainForClient): der Fahrplan und die neue Fassung =====
+
+/**
+ * Die Versionskette: alle Fassungen, die der User sehen darf, mit seiner Feldgrenze, aufsteigend nach version, wenn er
+ * das Feld lesen darf. Leer, wenn es die Kette nicht gibt oder er nichts davon sieht.
+ */
+export function getDmsVersionChain(versionChain: string) {
+  return request<Record<string, unknown>[]>('GET', `/api/rest/v1/dms/version-chain/${versionChain}`)
+}
+
+/** Die Nummer der Fassung als Zahl, 0 wenn das Feld fehlt oder der User es nicht lesen darf */
+export function dmsVersionOf(document: Record<string, unknown>): number {
+  const version = document.version
+  return typeof version === 'number' ? version : 0
+}
+
+/** Der Kopf einer Kette: die ACTIVE-Fassung mit der höchsten Nummer, ohne ACTIVE die höchste; null bei leerer Kette */
+export function dmsVersionChainHead(members: readonly Record<string, unknown>[]): Record<string, unknown> | null {
+  let head: Record<string, unknown> | null = null
+  for (const member of members) {
+    if (head === null) {
+      head = member
+      continue
+    }
+    const headActive = head[STATUS_FIELD_NAME] === DMS_STATE_ACTIVE
+    const memberActive = member[STATUS_FIELD_NAME] === DMS_STATE_ACTIVE
+    if (memberActive !== headActive) {
+      if (memberActive) {
+        head = member
+      }
+      continue
+    }
+    if (dmsVersionOf(member) > dmsVersionOf(head)) {
+      head = member
+    }
+  }
+  return head
+}
+
+/** Der feste Verweis auf eine Datei über ihre Kette: landet immer bei der geltenden Fassung, auch nach neuen Fassungen */
+export function dmsVersionChainPath(versionChain: string): string {
+  return `/dms/version-chain/${versionChain}`
 }
 
 /** Die Seiten eines Dokuments: Details, Bearbeiten, Viewer. In der URL steht nur die id. */
@@ -370,8 +458,9 @@ export function dmsSolrDocumentEditPath(id: string): string {
   return `/dms/solr-document/${id}/edit`
 }
 
+/** Der Viewer liegt außerhalb des DMS-Moduls, ohne dessen Tabs, die Datei bekommt die ganze Fläche */
 export function dmsSolrDocumentViewerPath(id: string): string {
-  return `/dms/solr-document/${id}/viewer`
+  return `/dms/viewer/${id}`
 }
 
 /** Der Status, den das weiche Löschen setzt (DmsStateService.DELETED) */

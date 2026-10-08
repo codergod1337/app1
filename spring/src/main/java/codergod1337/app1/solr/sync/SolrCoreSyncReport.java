@@ -15,20 +15,23 @@ import java.util.List;
  * @param copyFieldsAdded per add-copy-field angelegt, „quelle → ziel“
  * @param onlyInSolr in Solr, aber nicht in Postgres: nur gemeldet, nie gelöscht
  * @param typeConflicts anderer Typ in Solr als in Postgres: nur gemeldet, eine Typänderung heißt Neuaufbau
+ * @param maxBooleanClauses die Klauselgrenze des Kerns nach dem Abgleich (query.maxBooleanClauses), 0 wenn nicht gelesen
+ * @param maxBooleanClausesChanged true: der Abgleich hat sie gerade über die Config-API gesetzt
  * @param error null, wenn der Abgleich durchlief
  */
 public record SolrCoreSyncReport(String coreKey, boolean solrReachable, boolean coreExists, int fieldsInSolr,
 		List<String> added, List<String> replaced, List<String> copyFieldsAdded, List<String> onlyInSolr,
-		List<String> typeConflicts, String error, Instant syncedAt, long durationMs) {
+		List<String> typeConflicts, int maxBooleanClauses, boolean maxBooleanClausesChanged, String error,
+		Instant syncedAt, long durationMs) {
 
 	static SolrCoreSyncReport failed(String coreKey, String error, long durationMs) {
-		return new SolrCoreSyncReport(coreKey, false, false, 0, List.of(), List.of(), List.of(), List.of(), List.of(),
-				error, Instant.now(), durationMs);
+		return new SolrCoreSyncReport(coreKey, false, false, 0, List.of(), List.of(), List.of(), List.of(), List.of(), 0,
+				false, error, Instant.now(), durationMs);
 	}
 
 	static SolrCoreSyncReport missingCore(String coreKey, long durationMs) {
-		return new SolrCoreSyncReport(coreKey, true, false, 0, List.of(), List.of(), List.of(), List.of(), List.of(),
-				null, Instant.now(), durationMs);
+		return new SolrCoreSyncReport(coreKey, true, false, 0, List.of(), List.of(), List.of(), List.of(), List.of(), 0,
+				false, null, Instant.now(), durationMs);
 	}
 
 }

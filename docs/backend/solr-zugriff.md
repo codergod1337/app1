@@ -11,13 +11,13 @@ Genau ein Client-Halter, `codergod1337.app1.solr.client.SolrClientRegistry`. Zwe
 | Klasse | Was | Prüfung |
 |---|---|---|
 | `codergod1337.app1.solr.document.service.SolrDocumentService` | die rohe Schicht für Dokumente: `queryDocumentsPage`, `writeNewDocument`, `atomicUpdateDocument`, `atomicUpdateManyDocuments`. Rufen dürfen sie nur die Services je Kern, die unten stehen | keine, mit Absicht |
-| `codergod1337.app1.solr.sync.SolrSchemaSyncService` | nur Schema-API, nie Dokumente, beim Start und auf `POST /api/rest/v1/admin/solr/sync` | ADMIN |
+| `codergod1337.app1.solr.sync.SolrSchemaSyncService` | nur Schema-API und Config-API (Felder, Zwillinge, copyFields, `query.maxBooleanClauses`), nie Dokumente, beim Start und auf `POST /api/rest/v1/admin/solr/sync` | ADMIN |
 
 Kein hartes Löschen. Gelöscht wird weich über den Status des Kerns. Es gibt keinen gemeinsamen Lese- oder Schreibservice für alle Kerne: Jeder Kern baut seine Abfragen und Updates selbst. Kernunabhängig sind nur die Rechterechnung aus dem Token, `codergod1337.app1.solr.access.service.SolrCurrentUserCoreAccessService`, und die Zerlegung des Suchtexts, `codergod1337.app1.solr.document.model.SolrSearchText` (`+` Pflicht, `-` Ausschluss, alles andere escaped, höchstens sechs Wörter); beide sprechen nie mit Solr.
 
 ## Kern DMS
 
-Kern-Key `DMS`, Rollen `DMS`, `DMS_FULL`, `DMS_SUCHE`, dazu `HOOK_FULL`. Dokumentgrenze: readAcl oder userGrantedAccess. Die Feldnamen, mit denen das Backend rechnet, stehen in `codergod1337.app1.dms.model.DmsSolrDocumentFieldNames`. Die Formprüfung macht `codergod1337.app1.dms.service.DmsSolrDocumentChecker` gegen die Felddefinition des Kerns DMS, ohne Solr.
+Kern-Key `DMS`, Rollen `DMS`, `DMS_FULL`, `DMS_SUCHE`, dazu `HOOK_FULL`. Dokumentgrenze: readAcl oder userGrantedAccess. Statusgrenze (User 2026-10-08): jede User-Abfrage trägt `status:(ACTIVE OR ARCHIVED)` (`DmsStateService.VISIBLE_STATUS_FILTER_QUERY`), lesend wie beim Schreibcheck, auch beim Auflösen über die Versionskette; ein gelöschtes Dokument gibt es für User auf keinem Weg. Nur der Existenzcheck läuft ohne. DELETED und PENDING_ADMIN sieht der Admin im DMS-Manager. Die Feldnamen, mit denen das Backend rechnet, stehen in `codergod1337.app1.dms.model.DmsSolrDocumentFieldNames`. Die Formprüfung macht `codergod1337.app1.dms.service.DmsSolrDocumentChecker` gegen die Felddefinition des Kerns DMS, ohne Solr.
 
 ### Lesen, drei Services
 
@@ -30,7 +30,11 @@ Kern-Key `DMS`, Rollen `DMS`, `DMS_FULL`, `DMS_SUCHE`, dazu `HOOK_FULL`. Dokumen
 | Antwort des Uploads | `…loadDmsSolrDocumentForUploadAnswer` | in `POST /dms/upload` | DMS | Lese-fq | Feldgrenze, null wenn unsichtbar |
 | Download | `…loadDmsSolrDocumentFieldsForDownload` | `GET /dms/download/{id}` | DMS | Lese-fq | sftpPath, fileName, mimeType, fileSizeBytes, nie zum Client |
 | Vor dem Schreiben, der Schreibcheck | `…loadDmsSolrDocumentFieldsForWrite` | intern | DMS | allein writeAcl | genannte Felder |
+| Vor einem revisionierten Schreiben | `…loadWholeDmsSolrDocumentForWrite` | intern | DMS | allein writeAcl | alle stored fields, der Stand fürs ZIP und für den Vergleich, was sich wirklich ändert, nie zum Client |
+| Revisionsliste | `codergod1337.app1.dms.service.DmsSolrDocumentRevisionService.loadDmsSolrDocumentRevisions` | `GET /dms/solr-document/{id}/revisions` | DMS, Tor ist die Dokumentseite (Lese-fq) | nur das Tor | das Register aus Postgres, kein ZIP |
+| Eine Revision | `…DmsSolrDocumentRevisionService.loadDmsSolrDocumentRevision` | `GET /dms/solr-document/{id}/revision/{revisionNo}` | DMS, dasselbe Tor | nur das Tor | `document.json` aus dem ZIP, auf die Feldgrenze des Users geschnitten |
 | Glieder einer Kette | `…loadDmsVersionChainMembers` | intern, neue Fassung und Dateiartwechsel | DMS | Lese-fq, Bedingung versionChain vom Backend | version, status, Dateiart |
+| Versionskette für den Client | `…resolveDmsVersionChainForClient` | `GET /dms/version-chain/{versionChain}` | DMS, keine Such-Rolle, ein Auflösen | Lese-fq, Bedingung versionChain vom Backend | Feldgrenze plus `_version_` als Text, aufsteigend nach version, wenn der User das Feld lesen darf; der Fahrplan und die Maske der neuen Fassung |
 | Meine Freigaben | `…resolveDmsSolrDocumentsPageForMyGrants` | `POST /dms/my-grants/documents` | DMS | Lese-fq, Bedingung eigene guid vom Backend | Feldgrenze |
 | ids vor einem Update vieler | `…resolveWritableDmsSolrDocumentIdsAmong` | intern | DMS | allein writeAcl | nur ids |
 | Kontrollblick | `…loadGranteesOfDmsSolrDocument` | `GET /dms/solr-document/{id}/grants` | ADMIN | Lese-fq | userGrantedAccess |
@@ -42,19 +46,31 @@ Kern-Key `DMS`, Rollen `DMS`, `DMS_FULL`, `DMS_SUCHE`, dazu `HOOK_FULL`. Dokumen
 
 ### Schreiben, ein Service
 
-Alle über `codergod1337.app1.dms.service.DmsSolrDocumentWriteService`, je Vorgang eine Methode, Enum `codergod1337.app1.dms.model.DmsSolrDocumentWriteProcess`, der Name steht mit current user, id und Feldnamen im Log. Jeder Vorgang eines Menschen: changingUsers ADD, lastChangedAt SET. readAcl und writeAcl genau dann, wenn fileSubClassKey geschrieben wird, aus der Dateiart in Postgres. `_version_` geht nie mit. Felder des Clients laufen durch die Schreibregel je Feld (`solr_field.clientWriteRule`), was er nicht darf, wird ignoriert.
+Alle über `codergod1337.app1.dms.service.DmsSolrDocumentWriteService`, je Vorgang eine Methode, Enum `codergod1337.app1.dms.model.DmsSolrDocumentWriteProcess`, der Name steht mit current user, id und Feldnamen im Log. Jeder Vorgang eines Menschen: changingUsers ADD, lastChangedAt SET. readAcl und writeAcl genau dann, wenn fileSubClassKey geschrieben wird, aus der Dateiart in Postgres. `_version_` geht nie mit. Felder des Clients laufen durch die Schreibregel je Feld (`solr_field.clientWriteRule`), was er nicht darf, wird ignoriert. Die Internetfreigabe `isPublic` setzt und ändert nur, wer die AR `DMS_PUBLIC` hat (User 2026-10-08): beim Anlegen ist `true` ohne die Rolle 403, beim Bearbeiten jede Änderung, beim Zurückladen bleibt das Feld ohne die Rolle, wie es heute ist. Ob ein Vorgang revisioniert wird (Spalte „Revision“), steht am Enum-Wert, beide Update-Methoden fragen ihn: Nur Änderungen, die gegen den Stand davor wirklich etwas ändern, bleiben (der Stempel changingUsers und lastChangedAt zählt nicht; bleibt nichts, wird weder gesichert noch geschrieben), davor der ganze Stand als ZIP mit genau diesen Feldnamen im Register, fileIdRevisionNo INC im selben Update.
 
-| Vorgang | Methode | Endpunkt | Prüfung davor | Geschrieben |
-|---|---|---|---|---|
-| Upload neu | `createDmsSolrDocumentFromUpload` | `POST /dms/upload` | Existenzcheck leer, Dateiart Pflicht, Endung freigeschaltet, Schreibrolle der Dateiart | volles Dokument, ACLs aus der Dateiart, versionChain neu, version 1 |
-| Merge | `mergeHookValuesFromRepeatedUpload` | `POST /dms/upload` | gleiche Dateiart, Status ACTIVE oder ARCHIVED, writeAcl, passende versionChain und fileIndex | Hooks ADD, Beschreibung je Sprache angehängt, nur wenn etwas dazukam |
-| Neue Fassung | `createNextVersionInVersionChain` | `POST /dms/upload` mit versionChain | Kette sichtbar, Dateiart vom Kopf, Endung, Schreibrolle | volles Dokument mit version plus eins; dann je ACTIVE-Glied status SET ARCHIVED (`DMS_NEW_VERSION_ARCHIVE_PREVIOUS`) |
-| Bearbeiten | `editDmsSolrDocument` | `PATCH /dms/solr-document` | writeAcl, Regeln je Feld | nur die geschickten Felder; bei Dateiartwechsel fileSubClassKey SET und ACLs SET_ALL, auch in jedem anderen Glied der Kette (`DMS_EDIT_FILE_SUB_CLASS_OF_CHAIN`) |
-| Soft-Delete | `softDeleteDmsSolrDocument` | `DELETE /dms/solr-document` | writeAcl | status SET DELETED |
-| Freigabe setzen | `addGranteeToDmsSolrDocuments` | in `POST /admin/dms/grant/document` | ADMIN, ids noch einmal gegen writeAcl | userGrantedAccess ADD guid |
-| Entzug, Ablauf | `removeGranteeFromDmsSolrDocuments` | in `DELETE` und `POST …/expire` | ADMIN, ids noch einmal gegen writeAcl | userGrantedAccess REMOVE guid. Was der current user nicht schreiben darf, behält die guid, steht im Log |
+| Vorgang | Methode | Endpunkt | Prüfung davor | Geschrieben | Revision |
+|---|---|---|---|---|---|
+| Upload neu | `createDmsSolrDocumentFromUpload` | `POST /dms/upload` | Existenzcheck leer, Dateiart Pflicht, Endung freigeschaltet, Schreibrolle der Dateiart | volles Dokument, ACLs aus der Dateiart, versionChain neu, version 1, fileIdRevisionNo 0 | nein, kein Vorzustand |
+| Merge | `mergeHookValuesFromRepeatedUpload` | `POST /dms/upload` | gleiche Dateiart, Status ACTIVE oder ARCHIVED, writeAcl, passende versionChain und fileIndex | Hooks ADD, Beschreibung je Sprache angehängt, nur wenn etwas dazukam | ja |
+| Neue Fassung | `createNextVersionInVersionChain` | `POST /dms/upload` mit versionChain im JSON, ein Parameter des Uploads, kein Feld des Clients | Kette sichtbar, Dateiart vom Kopf (schon in der Vorarbeit des Uploads, damit die Endungsprüfung dagegen läuft), Endung, Schreibrolle, jedes sichtbare ACTIVE-Glied schreibbar (sonst 403, bevor etwas geschrieben ist); dieselben Bytes sind EXISTS, kein Merge, eine neue Fassung braucht neue Bytes (User 2026-10-08) | volles Dokument mit version plus eins; dann je ACTIVE-Glied status SET ARCHIVED (`DMS_NEW_VERSION_ARCHIVE_PREVIOUS`) | Anlegen nein, Archivieren je Glied ja |
+| Bearbeiten | `editDmsSolrDocument` | `PATCH /dms/solr-document` | writeAcl, Regeln je Feld | nur die geschickten Felder; bei Dateiartwechsel fileSubClassKey SET und ACLs SET_ALL, auch in jedem anderen Glied der Kette (`DMS_EDIT_FILE_SUB_CLASS_OF_CHAIN`, je Glied einzeln) | ja, je Glied eigenes ZIP |
+| Soft-Delete | `softDeleteDmsSolrDocument` | `DELETE /dms/solr-document` | writeAcl | status SET DELETED, danach für User unsichtbar, keine Antwort | ja |
+| Zurückladen | `restoreDmsSolrDocumentRevision` | `POST /dms/solr-document/revision/restore`, Body `{id, revisionNo}` | writeAcl, Revision im Register (404 sonst) | jedes Feld aus dem ZIP wörtlich, SET oder SET_ALL, ein heute vorhandenes Feld ohne Wert im ZIP raus; nicht id, `_version_`, fileIdRevisionNo; changingUsers aus dem ZIP plus Wiederhersteller am Ende, lastChangedAt jetzt; unbekannte Felder übersprungen und geloggt. Antwort null, wenn der User das Dokument danach nicht mehr sehen darf | ja, der heutige Stand davor |
+| Download-Zähler | `countDownloadOfDmsSolrDocument` | nach `GET /dms/download/{id}`, auch der Viewer | die Leseprüfung des Downloads, kein writeAcl-Check: wer lesen darf, lädt | downloadCount INC 1, ohne changingUsers und lastChangedAt; scheitert Solr, nur ein Log, die Bytes sind schon beim Client | nein, Buchhaltung |
+| Freigabe setzen | `addGranteeToDmsSolrDocuments` | in `POST /admin/dms/grant/document` | ADMIN, ids noch einmal gegen writeAcl | userGrantedAccess ADD guid | nein, eigenes Register |
+| Entzug, Ablauf | `removeGranteeFromDmsSolrDocuments` | in `DELETE` und `POST …/expire` | ADMIN, ids noch einmal gegen writeAcl | userGrantedAccess REMOVE guid. Was der current user nicht schreiben darf, behält die guid, steht im Log | nein |
 
 Nicht geschrieben wird je: ein vorhandenes Dokument voll neu, sftpPath, fileSizeBytes, versionChain nach dem Anlegen, `_version_`.
+
+### Revision
+
+`codergod1337.app1.dms.service.DmsSolrDocumentRevisionService` (gebaut 2026-10-08 nach dem DmsRevisionService der Vorlage) schreibt nie in Solr: Er sichert den Stand vor einem revisionierten Schreiben, liest Sicherungen zurück und räumt sie weg. Der Schreibservice ruft ihn, nie umgekehrt.
+
+- ZIP auf dem SFTP unter `dmsBackup/JJJJ/MM/TT[_n]/<id>_<revisionNo>.zip` (Tagesordner wie bei den Dateien, `SftpPathService.relativePathForFileName`): `document.json` mit jedem stored field des Stands davor, auch Volltext und Vorschaubild, ohne `_version_`; `manifest.json` mit Dokument-id, Nummer, User, Zeitpunkt und den geänderten Feldern. Zeitpunkte als ISO-8601-Text.
+- Register `dms_solr_document_revision` (`codergod1337.app1.dms.model.DmsSolrDocumentRevision`): documentId, revisionNo, backupPath, changedByUsersGuid, changedAt, changedFieldNames (nur Felder, deren Wert sich wirklich geändert hat, ohne Stempel), UNIQUE auf (documentId, revisionNo). Die Zeile ist das Register, das ZIP die Wahrheit. Die Nummer ist die des gesicherten Stands, 0 heißt: so hochgeladen. Kein `_version_` (User 2026-10-08, es sagt nichts).
+- Reihenfolge: ZIP, Registerzeile (gleiche Nummer ersetzt), Solr. Scheitert das ZIP, scheitert die Änderung. `_version_` lässt sich nie zurücksetzen, Solr vergibt es bei jedem Schreiben selbst, ein mitgeschickter Wert wäre eine Bedingung (409), beim Zurückladen wird es ignoriert.
+- Lesen: Liste und eine Revision, Tor ist die Dokumentseite (Lese-fq am Dokument), die ACLs im ZIP sind Daten, nie eine Erlaubnis; die Revision kommt auf die Feldgrenze des Users geschnitten.
+- `deleteAllRevisionsOfDocument` räumt ZIPs und Zeilen weg, für das endgültige Löschen, das es noch nicht gibt.
 
 ### Dateifreigabe des DMS
 
@@ -74,5 +90,5 @@ Nicht geschrieben wird je: ein vorhandenes Dokument voll neu, sftpPath, fileSize
 - Keine Admin-Suche (User 2026-10-07); später ein eng abgegrenztes Admin-Auflösen ohne Rechteprüfung, nur für konkrete Werte.
 - System-User mit Default in der Schreib-ACL jeder Dateiart, Ablauf der Freigaben als Systemjob, öffentlicher Gast-Upload mit festem Service-Account.
 - Durchläufe über viele Dokumente (Reindex, ACL-Nachzug nach geänderter Dateiart, Ketten-Reparatur) als Backend-Prozess mit Statusmonitor.
-- Revision als ZIP vor jedem Bearbeiten, mit `_version_` vorher und nachher, dann fileIdRevisionNo INC.
+- Endgültiges Löschen eines Dokuments (Admin), räumt seine Revisionen mit weg.
 - Kern ARTIKEL: drei eigene Lese-Services, ein Schreibservice, ein Freigabe-Service, derselbe Aufbau.

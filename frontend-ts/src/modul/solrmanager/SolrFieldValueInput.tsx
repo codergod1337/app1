@@ -75,7 +75,7 @@ export function SolrFieldValueInput({ id, solrField, value, onChange, disabled =
           onChange={(event) => change(event.target.value)}
         />
       )
-    case 'TEXT_WORDS':
+    case 'TEXT_SUCHE':
       return (
         <textarea
           id={id}

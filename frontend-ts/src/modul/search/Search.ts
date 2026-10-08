@@ -52,10 +52,19 @@ export interface SearchRequest {
 /** Warum ein Kern nichts gefragt hat (DmsSearchHint.java), die Maske übersetzt */
 export type SearchHint = 'NO_SEARCH_WORD_AND_NO_FILTER' | 'TOO_MANY_SEARCH_WORDS'
 
-/** Ein Treffer (DmsSearchHit.java): das Dokument und je Feld die Wörter, die darin trafen, klein geschrieben */
+/**
+ * Warum ein Dokument ein Treffer ist (DmsSearchHitReason.java), nach dem Treffergrund der Vorlage: das Feld und sein
+ * Wert mit den Fundstellen in STX und ETX; snippet null beim Volltext, der nie zum Client geht, dann steht nur das Feld.
+ */
+export interface SearchHitReason {
+  fieldName: string
+  snippet: string | null
+}
+
+/** Ein Treffer (DmsSearchHit.java): das Dokument und sein Treffergrund, Anfangstreffer zuerst, dann Filter, zuletzt der Volltext */
 export interface SearchHit {
   document: Record<string, unknown>
-  matchedWordsByFieldName: Record<string, string[]>
+  reasons: SearchHitReason[]
 }
 
 /** Eine Trefferseite eines Kerns (DmsSearchResultPage.java), auch leer, nie ein Fehler */
@@ -171,4 +180,40 @@ export function searchRequestOf(
 /** Zwei Chips sind derselbe Filter, wenn Feld und Wert gleich sind */
 export function isSameSearchFilter(a: SearchFilter, b: SearchFilter): boolean {
   return a.fieldName === b.fieldName && a.value === b.value
+}
+
+// ===== Der Zustand der Suche in der Adresse (User 2026-10-07): Suchwörter und Chips, damit Zurück aus einem Treffer sie wiederherstellt =====
+
+/** Die Suchwörter: /search?q=4711 */
+export const SEARCH_TEXT_PARAM = 'q'
+
+/** Je Chip ein f=feld:wert, mehrere in Reihenfolge; der erste Doppelpunkt trennt, ein Feldname hat keinen */
+export const SEARCH_FILTER_PARAM = 'f'
+
+/** Suchwörter und Chips als Adressparameter, leer bleibt weg */
+export function searchParamsOf(searchText: string, filters: readonly SearchFilter[]): URLSearchParams {
+  const params = new URLSearchParams()
+  if (searchText !== '') {
+    params.set(SEARCH_TEXT_PARAM, searchText)
+  }
+  for (const filter of filters) {
+    params.append(SEARCH_FILTER_PARAM, `${filter.fieldName}:${filter.value}`)
+  }
+  return params
+}
+
+/** Die Chips aus den Adressparametern, Unbrauchbares und Doppeltes fällt weg. Die Beschriftung einer Dateiart holt die Anzeige aus den Stammdaten. */
+export function searchFiltersOfParams(params: URLSearchParams): SearchFilter[] {
+  const filters: SearchFilter[] = []
+  for (const entry of params.getAll(SEARCH_FILTER_PARAM)) {
+    const colon = entry.indexOf(':')
+    if (colon <= 0 || colon === entry.length - 1) {
+      continue
+    }
+    const filter = { fieldName: entry.slice(0, colon), value: entry.slice(colon + 1) }
+    if (!filters.some((existing) => isSameSearchFilter(existing, filter))) {
+      filters.push(filter)
+    }
+  }
+  return filters
 }

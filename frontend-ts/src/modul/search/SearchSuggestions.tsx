@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
+import { solrCoreColorStyle, solrCoreOfKey } from '../solrmanager/SolrCore.ts'
 import { SolrHookChip } from '../solrmanager/SolrHookChip.tsx'
 import type { SearchCoreFilterOffer, SearchFilterOffer } from './Search.ts'
 
@@ -20,7 +21,7 @@ interface SearchSuggestionsProps {
  */
 export function SearchSuggestions({ offers, language, onPick }: SearchSuggestionsProps) {
   const { t } = useTranslation()
-  const { solrHooks, fileSubClasses } = useMasterData()
+  const { solrHooks, fileSubClasses, solrCores } = useMasterData()
 
   if (offers.length === 0) {
     return null
@@ -37,11 +38,14 @@ export function SearchSuggestions({ offers, language, onPick }: SearchSuggestion
         }
         const fileSubClass = offer.label === null ? undefined : fileSubClasses?.find((candidate) => candidate.key === offer.label)
         const extra = fileSubClass ? translate(fileSubClass.displayName, language) || fileSubClass.key : offer.label
+        // ein Feld des Kerns: die Pille trägt die Farbe des Kerns, aus dem das Angebot kommt
+        const solrCore = solrCoreOfKey(solrCores, coreKey)
         return (
           <button
             key={key}
             type="button"
-            className="search-filter-chip search-offer"
+            className={solrCore ? 'search-filter-chip search-filter-chip-core search-offer' : 'search-filter-chip search-offer'}
+            style={solrCore ? solrCoreColorStyle(solrCore) : undefined}
             aria-label={t('search.filters.addValue', { field: offer.fieldName, value: offer.value })}
             onClick={() => onPick(offer)}
           >

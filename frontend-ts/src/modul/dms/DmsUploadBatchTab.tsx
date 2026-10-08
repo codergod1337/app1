@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { ContentBox } from '../../components/ContentBox.tsx'
@@ -9,23 +10,33 @@ import { Icon } from '../../components/Icon.tsx'
 import { useLanguage } from '../../components/languageContext.ts'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { MultilingualInput } from '../../components/MultilingualInput.tsx'
+import { useOrigin } from '../../components/Origin.ts'
 import { fileSha256Hex } from '../../components/sha256Hex.ts'
 import { Table, type TableColumn } from '../../components/Table.tsx'
 import { showToast, updateToast } from '../../components/toastStore.ts'
 import { FileSubClassPicker } from '../filesubclass/FileSubClassPicker.tsx'
 import { FileSubClassSymbol } from '../filesubclass/FileSubClassSymbol.tsx'
+import { useSession } from '../login/sessionContext.ts'
+import { solrHookValuesOf } from '../solrmanager/SolrHook.ts'
 import { SolrHookFields, type SolrHookValuesByKey } from '../solrmanager/SolrHookFields.tsx'
 import {
+  DMS_PUBLIC_ACCESS_ROLE_KEY,
   DOCUMENT_LANGUAGE_FIELD_NAME,
+  dmsSolrDocumentPath,
+  dmsVersionChainHead,
+  dmsVersionOf,
   FILE_SUB_CLASS_FIELD_NAME,
   fileExtensionOf,
   getDmsExistence,
+  getDmsVersionChain,
   uploadDmsFile,
+  VERSION_CHAIN_FIELD_NAME,
   type DmsExistence,
   type DmsUploadStatus,
 } from './Dms.ts'
 import { documentLanguageAppliesToFileExtension } from './DmsDocumentLanguage.ts'
 import { DmsDocumentLanguagePicker } from './DmsDocumentLanguagePicker.tsx'
+import { useDmsUploadPrefill } from './DmsUploadPrefill.ts'
 
 /** So viele Dateien nimmt ein Stapel: eine Mappe ist kein Massenimport */
 const MAX_FILES = 25
@@ -59,13 +70,14 @@ interface BatchEntry {
 /**
  * Der Zustand einer Zeile, aus den Fakten der Vorprüfung und der gewählten Dateiart:
  * checking prüft noch, new geht als neues Dokument raus, merge ergänzt das vorhandene (gleiche Dateiart), exists liegt
- * unter einer anderen Dateiart, deleted ist im DMS weggeräumt, extension nimmt die Dateiart nicht an, error konnte
- * nicht geprüft werden und geht trotzdem raus, das Backend entscheidet.
+ * unter einer anderen Dateiart, sameBytes liegt schon im DMS und soll eine neue Fassung werden (die braucht neue Bytes),
+ * deleted ist im DMS weggeräumt, extension nimmt die Dateiart nicht an, error konnte nicht geprüft werden und geht
+ * trotzdem raus, das Backend entscheidet.
  */
-type EntryStatus = 'checking' | 'new' | 'merge' | 'exists' | 'deleted' | 'extension' | 'error'
+type EntryStatus = 'checking' | 'new' | 'merge' | 'exists' | 'sameBytes' | 'deleted' | 'extension' | 'error'
 
 /** Diese gehen nicht mit raus */
-const BLOCKED: readonly EntryStatus[] = ['checking', 'exists', 'deleted', 'extension']
+const BLOCKED: readonly EntryStatus[] = ['checking', 'exists', 'sameBytes', 'deleted', 'extension']
 
 /** Pfad, Größe und Zeitstempel: dieselbe Datei, ohne sie zu lesen */
 function fileKey(file: File): string {
@@ -82,24 +94,88 @@ function fileKey(file: File): string {
  * bekommt ihren Grund und bleibt, derselbe Knopf schickt sie erneut. Fertige Zeilen werden grün, zeigen einen
  * ablaufenden Balken und räumen sich nach fünf Sekunden weg. Die Maske bleibt stehen, Dateiart und Hooks bleiben gesetzt:
  * Wer aus einer Mappe kommt, lädt selten nur einen Rutsch. Ein Toast läuft mit und wird am Ende zum Ergebnis.
+ *
+ * Gesteuert wird die Maske über eine Vorbelegung im Router-State (DmsUploadPrefill, User 2026-10-08), jeder Parameter
+ * für sich. Mit versionChain ist sie dieselbe Maske wie beim frischen Upload, nur dass die Kette mitgeht (User
+ * 2026-10-08): die Dateiart des Kopfes gesperrt, seine Hooks vorbelegt und änderbar, alles andere kommt von der neuen
+ * Datei, genau eine Datei (ein zweites Ablegen ersetzt sie), dieselben Bytes sind gesperrt, nach dem Upload geht es
+ * zur neuen Fassung.
  */
 export function DmsUploadBatchTab() {
   const { t } = useTranslation()
-  const { fileSubClasses, fileExtensions, fileExtensionCollections } = useMasterData()
+  const navigate = useNavigate()
+  const origin = useOrigin()
+  const prefill = useDmsUploadPrefill()
+  const { hasAccessRole } = useSession()
+  /** die Internetfreigabe setzt nur DMS_PUBLIC: ohne die Rolle gibt es den Haken nicht und das Feld geht nicht mit */
+  const canSetPublic = hasAccessRole(DMS_PUBLIC_ACCESS_ROLE_KEY)
+  const { fileSubClasses, fileExtensions, fileExtensionCollections, solrHooks } = useMasterData()
   const [language, setLanguage] = useState<LanguageCode>(useLanguage().language)
-  const [fileSubClassKey, setFileSubClassKey] = useState<string | null>(null)
-  const [hooks, setHooks] = useState<SolrHookValuesByKey>({})
+  const [fileSubClassKey, setFileSubClassKey] = useState<string | null>(prefill?.fileSubClassKey ?? null)
+  const [hooks, setHooks] = useState<SolrHookValuesByKey>(prefill?.hooks ?? {})
   const [isPublic, setIsPublic] = useState(false)
   const [entries, setEntries] = useState<BatchEntry[]>([])
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState<{ number: number; total: number; name: string; percent: number } | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  /** die neue Fassung: der Kopf der Kette, null solange er lädt oder ohne Kette */
+  const [chainHead, setChainHead] = useState<Record<string, unknown> | null>(null)
+  const [chainError, setChainError] = useState<string | null>(null)
+
+  const versionChain = prefill?.versionChain ?? null
+  const newVersion = versionChain !== null
+  const maxFiles = newVersion ? 1 : Math.min(MAX_FILES, Math.max(1, prefill?.maxFiles ?? MAX_FILES))
+  const lockFileSubClass = newVersion || prefill?.lockFileSubClass === true
 
   const nextNr = useRef(0)
   /** nr → Schlüssel und Hash der Zeilen im Stapel, sofort beantwortbar, auch während andere noch rechnen */
   const occupied = useRef(new Map<number, { key: string; hash: string | null }>())
   const timers = useRef<number[]>([])
+  /** die Hooks des Kopfes nur einmal übernehmen, danach gehören sie dem User */
+  const hooksTakenFromHead = useRef(false)
   useEffect(() => () => timers.current.forEach((timer) => window.clearTimeout(timer)), [])
+
+  // die neue Fassung: den Kopf der Kette holen, seine Dateiart gilt
+  useEffect(() => {
+    if (versionChain === null) {
+      return
+    }
+    let cancelled = false
+    setChainHead(null)
+    setChainError(null)
+    getDmsVersionChain(versionChain)
+      .then(({ data }) => {
+        if (cancelled) {
+          return
+        }
+        const head = dmsVersionChainHead(data)
+        if (head === null) {
+          setChainError(t('dms.batch.chainNotFound'))
+          return
+        }
+        setChainHead(head)
+        setFileSubClassKey(typeof head[FILE_SUB_CLASS_FIELD_NAME] === 'string' ? head[FILE_SUB_CLASS_FIELD_NAME] : null)
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setChainError(error instanceof RequestError ? error.message : t('common.unknownError'))
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [versionChain])
+
+  // die Hooks des Kopfes vorbelegen, sobald Kopf und Stammdaten da sind, nur wenn die Vorbelegung keine mitgab
+  useEffect(() => {
+    if (chainHead === null || solrHooks === null || hooksTakenFromHead.current || prefill?.hooks !== undefined) {
+      return
+    }
+    hooksTakenFromHead.current = true
+    setHooks(solrHookValuesOf(chainHead, solrHooks))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chainHead, solrHooks])
 
   const fileSubClass = (fileSubClasses ?? []).find((candidate) => candidate.key === fileSubClassKey) ?? null
 
@@ -115,6 +191,10 @@ export function DmsUploadBatchTab() {
     }
     if (!entry.existence.exists) {
       return 'new'
+    }
+    if (newVersion) {
+      // eine neue Fassung braucht neue Bytes, dieselbe Regel wie im Backend: kein Merge, auch nicht in derselben Kette
+      return 'sameBytes'
     }
     if (entry.existence.status === 'DELETED') {
       return 'deleted'
@@ -148,8 +228,15 @@ export function DmsUploadBatchTab() {
     return false
   }
 
-  /** Beim Ablegen: Doppelte raus, höchstens MAX_FILES, dann je Datei die Prüfung anstoßen */
+  /**
+   * Beim Ablegen: Doppelte raus, höchstens maxFiles, dann je Datei die Prüfung anstoßen. Nimmt die Maske nur eine
+   * Datei, ersetzt ein zweites Ablegen die erste, statt eine Zeile anzuhängen.
+   */
   function addFiles(files: File[]) {
+    const replaceAll = maxFiles === 1
+    if (replaceAll) {
+      occupied.current.clear()
+    }
     const seen = new Set<string>()
     const fresh: File[] = []
     for (const file of files) {
@@ -160,7 +247,7 @@ export function DmsUploadBatchTab() {
       seen.add(key)
       fresh.push(file)
     }
-    const room = Math.max(0, MAX_FILES - entries.length)
+    const room = replaceAll ? 1 : Math.max(0, maxFiles - entries.length)
     const added = fresh.slice(0, room)
     if (added.length === 0) {
       return
@@ -182,7 +269,7 @@ export function DmsUploadBatchTab() {
         uploadError: null,
       }
     })
-    setEntries((current) => [...current, ...newEntries])
+    setEntries((current) => (replaceAll ? newEntries : [...current, ...newEntries]))
     newEntries.forEach((entry) => void checkEntry(entry.nr, entry.file))
   }
 
@@ -216,10 +303,11 @@ export function DmsUploadBatchTab() {
   }
 
   const uploadable = entries.filter((entry) => entry.result === null && !BLOCKED.includes(statusOf(entry)))
+  const originState = origin !== null ? { origin } : undefined
 
   /** Eine Datei nach der anderen. Ein Fehlschlag kennzeichnet nur seine Zeile, die übrigen gehen trotzdem raus. */
   async function uploadAll() {
-    if (fileSubClass === null || uploadable.length === 0 || uploading) {
+    if (fileSubClass === null || uploadable.length === 0 || uploading || (newVersion && chainHead === null)) {
       return
     }
     const batch = uploadable
@@ -234,6 +322,7 @@ export function DmsUploadBatchTab() {
     })
     let done = 0
     let failed = 0
+    let createdVersionId: string | null = null
     try {
       for (let index = 0; index < batch.length; index++) {
         const entry = batch[index]
@@ -243,9 +332,15 @@ export function DmsUploadBatchTab() {
           updateToast(toastId, { text, progress: Math.round(((index + percent / 100) / batch.length) * 100) })
         }
         report(0)
-        const document: Record<string, unknown> = {
-          [FILE_SUB_CLASS_FIELD_NAME]: fileSubClass.key,
-          [IS_PUBLIC_FIELD_NAME]: isPublic,
+        const document: Record<string, unknown> = {}
+        if (canSetPublic) {
+          document[IS_PUBLIC_FIELD_NAME] = isPublic
+        }
+        if (versionChain !== null) {
+          // der Parameter der neuen Fassung; die Dateiart nimmt das Backend vom Kopf der Kette
+          document[VERSION_CHAIN_FIELD_NAME] = versionChain
+        } else {
+          document[FILE_SUB_CLASS_FIELD_NAME] = fileSubClass.key
         }
         if (entry.fileIndex.trim() !== '') {
           document[FILE_INDEX_FIELD_NAME] = entry.fileIndex.trim()
@@ -270,7 +365,11 @@ export function DmsUploadBatchTab() {
             failed += 1
           } else {
             done += 1
-            timers.current.push(window.setTimeout(() => removeEntry(entry.nr), SUCCESS_VISIBLE_MS))
+            if (newVersion && result.data.status === 'CREATED') {
+              createdVersionId = result.data.id
+            } else {
+              timers.current.push(window.setTimeout(() => removeEntry(entry.nr), SUCCESS_VISIBLE_MS))
+            }
           }
         } catch (error: unknown) {
           failed += 1
@@ -290,6 +389,10 @@ export function DmsUploadBatchTab() {
         progress: null,
       })
     }
+    if (createdVersionId !== null) {
+      // die neue Fassung ist da: dorthin, die Herkunft geht mit
+      navigate(dmsSolrDocumentPath(createdVersionId), { state: originState })
+    }
   }
 
   function statusCell(entry: BatchEntry): ReactNode {
@@ -304,7 +407,7 @@ export function DmsUploadBatchTab() {
       if (entry.result === 'EXISTS') {
         return (
           <span className="text-danger">
-            <Icon name="error" /> {t('dms.batch.state.exists')}
+            <Icon name="error" /> {t(newVersion ? 'dms.batch.state.sameBytes' : 'dms.batch.state.exists')}
           </span>
         )
       }
@@ -345,6 +448,7 @@ export function DmsUploadBatchTab() {
           </span>
         )
       case 'exists':
+      case 'sameBytes':
       case 'deleted':
       case 'extension':
         return (
@@ -360,14 +464,19 @@ export function DmsUploadBatchTab() {
     if (entry.uploadError !== null) {
       return entry.uploadError
     }
+    const hash = entry.hash !== 'pending' && entry.hash !== 'failed' ? entry.hash : ''
     if (entry.result === 'EXISTS') {
-      return t('dms.batch.reason.exists', { key: existingKey(entry) })
+      return newVersion
+        ? t('dms.batch.reason.sameBytes', { id: hash })
+        : t('dms.batch.reason.exists', { key: existingKey(entry) })
     }
     switch (statusOf(entry)) {
       case 'exists':
         return t('dms.batch.reason.exists', { key: existingKey(entry) })
+      case 'sameBytes':
+        return t('dms.batch.reason.sameBytes', { id: hash })
       case 'deleted':
-        return t('dms.batch.reason.deleted', { id: typeof entry.hash === 'string' ? entry.hash : '' })
+        return t('dms.batch.reason.deleted', { id: hash })
       case 'extension':
         return t('dms.upload.extensionNotAllowed', { extension: entry.extension || '-', key: fileSubClass?.key ?? '' })
       case 'error':
@@ -449,22 +558,29 @@ export function DmsUploadBatchTab() {
   } else if (progress !== null) {
     footer = <span>{t('dms.batch.progress', progress)}</span>
   } else {
-    footer = <span>{t('dms.batch.count', { count: entries.length, max: MAX_FILES })}</span>
+    footer = <span>{t('dms.batch.count', { count: entries.length, max: maxFiles })}</span>
   }
   const uploadButton = (
     <button
       type="button"
       className="button-save"
-      disabled={uploading || fileSubClass === null || uploadable.length === 0}
+      disabled={uploading || fileSubClass === null || uploadable.length === 0 || (newVersion && chainHead === null)}
       onClick={() => void uploadAll()}
     >
       {uploading ? t('dms.batch.uploading') : t('dms.batch.upload', { count: uploadable.length })}
     </button>
   )
 
+  const headName = chainHead !== null && typeof chainHead.fileName === 'string' ? chainHead.fileName : ''
+  const title = newVersion
+    ? chainHead !== null
+      ? t('dms.batch.newVersionTitle', { name: headName, version: dmsVersionOf(chainHead) + 1 })
+      : t('common.loading')
+    : t('dms.batch.title')
+
   return (
     <ContentBox
-      title={t('dms.batch.title')}
+      title={title}
       footer={
         <>
           {footer}
@@ -474,38 +590,42 @@ export function DmsUploadBatchTab() {
       language={{ value: language, onChange: setLanguage }}
     >
       <div className="d-flex flex-column gap-3">
-        <p className="mb-0 text-secondary small">{t('dms.batch.intro', { max: MAX_FILES })}</p>
+        {!newVersion && <p className="mb-0 text-secondary small">{t('dms.batch.intro', { max: maxFiles })}</p>}
+        {chainError !== null && <p className="mb-0 text-danger">{chainError}</p>}
 
         <FileSubClassPicker
-          fileSubClasses={fileSubClasses ?? []}
+          fileSubClasses={lockFileSubClass ? (fileSubClass === null ? [] : [fileSubClass]) : (fileSubClasses ?? [])}
           value={fileSubClassKey}
           onChange={setFileSubClassKey}
           language={language}
-          disabled={uploading}
+          disabled={uploading || lockFileSubClass}
           required
+          title={lockFileSubClass ? t('dms.batch.fileSubClassLocked') : undefined}
         />
 
         <SolrHookFields hooks={hooks} onChange={setHooks} language={language} disabled={uploading} />
 
-        <div className="form-check">
-          <input
-            id="dms-batch-public"
-            type="checkbox"
-            className="form-check-input"
-            checked={isPublic}
-            disabled={uploading}
-            onChange={(event) => setIsPublic(event.target.checked)}
-          />
-          <label className="form-check-label" htmlFor="dms-batch-public">
-            {t('dms.batch.isPublic')}
-          </label>
-        </div>
+        {canSetPublic && (
+          <div className="form-check">
+            <input
+              id="dms-batch-public"
+              type="checkbox"
+              className="form-check-input"
+              checked={isPublic}
+              disabled={uploading}
+              onChange={(event) => setIsPublic(event.target.checked)}
+            />
+            <label className="form-check-label" htmlFor="dms-batch-public">
+              {t('dms.batch.isPublic')}
+            </label>
+          </div>
+        )}
 
         <FileDropzone
-          multiple
+          multiple={maxFiles > 1}
           camera
-          disabled={uploading || entries.length >= MAX_FILES}
-          text={t('dms.batch.dropzone', { max: MAX_FILES })}
+          disabled={uploading || (maxFiles > 1 && entries.length >= maxFiles) || (newVersion && chainHead === null)}
+          text={newVersion ? t('dms.batch.newVersionDropzone') : t('dms.batch.dropzone', { max: maxFiles })}
           onFiles={addFiles}
         />
 

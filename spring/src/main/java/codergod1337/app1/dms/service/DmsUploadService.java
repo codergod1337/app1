@@ -37,6 +37,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Der Upload ins DMS. Zwei Wege, eine Verarbeitung: {@link #probeUpload} prüft, liest und verwirft (bleibt dauerhaft,
@@ -48,6 +49,11 @@ import tools.jackson.databind.JsonNode;
  * ACTIVE oder ARCHIVED) oder Bytes auf den SFTP und ein neues Dokument, als neue Datei oder als neue Fassung einer
  * Versionskette. Jeder Schreibvorgang läuft über den DmsSolrDocumentWriteService, dieser Service schreibt nie selbst in
  * den Kern. Erst der SFTP, dann Solr: Ein Dokument ohne Datei wäre eine Lüge, eine Datei ohne Dokument nur Platz.
+ *
+ * Die Versionskette ({@code versionChain} im JSON) ist ein Parameter des Uploads, kein Feld des Clients (2026-10-08,
+ * wie {@code data.guid} in der Vorlage): Sie kommt vor der Schreibregel aus dem JSON, geht nicht durch die
+ * Felddefinition, und das Backend schreibt sie selbst ins neue Dokument. So hängt die neue Fassung nicht an der
+ * Schreibregel des Feldes im Kern-Tab.
  *
  * Wer das darf: jeder mit der AR DMS, zum Speichern dazu die Schreibrolle der Dateiart.
  */
@@ -147,7 +153,10 @@ public class DmsUploadService {
 		CREATED,
 		/** dieselben Bytes lagen schon in derselben Dateiart: Hooks und Beschreibung ergänzt, nichts hochgeladen */
 		MERGED,
-		/** dieselben Bytes liegen unter einer anderen Dateiart oder mit einem Status, der keinen Merge erlaubt: nichts geändert */
+		/**
+		 * dieselben Bytes liegen unter einer anderen Dateiart oder mit einem Status, der keinen Merge erlaubt, oder sie
+		 * sollten eine neue Fassung werden: nichts geändert
+		 */
 		EXISTS
 	}
 
@@ -158,10 +167,10 @@ public class DmsUploadService {
 	public record DmsUploadResult(UploadStatus status, String id, Map<String, Object> document, DmsUploadProbe probe) {
 	}
 
-	/** Die gemeinsame Vorarbeit beider Wege */
+	/** Die gemeinsame Vorarbeit beider Wege; versionChain ist der Parameter der neuen Fassung, null bei einer neuen Datei */
 	private record PreparedUpload(JsonNode clientFieldValues, Map<String, Object> document, FileSubClass fileSubClass,
-			String fileName, String fileExtension, String contentType, long sizeBytes, String sha256, TikaOutcome tika,
-			PreviewOutcome preview, String documentLanguage) {
+			String versionChain, String fileName, String fileExtension, String contentType, long sizeBytes, String sha256,
+			TikaOutcome tika, PreviewOutcome preview, String documentLanguage) {
 
 		DmsUploadProbe toProbe(boolean stored) {
 			return new DmsUploadProbe(fileName, fileExtension, contentType, sizeBytes, sha256, document, tika, preview,
@@ -183,12 +192,13 @@ public class DmsUploadService {
 	 * Liegen sie schon in dieser Dateiart mit Status ACTIVE oder ARCHIVED, werden Hooks und Beschreibung ergänzt
 	 * (MERGED), sonst passiert nichts (EXISTS). Sonst gehen die Bytes auf den SFTP und das Dokument nach Solr (CREATED):
 	 * mit versionChain als neue Fassung der Kette, deren Dateiart vom Kopf der Kette kommt, ohne als neue Datei mit der
-	 * Dateiart des Clients.
+	 * Dateiart des Clients. Eine neue Fassung braucht neue Bytes (User 2026-10-08): Mit versionChain gibt es keinen
+	 * Merge, auch nicht in derselben Kette, dieselben Bytes sind EXISTS.
 	 */
 	@PreAuthorize("hasRole('DMS')")
 	public DmsUploadResult uploadFile(JsonNode data, MultipartFile file) {
 		PreparedUpload prepared = prepare(data, file);
-		String versionChain = text(prepared.document(), DmsSolrDocumentFieldNames.VERSION_CHAIN);
+		String versionChain = prepared.versionChain();
 		if (versionChain == null && prepared.fileSubClass() == null) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, DmsSolrDocumentFieldNames.FILE_SUB_CLASS_KEY + " fehlt");
 		}
@@ -196,6 +206,11 @@ public class DmsUploadService {
 		DmsSolrDocumentExistenceCheck existence = dmsSolrDocumentExistenceService
 				.loadDmsSolrDocumentExistenceCheck(prepared.sha256());
 		if (existence.exists()) {
+			if (versionChain != null) {
+				log.info("Upload: {} als neue Fassung der Kette {} abgelehnt, die Bytes liegen schon im DMS",
+						prepared.sha256(), versionChain);
+				return new DmsUploadResult(UploadStatus.EXISTS, prepared.sha256(), null, prepared.toProbe(false));
+			}
 			return mergeOrRefuse(prepared, existence);
 		}
 
@@ -215,7 +230,8 @@ public class DmsUploadService {
 				prepared.tika().ok() ? prepared.tika().text() : null,
 				prepared.preview().ok() ? prepared.preview().base64Png() : null, prepared.documentLanguage());
 		String id = versionChain != null
-				? dmsSolrDocumentWriteService.createNextVersionInVersionChain(facts, prepared.clientFieldValues())
+				? dmsSolrDocumentWriteService.createNextVersionInVersionChain(versionChain, facts,
+						prepared.clientFieldValues())
 				: dmsSolrDocumentWriteService.createDmsSolrDocumentFromUpload(facts, prepared.clientFieldValues());
 		log.info("Upload: {} als {} ({} Bytes), {}", prepared.fileName(), id, prepared.sizeBytes(), sftpPath);
 		return new DmsUploadResult(UploadStatus.CREATED, id, documentForUploadAnswer(id), prepared.toProbe(true));
@@ -232,16 +248,18 @@ public class DmsUploadService {
 	private PreparedUpload prepare(JsonNode data, MultipartFile file) {
 		// Ohne den Kern gibt es keine Maske, die Meldung des Service reicht
 		solrCoreService.getSolrCoreByKey(DmsSolrDocumentFieldNames.CORE_KEY);
-		JsonNode clientFieldValues = dmsSolrDocumentWriteService.removeFieldsTheClientMayNotSet(data, true);
+		// die Kette ist ein Parameter des Uploads, kein Feld des Clients: vor der Schreibregel heraus
+		String versionChain = versionChainParameterOf(data);
+		JsonNode clientFieldValues = dmsSolrDocumentWriteService.removeFieldsTheClientMayNotSet(withoutVersionChain(data),
+				true);
 		// eine eigene Kopie: Die Sprachregel schreibt gleich hinein
 		Map<String, Object> document = new LinkedHashMap<>(dmsSolrDocumentChecker.checkNewDmsSolrDocument(clientFieldValues));
-		requireVersionChainIsUuid(document);
 		requireFileSizeMatches(document, file);
 		requireStatusKnown(document);
 
 		String fileName = file.getOriginalFilename();
 		String fileExtension = extensionOf(fileName);
-		FileSubClass fileSubClass = fileSubClassOf(document);
+		FileSubClass fileSubClass = fileSubClassForUpload(versionChain, document);
 		requireExtensionAllowed(fileSubClass, fileExtension);
 
 		MessageDigest digest = sha256();
@@ -262,7 +280,7 @@ public class DmsUploadService {
 				file.getSize(), sha256, document.size(), tika.ok() ? tika.mimeType() : "fehlgeschlagen",
 				tika.durationMs(), preview.attempted() ? (preview.ok() ? preview.bytes() + " Bytes" : "fehlgeschlagen")
 						: "keine");
-		return new PreparedUpload(clientFieldValues, document, fileSubClass, fileName, fileExtension,
+		return new PreparedUpload(clientFieldValues, document, fileSubClass, versionChain, fileName, fileExtension,
 				file.getContentType(), file.getSize(), sha256, tika, preview, documentLanguage);
 	}
 
@@ -354,17 +372,35 @@ public class DmsUploadService {
 		return extension.isEmpty() ? base : base + "." + extension;
 	}
 
-	/** Eine mitgeschickte Versionskette muss eine UUID sein, sonst zeigt die neue Fassung ins Leere */
-	private static void requireVersionChainIsUuid(Map<String, Object> document) {
-		Object versionChain = document.get(DmsSolrDocumentFieldNames.VERSION_CHAIN);
-		if (versionChain == null) {
-			return;
+	/**
+	 * Der Parameter der neuen Fassung aus dem JSON des Uploads: die Kette als UUID, null ohne. Etwas anderes als eine
+	 * UUID ist keine Kette, sondern eine kaputte Eingabe (400).
+	 */
+	private static String versionChainParameterOf(JsonNode data) {
+		JsonNode value = data == null ? null : data.get(DmsSolrDocumentFieldNames.VERSION_CHAIN);
+		if (value == null || value.isNull()) {
+			return null;
+		}
+		String versionChain = value.isString() ? value.asString().strip() : value.toString();
+		if (versionChain.isEmpty()) {
+			return null;
 		}
 		try {
-			UUID.fromString(versionChain.toString());
+			UUID.fromString(versionChain);
 		} catch (IllegalArgumentException e) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, DmsSolrDocumentFieldNames.VERSION_CHAIN + " ist keine UUID");
 		}
+		return versionChain;
+	}
+
+	/** Das JSON des Clients ohne den Parameter der Kette: Was bleibt, sind seine Felder für die Schreibregel */
+	private static JsonNode withoutVersionChain(JsonNode data) {
+		if (data instanceof ObjectNode object && object.has(DmsSolrDocumentFieldNames.VERSION_CHAIN)) {
+			ObjectNode copy = object.deepCopy();
+			copy.remove(DmsSolrDocumentFieldNames.VERSION_CHAIN);
+			return copy;
+		}
+		return data;
 	}
 
 	/** Eine mitgeschickte Größe muss die der Datei sein: Weicht sie ab, hat das Frontend eine andere Datei gemeint */
@@ -389,6 +425,36 @@ public class DmsUploadService {
 	private FileSubClass fileSubClassOf(Map<String, Object> document) {
 		Object fileSubClassKey = document.get(DmsSolrDocumentFieldNames.FILE_SUB_CLASS_KEY);
 		return fileSubClassKey == null ? null : fileSubClassService.getFileSubClassByKey(fileSubClassKey.toString());
+	}
+
+	/**
+	 * Die Dateiart, die das Dokument am Ende trägt: mit versionChain die des Kopfes der Kette, denn eine neue Fassung
+	 * wechselt die Dateiart nie und die Maske schickt sie nicht mit; sonst die des Clients, null ohne. So laufen
+	 * Endungsprüfung und Probe gegen die richtige Dateiart. Der Kopf ist die Fassung mit der höchsten Nummer, die der
+	 * User sehen darf; 404, wenn er keine sieht.
+	 */
+	private FileSubClass fileSubClassForUpload(String versionChain, Map<String, Object> document) {
+		if (versionChain == null) {
+			return fileSubClassOf(document);
+		}
+		Map<String, Object> head = null;
+		long highestVersion = Long.MIN_VALUE;
+		for (Map<String, Object> member : dmsExactFieldValueResolveService.loadDmsVersionChainMembers(versionChain)) {
+			Object version = member.get(DmsSolrDocumentFieldNames.VERSION);
+			long number = version instanceof Number value ? value.longValue() : 0L;
+			if (head == null || number > highestVersion) {
+				head = member;
+				highestVersion = number;
+			}
+		}
+		if (head == null) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "keine Versionskette mit dieser versionChain");
+		}
+		String fileSubClassKey = text(head, DmsSolrDocumentFieldNames.FILE_SUB_CLASS_KEY);
+		if (fileSubClassKey == null) {
+			throw new ResponseStatusException(HttpStatus.CONFLICT, "der Kopf der Kette hat keine Dateiart");
+		}
+		return fileSubClassService.getFileSubClassByKey(fileSubClassKey);
 	}
 
 	/**

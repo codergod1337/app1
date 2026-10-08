@@ -172,6 +172,94 @@
     white-space: nowrap;
   }
 
+  /* Ein Schalter in der Leiste ist ein Knopf ohne Knopf-Optik, das Aussehen gibt das Theme über .subheader-tab */
+  button.subheader-tab {
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  /* gesperrt, nicht versteckt: man soll sehen, was es gäbe */
+  button.subheader-tab:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .subheader-toggle {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+  }
+
+  /* Der Strich vor einem Schalter, der nicht zur Reihe davor gehört */
+  .subheader-separator {
+    flex: none;
+    width: 1px;
+    height: 1.4rem;
+    margin: 0 0.6rem 0 0.35rem;
+    background: currentColor;
+    opacity: 0.35;
+  }
+
+  /* Die Aktionen rechts außen in der Leiste, z. B. im Viewer */
+  .subheader-actions {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+  }
+
+  /* Eine Angabe in der Leiste ohne Tab-Optik: Dateiname, Index */
+  .subheader-note {
+    flex: none;
+    white-space: nowrap;
+    opacity: 0.85;
+  }
+
+  /*
+   * ===== Viewer =====
+   * Ohne ContentBox, wie in der Vorlage: Rahmen, Kopf, Fuß und Polster nähmen dem Dokument Fläche weg, und der Kopf
+   * sagte nur noch einmal, was im subheader steht. Die Seite füllt main, die Fläche darunter scrollt in sich, die
+   * Leiste bleibt stehen. Safe center: Ein Bild in nativer Größe, das die Fläche sprengt, beginnt oben links, sonst
+   * stünde der obere und linke Teil unerreichbar im Negativen.
+   */
+  .viewer-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .viewer-area {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: safe center;
+    justify-content: safe center;
+    min-height: 0;
+    padding: 0 1rem;
+    overflow: auto;
+  }
+
+  /* eingepasst: ganz zu sehen, nie verzerrt; der Zeiger kündigt an, dass ein Klick vergrößert */
+  .viewer-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    cursor: zoom-in;
+  }
+
+  /* nativ: die echten Pixel, die Fläche scrollt */
+  .viewer-image-native {
+    flex-shrink: 0;
+    max-width: none;
+    max-height: none;
+    object-fit: none;
+    cursor: zoom-out;
+  }
+
   /* Ohne eigenen Abstand, damit der subheader über die volle Breite reicht */
   .main {
     flex: 1 1 auto;
@@ -418,6 +506,100 @@
     line-height: 1.5;
     overflow-wrap: anywhere;
     scrollbar-width: thin;
+  }
+
+  /* ===== Der Fahrplan einer Versionskette (nach .fahrplan der Vorlage): Haltestellen an einer Linie in der Kernfarbe, die geöffnete Fassung ist der Zug ===== */
+  .dms-version-chain {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    margin: 0;
+    padding: 0 0 0 0.4rem;
+    list-style: none;
+  }
+
+  .dms-version-chain-stop {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding-left: 1.1rem;
+    opacity: 0.7;
+  }
+
+  /* die Linie zwischen den Haltestellen, am letzten Halt endet sie */
+  .dms-version-chain-stop::before {
+    content: '';
+    position: absolute;
+    left: 0.22rem;
+    top: 0.9rem;
+    bottom: -0.9rem;
+    width: 2px;
+    background-color: color-mix(in srgb, var(--core-color) 45%, transparent);
+  }
+
+  .dms-version-chain-stop:last-child::before {
+    display: none;
+  }
+
+  /* der Haltepunkt */
+  .dms-version-chain-stop::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.35rem;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    border: 2px solid var(--core-color);
+    background-color: var(--contentbox-bg);
+  }
+
+  /* hier steht der Zug: gefüllter Punkt, volle Deckkraft */
+  .dms-version-chain-stop.current {
+    opacity: 1;
+  }
+
+  .dms-version-chain-stop.current::after {
+    background-color: var(--core-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--core-color) 25%, transparent);
+  }
+
+  .dms-version-chain-version {
+    flex: 0 0 2.5rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+
+  .dms-version-chain-facts {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+
+  .dms-version-chain-name {
+    color: inherit;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  a.dms-version-chain-name:hover {
+    color: var(--core-color);
+  }
+
+  .dms-version-chain-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.1rem 1rem;
+    font-size: 0.78rem;
+    opacity: 0.75;
+  }
+
+  .dms-version-chain-description {
+    font-size: 0.8rem;
+    opacity: 0.75;
+    overflow-wrap: anywhere;
   }
 
   /* ===== Sprache eines DMS-Dokuments: Flagge mit Namen im Hoverlay, Auswahl als Reihe von Flaggen ===== */
@@ -2652,11 +2834,23 @@
     opacity: 0.7;
   }
 
-  .search-filter-editor {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
+  /*
+   * Die Kernfarbe (User 2026-10-07, wie kern-<key> der Vorlage, nur aus dem look des Kerns in den Stammdaten): ein
+   * Element mit --core-color färbt alles darunter. Ein Chip auf ein Feld des Kerns trägt sie als Rand und Tönung, nie
+   * vollflächig, sonst müsste je Farbe über helle oder dunkle Schrift entschieden werden.
+   */
+  .search-filter-chip-core {
+    border: 1px solid var(--core-color);
+    background: color-mix(in srgb, var(--core-color) 30%, var(--contentbox-bg));
+    color: var(--contentbox-text);
+  }
+
+  .search-offer.search-filter-chip-core {
+    border-style: dashed;
+  }
+
+  .search-offer.search-filter-chip-core:hover {
+    background: color-mix(in srgb, var(--core-color) 50%, var(--contentbox-bg));
   }
 
   /* Die Filterangebote der Vervollständigung: wie die Chips, aber gestrichelt, denn sie sind noch nicht gesetzt */
@@ -2688,39 +2882,6 @@
     opacity: 0.7;
   }
 
-  .search-filter-editor .form-select,
-  .search-filter-editor .form-control {
-    width: auto;
-    min-width: 10rem;
-  }
-
-  .search-core-toggles {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-  }
-
-  /* Ein Kernschalter: gedimmt, wenn der Kern abgewählt ist, in den Farben des subheaders, wenn er sucht */
-  .search-core-toggle {
-    padding: 0.2rem 0.6rem;
-    border: 1px solid var(--contentbox-border);
-    border-radius: 999px;
-    background: var(--contentbox-bg);
-    color: var(--contentbox-text);
-    font-size: 0.8rem;
-    font-weight: 600;
-    line-height: 1.2;
-    opacity: 0.6;
-    cursor: pointer;
-  }
-
-  .search-core-toggle.active {
-    border-color: var(--subheader-bg);
-    background: var(--subheader-bg);
-    color: var(--subheader-text);
-    opacity: 1;
-  }
-
   .search-fsc {
     display: flex;
     flex-direction: column;
@@ -2732,12 +2893,14 @@
     flex-direction: column;
   }
 
+  /* Die Treffer eines Kerns in seiner Farbe: ein Strich am linken Rand jeder Zeile und die Marken des Treffergrunds */
   .search-hit {
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
-    padding: 0.6rem 0;
+    padding: 0.6rem 0 0.6rem 0.6rem;
     border-top: 1px solid var(--contentbox-border);
+    border-left: 3px solid var(--core-color, transparent);
   }
 
   .search-hit:first-child {
@@ -2824,13 +2987,51 @@
     cursor: pointer;
   }
 
+  /*
+   * Der Treffergrund, die Zeile unter dem Treffer, nach der Vorlage: je Feld der technische Feldname in Monospace mit
+   * Doppelpunkt, daneben der Wert mit den Fundstellen als mark. Ein langer Wert sprengt die Zeile nicht. Die Marke ist
+   * kein Browser-Gelb, sondern ein getönter Grund in der Farbe des subheaders, die Schrift bleibt, wie sie ist.
+   */
   .search-hit-reasons {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 0.25rem 0.75rem;
-    font-size: 0.8rem;
+    gap: 0.15rem 0.8rem;
+    min-width: 0;
+    font-size: 0.75rem;
+    line-height: 1.4;
     opacity: 0.85;
+  }
+
+  .search-hit-reason {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    min-width: 0;
+  }
+
+  .search-hit-reason-field {
+    flex-shrink: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.7rem;
+  }
+
+  span.search-hit-reason-field::after {
+    content: ':';
+  }
+
+  .search-hit-reason-snippet {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .search-hit-reasons mark {
+    padding: 0 0.15rem;
+    border-radius: 2px;
+    background-color: color-mix(in srgb, var(--core-color, var(--subheader-bg)) 35%, transparent);
+    color: inherit;
+    font-weight: 600;
   }
 
   .search-hit-actions {

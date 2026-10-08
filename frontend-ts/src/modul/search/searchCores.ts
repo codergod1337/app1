@@ -5,8 +5,6 @@ import {
   DMS_ACCESS_ROLE_KEY,
   DMS_CORE_KEY,
   DMS_SEARCH_ACCESS_ROLE_KEY,
-  DMS_SEARCH_DATE_RANGE_FILTER_FIELD_NAMES,
-  DMS_SEARCH_EXACT_FILTER_FIELD_NAMES,
   dmsSolrDocumentPath,
   searchDmsDocuments,
   suggestDmsDocuments,
@@ -36,10 +34,6 @@ export interface SearchCore {
   accessRoleKey: string
   /** die Such-Rolle, <KERN>_SUCHE, nur sie schaltet den Kern in der Maske frei */
   searchAccessRoleKey: string
-  /** die festen Felder, nach denen der Kern exakt filtert; die Hooks kommen aus den Stammdaten für jeden Kern dazu */
-  exactFilterFieldNames: readonly string[]
-  /** die Datumsfelder, für die der Kern einen Zeitraum nimmt */
-  dateRangeFilterFieldNames: readonly string[]
   search: (request: SearchRequest) => Promise<RequestResult<SearchResultPage>>
   /** die Vervollständigung beim Tippen: kompakte Treffer und Filterangebote, derselbe Body ohne Seite */
   suggest: (request: SearchRequest) => Promise<RequestResult<SearchSuggestResult>>
@@ -57,8 +51,6 @@ export const SEARCH_CORES: readonly SearchCore[] = [
     labelKey: 'DMS',
     accessRoleKey: DMS_ACCESS_ROLE_KEY,
     searchAccessRoleKey: DMS_SEARCH_ACCESS_ROLE_KEY,
-    exactFilterFieldNames: DMS_SEARCH_EXACT_FILTER_FIELD_NAMES,
-    dateRangeFilterFieldNames: DMS_SEARCH_DATE_RANGE_FILTER_FIELD_NAMES,
     search: searchDmsDocuments,
     suggest: suggestDmsDocuments,
     idOf: (document) => (typeof document.id === 'string' ? document.id : null),

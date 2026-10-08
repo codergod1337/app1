@@ -20,7 +20,9 @@ import org.springframework.web.server.ResponseStatusException;
  * genau diesem Dokument, nie vom Client, und die Bytes gehen vom SFTP in die Antwort.
  *
  * sftpPath muss dafür kein lesbares Feld des Users sein: Das Backend holt es für sich selbst, der Client sieht es nie.
- * Ein Download-Zähler fehlt noch: Ob Buchhaltung des Backends unter die Schreibregel fällt, ist nicht entschieden.
+ * Nach jedem vollständig gestreamten Download zählt downloadCount um eins hoch (User 2026-10-08), über den
+ * Schreibservice, ohne Revision: Ein Download ist Buchhaltung, keine Änderung. Der Viewer holt die Datei über denselben
+ * Weg und zählt damit genauso.
  */
 @Service
 public class DmsDownloadService {
@@ -32,11 +34,13 @@ public class DmsDownloadService {
 	}
 
 	private final DmsExactFieldValueResolveService dmsExactFieldValueResolveService;
+	private final DmsSolrDocumentWriteService dmsSolrDocumentWriteService;
 	private final SftpService sftpService;
 
 	public DmsDownloadService(DmsExactFieldValueResolveService dmsExactFieldValueResolveService,
-			SftpService sftpService) {
+			DmsSolrDocumentWriteService dmsSolrDocumentWriteService, SftpService sftpService) {
 		this.dmsExactFieldValueResolveService = dmsExactFieldValueResolveService;
+		this.dmsSolrDocumentWriteService = dmsSolrDocumentWriteService;
 		this.sftpService = sftpService;
 	}
 
@@ -62,12 +66,19 @@ public class DmsDownloadService {
 
 	/**
 	 * Die Bytes vom SFTP in den Zielstrom, meist den der HTTP-Antwort. Keine eigene Prüfung: Ein DmsDownloadableFile gibt
-	 * es nur aus loadDownloadableFileWithReadAclAndGrantedAccessCheck.
+	 * es nur aus loadDownloadableFileWithReadAclAndGrantedAccessCheck. Danach der Zähltick; bricht der Empfänger ab,
+	 * wirft das Streamen und es wird nicht gezählt. Scheitert der Zähltick selbst, steht das nur im Log: Die Bytes sind
+	 * schon beim Client, die Antwort lässt sich nicht mehr zurücknehmen.
 	 */
 	@PreAuthorize("hasRole('DMS')")
 	public void streamFileBytesFromSftp(DmsDownloadableFile file, OutputStream target) {
 		sftpService.readFileData(file.sftpPath(), target);
 		log.info("Download: {} ({})", file.id(), file.fileName());
+		try {
+			dmsSolrDocumentWriteService.countDownloadOfDmsSolrDocument(file.id());
+		} catch (RuntimeException e) {
+			log.warn("Download: downloadCount von {} ließ sich nicht hochzählen: {}", file.id(), e.getMessage());
+		}
 	}
 
 	private static String text(Map<String, Object> document, String name) {

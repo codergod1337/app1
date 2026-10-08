@@ -1,0 +1,21 @@
+hyph_de.xml: German hyphenation patterns (new orthography) for Lucene's HyphenationCompoundWordTokenFilter.
+
+This file is a derived work of `dehyphn.tex', revision level 31 (2001-05-07), the "New German Hyphenation Patterns"
+from the CTAN package dehyph (language/hyphenation/dehyph/dehyphn.tex). It was converted into the OFFO XML format
+(TeX macros for umlauts resolved, patterns listed one per line, character classes added) by the app1 project; the
+patterns themselves are unchanged. Per the LPPL the derived work carries a different file name and this notice.
+
+Copyright (C) 1988,1991 Rechenzentrum der Ruhr-Universitaet Bochum
+Copyright (C) 1993,1994,1999 Bernd Raichle/DANTE e.V.
+Copyright (C) 1998--2001 Walter Schmidt
+
+This work may be distributed and/or modified under the conditions of the LaTeX Project Public License, either
+version 1 of this license or (at your option) any later version. The latest version of this license is in
+https://www.latex-project.org/lppl.txt
+
+The original is available from CTAN: https://ctan.org/pkg/dehyph
+
+Why not the newer hyph-de-1996 patterns from tex-hyphen (MIT): Lucene's TernaryTree counts its nodes in a 16-bit char,
+so at most 65535 nodes exist. The 36709 modern patterns need more; the counter wraps, the tree gets cycles and
+loading ends in a StackOverflowError or wrong hyphenation points. The classic patterns are a quarter of the size and
+fit.

@@ -17,7 +17,11 @@ public final class SolrFieldName {
 	/** Buchstabe am Anfang, dann Buchstaben, Ziffern und _. Solr selbst erlaubt nicht mehr. */
 	private static final Pattern VALID = Pattern.compile("[A-Za-z][A-Za-z0-9_]*");
 
-	/** Felder, die Solr selbst anlegt und die kein Hook sein darf */
+	/**
+	 * Namen, die niemand von Hand vergibt: id legt der Code in jedem Kern an (eine Zeile ohne Kern in solr_field, der
+	 * Initialisierer schreibt sie am Namen vorbei), _version_ und _root_ sind Solrs eigene Felder. Kein Hook und kein
+	 * neues Feld eines Admins darf so heißen.
+	 */
 	private static final Set<String> RESERVED = Set.of("id", "_version_", "_root_");
 
 	private SolrFieldName() {
@@ -26,7 +30,7 @@ public final class SolrFieldName {
 	/**
 	 * true, wenn der Text ein Feldname sein darf: Buchstabe am Anfang, dann Buchstaben, Ziffern und _, nicht auf _
 	 * endend (vorne und hinten _ ist bei Solr reserviert), nicht auf Suggested endend (das Gegenstück legt das Backend
-	 * selbst an), kein Solr-eigenes Feld, höchstens 100 Zeichen. {@code null} ist kein gültiger Feldname.
+	 * selbst an), nicht id und kein Solr-eigenes Feld, höchstens 100 Zeichen. {@code null} ist kein gültiger Feldname.
 	 */
 	public static boolean isValid(String fieldName) {
 		return fieldName != null && fieldName.length() <= MAX_LENGTH && VALID.matcher(fieldName).matches()

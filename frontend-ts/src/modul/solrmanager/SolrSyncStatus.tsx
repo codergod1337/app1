@@ -81,6 +81,13 @@ export function SolrSyncStatus({ coreKey }: SolrSyncStatusProps) {
             <dd>{list(report.copyFieldsAdded)}</dd>
           </div>
           <div>
+            <dt>{t('solrmanager.sync.maxBooleanClauses')}</dt>
+            <dd>
+              {report.maxBooleanClauses}
+              {report.maxBooleanClausesChanged && ` (${t('solrmanager.sync.maxBooleanClausesSet')})`}
+            </dd>
+          </div>
+          <div>
             <dt>{t('solrmanager.sync.onlyInSolr')}</dt>
             <dd className={report.onlyInSolr.length > 0 ? 'text-warning' : undefined}>{list(report.onlyInSolr)}</dd>
           </div>

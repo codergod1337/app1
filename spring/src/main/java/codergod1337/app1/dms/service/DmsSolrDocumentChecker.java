@@ -292,7 +292,7 @@ public class DmsSolrDocumentChecker {
 	/** Ein Wert nach Typ: Texte gestrippt, leer heißt nicht gesetzt. Passt er nicht, kommt die Beanstandung in die Liste. */
 	private static Object convertSingle(String name, SolrFieldType type, JsonNode value, List<String> problems) {
 		return switch (type) {
-			case STRING, TEXT_MINIMAL, TEXT_WORD, TEXT_WORDS -> {
+			case STRING, TEXT_EDGE, TEXT_SUCHE -> {
 				if (!value.isString()) {
 					problems.add(name + ": erwartet einen Text (" + type + ")");
 					yield null;
@@ -344,7 +344,7 @@ public class DmsSolrDocumentChecker {
 			return null;
 		}
 		return switch (type) {
-			case STRING, TEXT_MINIMAL, TEXT_WORD, TEXT_WORDS -> {
+			case STRING, TEXT_EDGE, TEXT_SUCHE -> {
 				if (!(value instanceof String text)) {
 					problems.add(name + ": erwartet einen Text (" + type + ")");
 					yield null;

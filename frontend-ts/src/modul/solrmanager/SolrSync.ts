@@ -21,6 +21,10 @@ export interface SolrCoreSyncReport {
   onlyInSolr: string[]
   /** anderer Typ in Solr als in Postgres: nur gemeldet, Neuaufbau nötig */
   typeConflicts: string[]
+  /** die Klauselgrenze des Kerns nach dem Abgleich (query.maxBooleanClauses), 0 wenn nicht gelesen */
+  maxBooleanClauses: number
+  /** der Abgleich hat sie gerade über die Config-API gesetzt */
+  maxBooleanClausesChanged: boolean
   error: string | null
   syncedAt: string
   durationMs: number

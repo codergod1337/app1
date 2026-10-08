@@ -16,6 +16,7 @@ import {
   type SolrExactResolveField,
   type SolrExactResolveFieldValuesByFieldName,
 } from '../solrmanager/SolrExactResolve.ts'
+import { solrFieldDisplayNameOf } from '../solrmanager/SolrField.ts'
 import { getAllUsers, type Users } from '../users/Users.ts'
 import { useDocumentGrantPrefill } from './DocumentGrantPrefill.ts'
 import {
@@ -113,12 +114,10 @@ export function DocumentGrantsPerCoreTab() {
   const canResolve = !busy && coreHasGrantService && hasConditions
   const canGrant = !busy && preview !== null && preview.grantAllowed && granteeUsersGuid !== ''
 
+  /** Anzeigename des Hooks oder des Feldes, dahinter der technische Name, sonst nur der */
   function labelOf(field: SolrExactResolveField): string {
-    if (!field.hook) {
-      return field.name
-    }
-    const hook = solrHooks?.find((candidate) => candidate.key === field.name)
-    const name = hook ? translate(hook.displayName) : ''
+    const hook = field.hook ? solrHooks?.find((candidate) => candidate.key === field.name) : undefined
+    const name = hook ? translate(hook.displayName) : (solrFieldDisplayNameOf(solrFields ?? [], coreKey, field.name) ?? '')
     return name !== '' ? `${name} (${field.name})` : field.name
   }
 

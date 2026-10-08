@@ -7,14 +7,17 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Ein Hook: eine Adresse, über die ein Solr-Dokument auf ein Fachobjekt zeigt, z. B. artikelNummer. Jeder Kern bekommt
  * dieselben Hooks, deshalb lässt sich der Zugriff kernunabhängig steuern.
  *
- * Der Hook trägt keine Rechte. Wer HOOK_FULL hat, darf jeden Hook benutzen, alle anderen nur, was ihnen je Hook und
- * Wert freigegeben ist. Jeder Hook ist freigebbar.
+ * Wer einen Hook lesen und danach filtern darf, steht wie bei jedem Feld als AR-Liste am Hook (readAccessRoleKeys,
+ * 2026-10-09), in jedem Kern gleich. SOLR_USERS_VIEW_ALL und SOLR_USERS_VIEW_HOOKS bekommen jeden Hook.
  *
  * Kein Aussehen am Hook: Alle Chips sehen gleich aus, der Look (Fels, anthrazit, rot glühende Risse) steht fest in
  * basic.css. Was einen Hook vom anderen unterscheidet, sind Anzeigename und Gruppe.
@@ -65,6 +68,15 @@ public class SolrHook {
 	@Column(length = 200)
 	private String hookGroupKey;
 
+	/**
+	 * Die ARs, deren Inhaber den Hook lesen und danach filtern dürfen, in jedem Kern (2026-10-09, wie
+	 * SolrField.readAccessRoleKeys). Leer heißt niemand außer SOLR_USERS_VIEW_ALL und SOLR_USERS_VIEW_HOOKS. Nur keys,
+	 * dass es sie gibt, prüft der Service beim Speichern.
+	 */
+	@JdbcTypeCode(SqlTypes.ARRAY)
+	@Column(columnDefinition = "text[]")
+	private List<String> readAccessRoleKeys;
+
 	/** Reihenfolge in Listen, nicht eindeutig. Sortiert wird nach Position und dann nach key. */
 	@Column(nullable = false)
 	@ColumnDefault("0")
@@ -75,11 +87,13 @@ public class SolrHook {
 	}
 
 	/** Admin und Import: jedes Feld. */
-	public SolrHook(String key, String displayName, String description, String hookGroupKey, int listingPosition) {
+	public SolrHook(String key, String displayName, String description, String hookGroupKey,
+			List<String> readAccessRoleKeys, int listingPosition) {
 		this.key = key;
 		this.displayName = displayName;
 		this.description = description;
 		this.hookGroupKey = hookGroupKey;
+		this.readAccessRoleKeys = readAccessRoleKeys != null ? List.copyOf(readAccessRoleKeys) : List.of();
 		this.listingPosition = listingPosition;
 	}
 
@@ -109,6 +123,15 @@ public class SolrHook {
 
 	public void setHookGroupKey(String hookGroupKey) {
 		this.hookGroupKey = hookGroupKey;
+	}
+
+	/** Nie null: Eine alte Zeile ohne Wert oder ein Import ohne das Feld gilt als leer, also niemand. */
+	public List<String> getReadAccessRoleKeys() {
+		return readAccessRoleKeys != null ? readAccessRoleKeys : List.of();
+	}
+
+	public void setReadAccessRoleKeys(List<String> readAccessRoleKeys) {
+		this.readAccessRoleKeys = readAccessRoleKeys != null ? List.copyOf(readAccessRoleKeys) : List.of();
 	}
 
 	public int getListingPosition() {

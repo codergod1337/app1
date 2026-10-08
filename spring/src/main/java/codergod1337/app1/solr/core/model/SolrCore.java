@@ -59,26 +59,25 @@ public class SolrCore {
 	}
 
 	/**
-	 * Das Feld id: der Primärschlüssel (uniqueKey) jedes Kerns, als Feld angelegt, sobald der Kern entsteht. Es gibt
-	 * keine Wahl einer Quelle am Kern: Was hineinkommt, steht in der Beschreibung des Feldes, z. B. beim DMS der Hash der
-	 * Bytes, und wer den Kern befüllt, hält sich daran.
+	 * Das Feld id: der Primärschlüssel (uniqueKey) jedes Kerns. Eine Zeile in solr_field ohne Kern, also in jedem Kern,
+	 * auf Platz 1, aus dem Code (User 2026-10-09). Das Basis-Configset hat es schon beim Anlegen des Kerns, der Abgleich
+	 * zieht nur die Schalter nach. Was hineinkommt, sagt der Code des Kerns, z. B. beim DMS der Hash der Bytes.
 	 */
 	public static final String ID_FIELD_NAME = "id";
 
 	/**
-	 * Das Feld cursorDate: wann ein Reindex-Lauf das Dokument zuletzt angefasst hat, der Fortschrittszeiger eines Laufs.
-	 * Wie id in jedem Kern, vom Backend angelegt.
+	 * Das Feld cursorDate: wann ein Durchlauf das Dokument zuletzt angefasst hat, der Zeiger zum Durchiterieren aller
+	 * Dokumente eines Kerns. Eine Zeile in solr_field ohne Kern, also in jedem Kern.
 	 */
 	public static final String CURSOR_DATE_FIELD_NAME = "cursorDate";
 
 	/**
-	 * Das Feld userGrantedAccess: die guids der User, denen das Dokument per Dateifreigabe geöffnet ist
-	 * (SolrDocumentGrantedDocsPerCore). Steht gleichwertig neben readAcl in der Dokumentgrenze: Allein am Dokument ist
-	 * ablesbar, wer es sehen darf. In jedem Kern, damit sich auch Artikel freigeben lassen. Setzt nur das Backend.
+	 * Das Feld userGrantedAccess: die guids der User, denen das Dokument per Dateifreigabe geöffnet ist. Der
+	 * Freigabe-Service liest allein danach. Eine Zeile in solr_field ohne Kern, also in jedem Kern. Setzt nur das Backend.
 	 */
 	public static final String USER_GRANTED_ACCESS_FIELD_NAME = "userGrantedAccess";
 
-	/** Die Felder, die jeder Kern hat: mit dem Kern angelegt, beim Start nachgezogen, nicht löschbar, Typ fest */
+	/** Die Felder, die jeder Kern hat und die nie ein Client setzt: alle drei ohne Kern in solr_field, aus dem Code */
 	public static final Set<String> BUILT_IN_FIELD_NAMES = Set.of(ID_FIELD_NAME, CURSOR_DATE_FIELD_NAME,
 			USER_GRANTED_ACCESS_FIELD_NAME);
 

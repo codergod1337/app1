@@ -9,7 +9,10 @@ export const SOLR_FIELD_NAME_MAX_LENGTH = 100
 /** Hängt Solr an jedes Feld, das ein Suggest-Gegenstück bekommt, deshalb darf kein Hook so enden */
 const SUGGEST_SUFFIX = 'Suggested'
 
-/** Felder, die Solr selbst anlegt. Der Text der Regel für den User steht im Sprachkatalog (common.solrFieldNameRule). */
+/**
+ * Namen, die niemand von Hand vergibt: id legt der Code in jedem Kern an, _version_ und _root_ sind Solrs eigene
+ * Felder. Der Text der Regel für den User steht im Sprachkatalog (common.solrFieldNameRule).
+ */
 const RESERVED = ['id', '_version_', '_root_']
 
 const VALID_SOLR_FIELD_NAME = /^[A-Za-z][A-Za-z0-9_]*$/

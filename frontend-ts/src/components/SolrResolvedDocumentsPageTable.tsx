@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SOLR_CORE_BUILT_IN_FIELD_NAMES } from '../modul/solrmanager/SolrCore.ts'
+import { solrFieldDisplayNameOf } from '../modul/solrmanager/SolrField.ts'
 import { Hoverlay } from './Hoverlay.tsx'
+import { useLanguage } from './languageContext.ts'
 import { useMasterData } from './masterDataContext.ts'
 import { translate } from './multilingual.ts'
 import { Popup } from './Popup.tsx'
@@ -61,8 +63,18 @@ export function SolrResolvedDocumentsPageTable({
   rowActions,
 }: SolrResolvedDocumentsPageTableProps) {
   const { t, i18n } = useTranslation()
-  const { solrFields, entityStates, fileSubClasses } = useMasterData()
+  const { language } = useLanguage()
+  const { solrFields, entityStates, fileSubClasses, solrHooks } = useMasterData()
   const [detailDocument, setDetailDocument] = useState<SolrResolvedDocument | null>(null)
+
+  /** Die Beschriftung eines Feldes: Anzeigename des Feldes oder Hooks, sonst der technische Name */
+  function labelOf(name: string): string {
+    const hook = solrHooks?.find((candidate) => candidate.key === name)
+    if (hook) {
+      return translate(hook.displayName, language) || hook.key
+    }
+    return solrFieldDisplayNameOf(solrFields ?? [], coreKey, name, language) ?? name
+  }
 
   /** Ein Wert fürs Lesen: Listen mit Komma, lange Texte nur mit ihrer Länge, Zeitpunkte in der Sprache der Oberfläche */
   function shownValue(name: string, value: unknown): string {
@@ -101,8 +113,7 @@ export function SolrResolvedDocumentsPageTable({
   const minimumSetColumnFieldNames = (solrFields ?? [])
     .filter(
       (field) =>
-        field.coreKey === coreKey &&
-        field.readAccessLevel === 'MINIMUM_SET_EVERY_READER' &&
+        (field.coreKey === null || field.coreKey === coreKey) &&
         readableFieldAndHookNames.includes(field.name) &&
         !HIDDEN_COLUMN_FIELD_NAMES.includes(field.name),
     )
@@ -133,7 +144,7 @@ export function SolrResolvedDocumentsPageTable({
   })
   minimumSetColumnFieldNames.forEach((name, index) =>
     columns.push({
-      header: name,
+      header: labelOf(name),
       unimportant: index > 0,
       cell: (document) => shownValue(name, document[name]),
     }),
@@ -194,7 +205,10 @@ export function SolrResolvedDocumentsPageTable({
           <dl className="details-list">
             {Object.entries(detailDocument).map(([name, value]) => (
               <div key={name}>
-                <dt>{name}</dt>
+                <dt>
+                  {labelOf(name)}
+                  {labelOf(name) !== name && <span className="text-muted fw-normal ms-1">({name})</span>}
+                </dt>
                 <dd>{shownValue(name, value)}</dd>
               </div>
             ))}

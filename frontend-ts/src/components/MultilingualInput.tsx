@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from 'react'
 import { DEFAULT_LANGUAGE, type LanguageCode } from '../branding/languages.ts'
 import { parseMultilingual, stringifyMultilingual } from './multilingual.ts'
 
@@ -8,6 +9,10 @@ interface MultilingualInputProps {
   /** die Sprache, die gerade bearbeitet wird (gewählt über die Flaggen der ContentBox) */
   language: LanguageCode
   onChange: (value: string | null) => void
+  /** das Feld wurde verlassen: z. B. jetzt speichern, nicht bei jedem Tastendruck */
+  onBlur?: () => void
+  /** Enter im einzeiligen Feld, z. B. zum Speichern; mehrzeilig bleibt Enter ein Zeilenumbruch */
+  onEnter?: () => void
   /** Pflicht ist nur der Text der Standardsprache */
   required?: boolean
   disabled?: boolean
@@ -22,6 +27,8 @@ export function MultilingualInput({
   value,
   language,
   onChange,
+  onBlur,
+  onEnter,
   required = false,
   disabled = false,
   multiline = false,
@@ -37,6 +44,14 @@ export function MultilingualInput({
     // in einer anderen Sprache als Hilfe den Text der Standardsprache zeigen
     placeholder: language === DEFAULT_LANGUAGE ? '' : (text[DEFAULT_LANGUAGE] ?? ''),
     value: text[language] ?? '',
+    onBlur,
+  }
+
+  function keyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter' && onEnter) {
+      event.preventDefault()
+      onEnter()
+    }
   }
 
   return multiline ? (
@@ -49,6 +64,7 @@ export function MultilingualInput({
     <input
       {...fieldProps}
       onChange={(event) => onChange(stringifyMultilingual({ ...text, [language]: event.target.value }))}
+      onKeyDown={keyDown}
     />
   )
 }

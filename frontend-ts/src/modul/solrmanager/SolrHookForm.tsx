@@ -5,16 +5,19 @@ import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
 import { MultilingualInput } from '../../components/MultilingualInput.tsx'
 import { SolrFieldNameInput } from '../../components/SolrFieldNameInput.tsx'
+import { BadgeToggleList } from '../accessrole/BadgeToggleList.tsx'
+import { fieldReadAccessRoleCandidates } from './SolrField.ts'
 import type { SolrHook } from './SolrHook.ts'
 import { SolrHookChip } from './SolrHookChip.tsx'
 import { SolrHookValues } from './SolrHookValues.tsx'
 
-/** Startwerte eines neuen Hooks */
+/** Startwerte eines neuen Hooks: niemand liest ihn, bis eine AR angekreuzt ist */
 const NEW_SOLR_HOOK: SolrHook = {
   key: '',
   displayName: '',
   description: null,
   hookGroupKey: null,
+  readAccessRoleKeys: [],
   listingPosition: 0,
 }
 
@@ -42,8 +45,8 @@ export function SolrHookForm({ formId, initialSolrHook, language, disabled, onSu
   const { t } = useTranslation()
   const editing = initialSolrHook !== undefined
   const [solrHook, setSolrHook] = useState<SolrHook>(initialSolrHook ?? NEW_SOLR_HOOK)
-  // die Gruppen aus den Stammdaten zur Auswahl, gepflegt im Tab „Hook-Gruppen“
-  const { solrHookGroups } = useMasterData()
+  // die Gruppen aus den Stammdaten zur Auswahl, gepflegt im Tab „Hook-Gruppen“; die ARs für die Leseliste
+  const { solrHookGroups, accessRoles } = useMasterData()
 
   function change<K extends keyof SolrHook>(field: K, value: SolrHook[K]) {
     setSolrHook((current) => ({ ...current, [field]: value }))
@@ -124,6 +127,16 @@ export function SolrHookForm({ formId, initialSolrHook, language, disabled, onSu
             type="number"
             value={solrHook.listingPosition}
             onChange={(event) => change('listingPosition', Number(event.target.value))}
+          />
+        </div>
+        <div className="col-12">
+          <span className="form-label d-block">{t('solrmanager.hooks.form.readAccess')}</span>
+          <BadgeToggleList
+            badges={fieldReadAccessRoleCandidates(accessRoles ?? [], solrHook.readAccessRoleKeys)}
+            selectedKeys={solrHook.readAccessRoleKeys}
+            onChange={(readAccessRoleKeys) => change('readAccessRoleKeys', readAccessRoleKeys)}
+            shape="rect"
+            disabled={disabled}
           />
         </div>
 

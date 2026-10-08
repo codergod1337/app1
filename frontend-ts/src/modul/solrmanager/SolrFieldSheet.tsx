@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { RequestError } from '../../api/client.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
@@ -6,26 +6,25 @@ import { DeleteButton } from '../../components/DeleteButton.tsx'
 import { DeletePopup } from '../../components/DeletePopup.tsx'
 import { Hoverlay } from '../../components/Hoverlay.tsx'
 import { Icon } from '../../components/Icon.tsx'
+import { useMasterData } from '../../components/masterDataContext.ts'
 import { MultilingualInput } from '../../components/MultilingualInput.tsx'
+import { Popup } from '../../components/Popup.tsx'
 import { positionsByKey } from '../../components/positions.ts'
 import { isValidSolrFieldName } from '../../components/solrFieldNameRule.ts'
 import { SolrFieldNameInput } from '../../components/SolrFieldNameInput.tsx'
 import { Table, type TableColumn } from '../../components/Table.tsx'
-import {
-  SOLR_CORE_BUILT_IN_FIELD_NAMES,
-  SOLR_CORE_ID_FIELD_NAME,
-  SOLR_CORE_USER_GRANTED_ACCESS_FIELD_NAME,
-} from './SolrCore.ts'
+import { AccessRoleBadge } from '../accessrole/AccessRoleBadge.tsx'
+import { BadgeToggleList } from '../accessrole/BadgeToggleList.tsx'
 import {
   changeSolrFieldPositions,
   createSolrField,
   deleteSolrField,
+  fieldReadAccessRoleCandidates,
+  isClientAllowedToSetOnCreate,
   isSuggestable,
   SOLR_FIELD_CLIENT_WRITE_RULES,
   SOLR_FIELD_SETTINGS,
   SOLR_FIELD_TYPES,
-  SOLR_ID_FIELD_FIXED_SETTINGS,
-  SOLR_USER_GRANTED_ACCESS_FIELD_FIXED_SETTINGS,
   updateSolrField,
   type SolrField,
   type SolrFieldClientWriteRule,
@@ -35,15 +34,12 @@ import {
 } from './SolrField.ts'
 import {
   solrFieldAccessHint,
+  solrFieldBackendOnlyHint,
   solrFieldClientWriteRuleHint,
-  solrFieldDescriptionHint,
-  solrFieldIdHint,
+  solrFieldNameHint,
   solrFieldSettingHint,
   solrFieldTypeHint,
 } from './solrFieldHints.tsx'
-
-/** So lange nach dem letzten Tippen in einem Textfeld wird gewartet, dann gespeichert */
-const TEXT_SAVE_DELAY_MS = 600
 
 type RowStatus = { kind: 'saving' } | { kind: 'saved' } | { kind: 'error'; message: string }
 
@@ -52,28 +48,7 @@ type SheetRow = { kind: 'field'; field: SolrField } | { kind: 'new' }
 
 const NEW_ROW: SheetRow = { kind: 'new' }
 
-/** Die Zeile des Feldes id, des Primärschlüssels: zusätzlich stehen die PK-Schalter fest, und es steht ganz oben */
-function isIdRow(row: SheetRow): boolean {
-  return row.kind === 'field' && row.field.name === SOLR_CORE_ID_FIELD_NAME
-}
-
-/** Die Zeile eines festen Feldes (id, cursorDate, userGrantedAccess): jeder Kern hat es, der Typ steht fest, löschen geht nicht */
-function isBuiltInRow(row: SheetRow): boolean {
-  return row.kind === 'field' && SOLR_CORE_BUILT_IN_FIELD_NAMES.includes(row.field.name)
-}
-
-/** Die Schalter, die bei einem festen Feld nicht umgelegt werden dürfen: bei id die PK-Schalter, bei userGrantedAccess die der Dokumentgrenze */
-function fixedSettingsOf(row: SheetRow): readonly SolrFieldSetting[] {
-  if (isIdRow(row)) {
-    return SOLR_ID_FIELD_FIXED_SETTINGS
-  }
-  if (row.kind === 'field' && row.field.name === SOLR_CORE_USER_GRANTED_ACCESS_FIELD_NAME) {
-    return SOLR_USER_GRANTED_ACCESS_FIELD_FIXED_SETTINGS
-  }
-  return []
-}
-
-/** Die leere Zeile unten: indexed und stored an, der Rest aus, Zugriff Erweitert, Schreibregel Backend */
+/** Die leere Zeile unten: indexed und stored an, der Rest aus, niemand liest, Schreibregel Backend */
 function emptySolrFieldData(coreKey: string): SolrFieldData {
   return {
     coreKey,
@@ -85,11 +60,18 @@ function emptySolrFieldData(coreKey: string): SolrFieldData {
     docValues: false,
     required: false,
     suggest: false,
-    readAccessLevel: 'ADVANCED_FULL_SIGHT_OR_FIELD_GRANT',
+    readAccessRoleKeys: [],
+    backendOnly: false,
     clientWriteRule: 'BACKEND_ONLY',
+    displayName: null,
     description: null,
     listingPosition: 0,
   }
+}
+
+/** Die Kurzform des Solr-Namens für die Spalte: die ersten vier Zeichen und zwei Punkte, kurze Namen ganz */
+function shortSolrFieldName(name: string): string {
+  return name.length > 4 ? `${name.slice(0, 4)}..` : name
 }
 
 /** Die nächste Stufe der Schreibregel: Backend, nur beim Anlegen, Client, dann wieder Backend */
@@ -98,14 +80,22 @@ function nextClientWriteRule(current: SolrFieldClientWriteRule): SolrFieldClient
   return SOLR_FIELD_CLIENT_WRITE_RULES[(index + 1) % SOLR_FIELD_CLIENT_WRITE_RULES.length]
 }
 
-/** suggest geht nur bei Typen mit Zwilling, sonst fällt es auf aus */
+/**
+ * suggest geht nur bei Typen mit Zwilling, sonst fällt es auf aus; nur Backend heißt, keine AR liest; required heißt,
+ * der Client muss es beim Anlegen mitschicken, bei der Schreibregel Backend fällt es auf aus (User 2026-10-09)
+ */
 function withAllowedSettings<T extends SolrFieldData>(field: T): T {
-  return { ...field, suggest: field.suggest && isSuggestable(field.type) }
+  return {
+    ...field,
+    suggest: field.suggest && isSuggestable(field.type),
+    required: field.required && isClientAllowedToSetOnCreate(field.clientWriteRule),
+    readAccessRoleKeys: field.backendOnly ? [] : field.readAccessRoleKeys,
+  }
 }
 
 interface SolrFieldSheetProps {
   coreKey: string
-  /** die Felder dieses Kerns aus den Stammdaten, in Listenreihenfolge */
+  /** die Felder dieses Kerns aus den Stammdaten, in Listenreihenfolge, die Felder jedes Kerns zuerst */
   solrFields: SolrField[]
   /** Sprache der Beschreibungen, gewählt über die Flaggen der ContentBox */
   language: LanguageCode
@@ -119,36 +109,43 @@ interface SolrFieldSheetProps {
 
 /**
  * Die Felder eines Kerns wie in einer Tabellenkalkulation, in der zentralen Tabelle: eine Zeile je Feld, alles direkt
- * in der Zeile bearbeiten. Schalter und Typ speichern sofort, die Beschreibung kurz nach dem letzten Tippen. Die
- * Statusspalte zeigt, ob eine Zeile gerade gespeichert wird, gespeichert ist oder einen Fehler hat. Die Reihenfolge
- * ändert sich per Drag and Drop am Griff.
+ * in der Zeile bearbeiten. Schalter und Typ speichern sofort; Anzeigename und Beschreibung erst beim Verlassen des
+ * Feldes oder mit Enter, nicht bei jedem Tastendruck (User 2026-10-07). Die Statusspalte zeigt, ob eine Zeile gerade
+ * gespeichert wird, gespeichert ist oder einen Fehler hat. Die Reihenfolge ändert sich per Drag and Drop am Griff.
  *
  * Ein neues Feld: Das Plus steht im Kopf der Box (der Aufrufer schaltet newRowOpen). Erst nach dem Klick erscheint
  * unten die leere Zeile mit dem Cursor im Namen, Enter oder der Haken legt an, Escape oder das Kreuz bricht ab.
  *
- * Die Breite ist ausgerechnet, damit alles in die Box passt: 80rem Seite minus 2rem Innenabstand sind 78rem. ID 4,
- * Name 10, Typ 7, sechs Schalter je 3, Zugriff 6,5, Schreibregel 8,5, Status 3,5, Aktionen 5,5, die Beschreibung
- * bekommt den Rest, 15rem. Schalter, Status und Aktionen haben senkrechte Köpfe, so bleiben die Spalten schmal.
+ * Die Breite ist ausgerechnet, damit alles in die Box passt: 80rem Seite minus 2rem Innenabstand sind 78rem. Name 4,5,
+ * Anzeigename 10, Typ 6,5, sechs Schalter je 3, nur Backend 3, Lesen 9, Schreibregel 8,5, Status 3,5, Aktionen 5,5,
+ * die Beschreibung bekommt den Rest. Schalter, Status und Aktionen haben senkrechte Köpfe, so bleiben die Spalten
+ * schmal.
  *
- * Hier steht jedes normale Feld des Kerns, auch die festen, die jeder Kern hat: id, cursorDate und userGrantedAccess.
- * Bei allen steht der Typ fest und löschen geht nicht. id ist der Primärschlüssel, immer an Position 1 und nicht
- * verschiebbar, die Spalte ID zeigt dort den Schlüssel, und die PK-Schalter (indexed, required, multiValued) stehen
- * fest. Alles andere ist frei. Was in id hineinkommt, steht in seiner Beschreibung. Die Beschreibung jedes Feldes liegt
- * zusätzlich als Hoverlay am Namen.
+ * Die Spalte Name zeigt nur die ersten vier Zeichen des Solr-Namens und zwei Punkte (User 2026-10-09): Namen wie
+ * bildVorschauBase64Png brauchen in der Spalte zu viel Platz, der ganze Name steht mit der Beschreibung im Hoverlay.
+ * Sichtbar daneben ist der Anzeigename. In der leeren Zeile steht an dessen Stelle die Eingabe des Solr-Namens, der
+ * Anzeigename kommt nach dem Anlegen.
  *
- * Die Spalte Zugriff ist ein Umschaltknopf je Zeile: Minimum (die Grundansicht, jeder, der das Dokument sehen darf)
- * oder Erweitert (nur mit <KERN>_FULL oder Feld-Freigabe). id ist immer Minimum, das Backend erzwingt es. Die Spalte
- * Schreibregel ist der zweite Umschaltknopf mit drei Stufen: Backend, nur beim Anlegen, Client. Die eingebauten Felder
- * sind immer Backend, und ein Backend-Feld hat keinen Löschknopf, denn das Backend braucht es.
+ * Ein Feld, das in jedem Kern liegt (id, cursorDate, userGrantedAccess), trägt ein zweites Symbol in der Spalte Name
+ * und erscheint in jedem Kern-Tab, bearbeitet wird dieselbe Zeile.
+ *
+ * Die Spalte Lesen (2026-10-09) zeigt die ARs, deren Inhaber das Feld bekommen, als kompakte Badges; Klick öffnet das
+ * Popup mit USER und den Feld-ARs (SOLR_FIELD_*) zum Ankreuzen, jeder Haken speichert sofort. Ohne AR liest niemand
+ * außer SOLR_USERS_VIEW_ALL, USER heißt „immer“. Nur Backend heißt: nie zum Client, auch nicht mit ALL. Die Spalte
+ * Schreibregel ist der Umschaltknopf mit drei Stufen: Backend, nur beim Anlegen, Client. Ein Backend-Feld hat keinen
+ * Löschknopf, denn das Backend braucht es, und sein required ist aus und gesperrt: Pflicht beim Anlegen gibt es nur
+ * bei Feldern, die der Client mitschickt (User 2026-10-09).
  *
  * Der Aufrufer gibt key={coreKey} mit: Beim Wechsel des Kerns wird die Tabelle neu aufgebaut und vergisst Entwürfe.
  */
 export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowOpen, onNewRowClose }: SolrFieldSheetProps) {
   const { t } = useTranslation()
+  const { accessRoles } = useMasterData()
   // Was in den Zeilen steht, sobald jemand tippt: der Entwurf vor dem Stand der Stammdaten, nach dem Speichern die Antwort
   const [drafts, setDrafts] = useState<Map<number, SolrField>>(() => new Map())
   const [statusById, setStatusById] = useState<Map<number, RowStatus>>(() => new Map())
-  const timersRef = useRef(new Map<number, ReturnType<typeof setTimeout>>())
+  // Zeilen, deren Texte getippt, aber noch nicht gespeichert sind: gespeichert wird beim Verlassen des Feldes
+  const [dirtyIds, setDirtyIds] = useState<Set<number>>(() => new Set())
   // Nach Drag and Drop sofort die neue Reihenfolge zeigen, ohne auf das Neuladen zu warten
   const [reorderedFields, setReorderedFields] = useState<SolrField[] | null>(null)
   const [positionErrorMessage, setPositionErrorMessage] = useState<string | null>(null)
@@ -157,15 +154,12 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
   const [createErrorMessage, setCreateErrorMessage] = useState<string | null>(null)
   // Sicherheitsabfrage vor dem Löschen: null, solange keine offen ist
   const [solrFieldToDelete, setSolrFieldToDelete] = useState<SolrField | null>(null)
+  // Das Popup mit den ARs zum Ankreuzen: die Zeile, deren Leseliste gerade bearbeitet wird
+  const [accessRow, setAccessRow] = useState<SheetRow | null>(null)
 
   const shownFields = reorderedFields ?? solrFields
-  // id steht immer an Position 1, egal welche Position die Stammdaten kennen, der Rest in Listenreihenfolge
-  const orderedFields = [
-    ...shownFields.filter((field) => field.name === SOLR_CORE_ID_FIELD_NAME),
-    ...shownFields.filter((field) => field.name !== SOLR_CORE_ID_FIELD_NAME),
-  ]
   const rows: SheetRow[] = [
-    ...orderedFields.map((field): SheetRow => ({ kind: 'field', field })),
+    ...shownFields.map((field): SheetRow => ({ kind: 'field', field })),
     ...(newRowOpen ? [NEW_ROW] : []),
   ]
 
@@ -199,27 +193,35 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
   }
 
   /**
-   * Eine Änderung in einer Zeile: sofort speichern, bei Texten erst nach einer kurzen Pause. Jeder Tastendruck rendert
-   * neu, deshalb ist der Entwurf aus dem Render hier immer der aktuelle.
+   * Eine Änderung in einer Zeile: Schalter und Typ sofort speichern, ein Text bleibt Entwurf, bis das Feld verlassen
+   * wird (saveDraft). Jeder Tastendruck rendert neu, deshalb ist der Entwurf aus dem Render hier immer der aktuelle.
    */
-  function changeRow(solrField: SolrField, changes: Partial<SolrField>, delayed = false) {
+  function changeRow(solrField: SolrField, changes: Partial<SolrField>, textOnly = false) {
     const next = withAllowedSettings({ ...(drafts.get(solrField.id) ?? solrField), ...changes })
     setDrafts((current) => new Map(current).set(solrField.id, next))
-    clearTimeout(timersRef.current.get(solrField.id))
-    if (delayed) {
-      timersRef.current.set(
-        solrField.id,
-        setTimeout(() => saveRow(next), TEXT_SAVE_DELAY_MS),
-      )
+    if (textOnly) {
+      setDirtyIds((current) => new Set(current).add(solrField.id))
     } else {
       saveRow(next)
     }
   }
 
+  /** Das Textfeld wurde verlassen oder Enter gedrückt: den Entwurf speichern, wenn seit dem letzten Speichern getippt wurde */
+  function saveDraft(row: SheetRow) {
+    if (row.kind !== 'field' || !dirtyIds.has(row.field.id)) {
+      return
+    }
+    setDirtyIds((current) => {
+      const next = new Set(current)
+      next.delete(row.field.id)
+      return next
+    })
+    saveRow(drafts.get(row.field.id) ?? row.field)
+  }
+
   /**
-   * Positionen neu durchzählen (1, 2, 3 …) und alle auf einmal speichern, danach die Stammdaten neu laden. id steht
-   * fest ganz oben und bekommt so immer die 1. Die leere Zeile unten zählt nicht mit, sie steht nach dem Neuladen
-   * wieder unten.
+   * Positionen neu durchzählen (1, 2, 3 …) und alle auf einmal speichern, danach die Stammdaten neu laden. Die leere
+   * Zeile unten zählt nicht mit, sie steht nach dem Neuladen wieder unten.
    */
   function reorderRows(newOrder: SheetRow[]) {
     const fields = newOrder.flatMap((row) => (row.kind === 'field' ? [row.field] : []))
@@ -227,7 +229,7 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
     setReorderedFields(fields.map((field) => ({ ...field, listingPosition: positions[String(field.id)] })))
     setPositionErrorMessage(null)
     changeSolrFieldPositions(positions)
-      .then(({ data }) => setReorderedFields(data.filter((field) => field.coreKey === coreKey)))
+      .then(({ data }) => setReorderedFields(data.filter((field) => field.coreKey === null || field.coreKey === coreKey)))
       .catch((error: unknown) => {
         setPositionErrorMessage(error instanceof RequestError ? error.message : t('common.unknownError'))
         setReorderedFields(null)
@@ -283,10 +285,10 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
     return row.kind === 'field' ? (drafts.get(row.field.id) ?? row.field) : newField
   }
 
-  /** Eine Änderung, egal ob an einem bestehenden Feld oder in der leeren Zeile */
-  function change(row: SheetRow, changes: Partial<SolrFieldData>, delayed = false) {
+  /** Eine Änderung, egal ob an einem bestehenden Feld oder in der leeren Zeile; textOnly: nur Entwurf, speichern beim Verlassen */
+  function change(row: SheetRow, changes: Partial<SolrFieldData>, textOnly = false) {
     if (row.kind === 'field') {
-      changeRow(row.field, changes, delayed)
+      changeRow(row.field, changes, textOnly)
     } else {
       changeNewField(changes)
     }
@@ -348,14 +350,16 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
       verticalHeader: true,
       cell: (row) => {
         const data = dataOf(row)
-        const unavailable = setting === 'suggest' && !isSuggestable(data.type)
+        const unavailable =
+          (setting === 'suggest' && !isSuggestable(data.type)) ||
+          (setting === 'required' && !isClientAllowedToSetOnCreate(data.clientWriteRule))
         return (
           <input
             id={`${idOf(row)}-${setting}`}
             className="form-check-input"
             type="checkbox"
             aria-label={t('solrmanager.sheet.settingFor', { setting: header, name: nameOf(row) })}
-            disabled={creating || unavailable || fixedSettingsOf(row).includes(setting)}
+            disabled={creating || unavailable}
             checked={data[setting]}
             onChange={(event) => change(row, { [setting]: event.target.checked })}
           />
@@ -364,49 +368,94 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
     }
   }
 
+  /** Die Leseliste einer Zeile als kompakte Badges, bei nur Backend der Hinweis, ohne AR „niemand“ */
+  function accessCell(row: SheetRow) {
+    const data = dataOf(row)
+    if (data.backendOnly) {
+      return <span className="text-body-secondary small">{t('solrmanager.sheet.backendOnly')}</span>
+    }
+    const badges = (accessRoles ?? []).filter((accessRole) => data.readAccessRoleKeys.includes(accessRole.key))
+    return (
+      <button
+        type="button"
+        id={`${idOf(row)}-readAccessRoleKeys`}
+        className="button-other"
+        aria-label={t('solrmanager.sheet.fieldAccessOf', { name: nameOf(row) })}
+        disabled={creating}
+        onClick={() => setAccessRow(row)}
+      >
+        {badges.length === 0 ? (
+          <span className="small">{t('solrmanager.sheet.fieldAccessNone')}</span>
+        ) : (
+          <span className="d-inline-flex flex-wrap gap-1">
+            {badges.map((accessRole) => (
+              <AccessRoleBadge key={accessRole.key} badge={accessRole} size="compact" withHoverlay={false} />
+            ))}
+          </span>
+        )}
+      </button>
+    )
+  }
+
   const columns: TableColumn<SheetRow>[] = [
     {
-      header: t('solrmanager.sheet.id'),
-      headerHint: solrFieldIdHint(t),
-      width: '4rem',
+      header: t('solrmanager.sheet.name'),
+      width: '4.5rem',
       cell: (row) =>
-        isIdRow(row) ? (
-          <Hoverlay text={t('solrmanager.sheet.idHoverlay')}>
-            <Icon name="documentId" />
-          </Hoverlay>
+        row.kind === 'field' ? (
+          <span className="d-inline-flex align-items-center gap-1">
+            <Hoverlay text={solrFieldNameHint(row.field.name, dataOf(row).description, language)}>
+              <strong>{shortSolrFieldName(row.field.name)}</strong>
+            </Hoverlay>
+            {row.field.coreKey === null && (
+              <Hoverlay text={t('solrmanager.sheet.everyCore')}>
+                <span className="text-body-secondary">
+                  <Icon name="solrCores" />
+                </span>
+              </Hoverlay>
+            )}
+          </span>
         ) : null,
     },
     {
-      header: t('solrmanager.sheet.fieldName'),
+      header: t('solrmanager.sheet.displayName'),
       width: '10rem',
       cell: (row) =>
         row.kind === 'field' ? (
-          <Hoverlay text={solrFieldDescriptionHint(row.field.name, dataOf(row).description, language)}>
-            <strong>{row.field.name}</strong>
-          </Hoverlay>
+          <MultilingualInput
+            id={`${idOf(row)}-displayName`}
+            language={language}
+            value={dataOf(row).displayName}
+            onChange={(displayName) => change(row, { displayName }, true)}
+            onBlur={() => saveDraft(row)}
+            onEnter={() => saveDraft(row)}
+          />
         ) : (
-          <span onKeyDown={newRowKeys}>
-            <SolrFieldNameInput
-              id="solr-field-new-name"
-              disabled={creating}
-              autoFocus
-              value={newField.name}
-              onChange={(name) => changeNewField({ name })}
-            />
-          </span>
+          // die neue Zeile: hier der Solr-Name, der Anzeigename kommt nach dem Anlegen
+          <Hoverlay text={t('solrmanager.sheet.fieldName')}>
+            <span onKeyDown={newRowKeys}>
+              <SolrFieldNameInput
+                id="solr-field-new-name"
+                disabled={creating}
+                autoFocus
+                value={newField.name}
+                onChange={(name) => changeNewField({ name })}
+              />
+            </span>
+          </Hoverlay>
         ),
     },
     {
       header: t('solrmanager.sheet.type'),
       headerHint: solrFieldTypeHint(t),
-      width: '7rem',
+      width: '6.5rem',
       cell: (row) => {
         const data = dataOf(row)
         return (
           <select
             className="form-select form-select-sm"
             aria-label={t('solrmanager.sheet.typeOf', { name: nameOf(row) })}
-            disabled={creating || isBuiltInRow(row)}
+            disabled={creating}
             value={data.type}
             onChange={(event) => change(row, { type: event.target.value as SolrFieldType })}
           >
@@ -421,30 +470,29 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
     },
     ...SOLR_FIELD_SETTINGS.map(({ setting, label }) => settingColumn(setting, label)),
     {
+      header: t('solrmanager.sheet.backendOnly'),
+      headerHint: solrFieldBackendOnlyHint(t),
+      unimportant: true,
+      width: '3rem',
+      verticalHeader: true,
+      cell: (row) => (
+        <input
+          id={`${idOf(row)}-backendOnly`}
+          className="form-check-input"
+          type="checkbox"
+          aria-label={t('solrmanager.sheet.backendOnlyOf', { name: nameOf(row) })}
+          disabled={creating}
+          checked={dataOf(row).backendOnly}
+          onChange={(event) => change(row, { backendOnly: event.target.checked })}
+        />
+      ),
+    },
+    {
       header: t('solrmanager.sheet.fieldAccess'),
       headerHint: solrFieldAccessHint(t),
       unimportant: true,
-      width: '6.5rem',
-      cell: (row) => {
-        const minimum = dataOf(row).readAccessLevel === 'MINIMUM_SET_EVERY_READER'
-        return (
-          <button
-            type="button"
-            id={`${idOf(row)}-readAccessLevel`}
-            className="button-other"
-            aria-label={t('solrmanager.sheet.fieldAccessOf', { name: nameOf(row) })}
-            // id ist immer Minimum, das Backend erzwingt es
-            disabled={creating || isIdRow(row)}
-            onClick={() =>
-              change(row, {
-                readAccessLevel: minimum ? 'ADVANCED_FULL_SIGHT_OR_FIELD_GRANT' : 'MINIMUM_SET_EVERY_READER',
-              })
-            }
-          >
-            {minimum ? t('solrmanager.sheet.fieldAccessMinimum') : t('solrmanager.sheet.fieldAccessAdvanced')}
-          </button>
-        )
-      },
+      width: '9rem',
+      cell: accessCell,
     },
     {
       header: t('solrmanager.sheet.clientWriteRule'),
@@ -459,8 +507,7 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
             id={`${idOf(row)}-clientWriteRule`}
             className="button-other"
             aria-label={t('solrmanager.sheet.clientWriteRuleOf', { name: nameOf(row) })}
-            // die eingebauten Felder sind immer Backend, das Backend erzwingt es
-            disabled={creating || isBuiltInRow(row)}
+            disabled={creating}
             onClick={() => change(row, { clientWriteRule: nextClientWriteRule(rule) })}
           >
             {t(`solrmanager.sheet.clientWriteRules.${rule}`)}
@@ -478,6 +525,8 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
           disabled={creating && row.kind === 'new'}
           value={dataOf(row).description}
           onChange={(description) => change(row, { description }, true)}
+          onBlur={() => saveDraft(row)}
+          onEnter={() => saveDraft(row)}
         />
       ),
     },
@@ -491,8 +540,8 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
         rows={rows}
         rowKey={(row) => (row.kind === 'field' ? String(row.field.id) : 'new')}
         onReorder={reorderRows}
-        // id bleibt ganz oben, die leere Zeile ganz unten, nur die Felder dazwischen lassen sich verschieben
-        fixedRow={(row) => row.kind === 'new' || isIdRow(row)}
+        // die leere Zeile bleibt ganz unten, nur die Felder lassen sich verschieben
+        fixedRow={(row) => row.kind === 'new'}
         detailTitle={(row) => (row.kind === 'field' ? row.field.name : t('solrmanager.sheet.newField'))}
         emptyText={t('solrmanager.sheet.empty')}
         actionsWidth="5.5rem"
@@ -527,8 +576,8 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
               </>
             )
           }
-          if (isBuiltInRow(row) || dataOf(row).clientWriteRule === 'BACKEND_ONLY') {
-            // die eingebauten Felder hat jeder Kern, und ein Backend-Feld braucht das Backend: kein Löschknopf
+          if (dataOf(row).clientWriteRule === 'BACKEND_ONLY') {
+            // ein Backend-Feld braucht das Backend: kein Löschknopf
             return null
           }
           return <DeleteButton label={t('common.deleteAction')} onClick={() => setSolrFieldToDelete(row.field)} />
@@ -536,6 +585,24 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
       />
       {positionErrorMessage !== null && <p className="text-danger mb-0 mt-2">{positionErrorMessage}</p>}
       {createErrorMessage !== null && <p className="text-danger mb-0 mt-2">{createErrorMessage}</p>}
+      <Popup
+        open={accessRow !== null}
+        title={t('solrmanager.sheet.fieldAccessEdit', { name: accessRow ? nameOf(accessRow) : '' })}
+        onClose={() => setAccessRow(null)}
+      >
+        {accessRow !== null && (
+          <>
+            <p>{t('solrmanager.sheet.fieldAccessIntro')}</p>
+            <BadgeToggleList
+              badges={fieldReadAccessRoleCandidates(accessRoles ?? [], dataOf(accessRow).readAccessRoleKeys)}
+              selectedKeys={dataOf(accessRow).readAccessRoleKeys}
+              onChange={(readAccessRoleKeys) => change(accessRow, { readAccessRoleKeys })}
+              shape="rect"
+              disabled={creating}
+            />
+          </>
+        )}
+      </Popup>
       <DeletePopup
         open={solrFieldToDelete !== null}
         title={t('solrmanager.sheet.deleteTitle')}

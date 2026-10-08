@@ -4,7 +4,8 @@ import { Hoverlay } from '../../components/Hoverlay.tsx'
 import { Icon } from '../../components/Icon.tsx'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
-import { DOCUMENT_LANGUAGE_FIELD_NAME, readableBytes, STATUS_FIELD_NAME } from './Dms.ts'
+import { useLanguage } from '../../components/languageContext.ts'
+import { dmsFieldLabel, DOCUMENT_LANGUAGE_FIELD_NAME, readableBytes, STATUS_FIELD_NAME } from './Dms.ts'
 import { DmsDocumentLanguageFlag } from './DmsDocumentLanguageFlag.tsx'
 
 /** Ein Dokument, wie es der Server liefert: nur die Felder, die der User lesen darf */
@@ -64,7 +65,10 @@ export function DmsSolrDocumentIdentifiersHint({ document }: { document: DmsSolr
  */
 export function DmsSolrDocumentInfobox({ document }: { document: DmsSolrDocument }) {
   const { t, i18n } = useTranslation()
-  const { entityStates } = useMasterData()
+  const { language } = useLanguage()
+  const { entityStates, solrFields } = useMasterData()
+  /** die Beschriftung aus der Felddefinition, sonst aus dem Sprachkatalog */
+  const labelOf = (name: string, fallback: string) => dmsFieldLabel(solrFields, name, fallback, language)
 
   function dateTime(value: unknown): string | null {
     if (typeof value !== 'string') {
@@ -88,23 +92,31 @@ export function DmsSolrDocumentInfobox({ document }: { document: DmsSolrDocument
 
   return (
     <div className="dms-infobox">
-      <InfoboxLine label={t('dms.document.status')} value={statusName(document[STATUS_FIELD_NAME])} />
-      <InfoboxLine label={t('dms.document.version')} value={lastOf(document.version)} />
-      <InfoboxLine label={t('dms.document.fileIndex')} value={lastOf(document.fileIndex)} />
-      <InfoboxLine label={t('dms.document.fileSize')} value={readableBytes(document.fileSizeBytes)} />
-      <InfoboxLine label={t('dms.document.mimeType')} value={lastOf(document.mimeType)} />
+      <InfoboxLine label={labelOf(STATUS_FIELD_NAME, t('dms.document.status'))} value={statusName(document[STATUS_FIELD_NAME])} />
+      <InfoboxLine label={labelOf('version', t('dms.document.version'))} value={lastOf(document.version)} />
+      <InfoboxLine label={labelOf('fileIndex', t('dms.document.fileIndex'))} value={lastOf(document.fileIndex)} />
+      <InfoboxLine label={labelOf('fileSizeBytes', t('dms.document.fileSize'))} value={readableBytes(document.fileSizeBytes)} />
+      <InfoboxLine label={labelOf('mimeType', t('dms.document.mimeType'))} value={lastOf(document.mimeType)} />
       <InfoboxLine
-        label={t('dms.document.documentLanguage')}
+        label={labelOf(DOCUMENT_LANGUAGE_FIELD_NAME, t('dms.document.documentLanguage'))}
         value={<DmsDocumentLanguageFlag code={document[DOCUMENT_LANGUAGE_FIELD_NAME]} />}
       />
-      <InfoboxLine label={t('dms.document.downloadCount')} value={lastOf(document.downloadCount)} />
-      <InfoboxLine label={t('dms.document.createdAt')} value={dateTime(document.documentCreatedAt)} />
+      <InfoboxLine label={labelOf('downloadCount', t('dms.document.downloadCount'))} value={lastOf(document.downloadCount)} />
       <InfoboxLine
-        label={t('dms.document.uploadedAt')}
+        label={labelOf('isPublic', t('dms.document.isPublic'))}
+        value={
+          typeof document.isPublic === 'boolean'
+            ? t(document.isPublic ? 'dms.document.isPublicYes' : 'dms.document.isPublicNo')
+            : null
+        }
+      />
+      <InfoboxLine label={labelOf('documentCreatedAt', t('dms.document.createdAt'))} value={dateTime(document.documentCreatedAt)} />
+      <InfoboxLine
+        label={labelOf('documentUploadedAt', t('dms.document.uploadedAt'))}
         value={`${dateTime(document.documentUploadedAt) ?? '—'} · ${uploader ?? '—'}`}
       />
       <InfoboxLine
-        label={t('dms.document.lastChangedAt')}
+        label={labelOf('lastChangedAt', t('dms.document.lastChangedAt'))}
         value={`${dateTime(document.lastChangedAt) ?? '—'} · ${lastChangedBy ?? '—'}`}
       />
     </div>

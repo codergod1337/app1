@@ -20,6 +20,7 @@ import codergod1337.app1.solr.hook.service.SolrHookService;
 import codergod1337.app1.system.security.CurrentUsersProvider;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -63,8 +64,15 @@ import tools.jackson.databind.node.ObjectNode;
  * Anlegen und beim Dateiartwechsel, immer aus der Dateiart in Postgres, sonst nie. Jeder Schreibvorgang eines Menschen
  * trägt changingUsers ADD und lastChangedAt SET. Eine Versionskette hat durchgehend dieselbe Dateiart. Merge: nur Hooks
  * ADD und die Beschreibung angehängt. {@code _version_} geht beim Schreiben nie mit, keine Konfliktprüfung. Jeder
- * Vorgang steht mit seinem Namen ({@link DmsSolrDocumentWriteProcess}), current user, id und Feldnamen im Log. Die
- * Revision als ZIP vor dem Schreiben kommt später, bis dahin zählt fileIdRevisionNo nicht hoch.
+ * Vorgang steht mit seinem Namen ({@link DmsSolrDocumentWriteProcess}), current user, id und Feldnamen im Log.
+ *
+ * Die Revision (gebaut 2026-10-08): Ob ein Vorgang revisioniert wird, sagt der Vorgang selbst
+ * ({@link DmsSolrDocumentWriteProcess#isRevisioned()}), beide Update-Methoden fragen ihn. Ein revisionierter Vorgang
+ * lädt mit dem Schreib-fq das ganze Dokument, behält nur die Änderungen, die gegen diesen Stand wirklich etwas ändern
+ * (eine Änderung ohne Änderung ist keine, dann gibt es weder Revision noch Schreiben), sichert den Stand über den
+ * {@link DmsSolrDocumentRevisionService} als ZIP auf dem SFTP samt Registerzeile mit genau diesen Feldnamen, hängt
+ * fileIdRevisionNo INC an dieselbe Änderungsliste und schreibt Solr. Scheitert das ZIP, scheitert die Änderung. Ein
+ * Update vieler Dokumente mit revisioniertem Vorgang läuft je Dokument einzeln, jedes mit seinem eigenen ZIP.
  */
 @Service
 public class DmsSolrDocumentWriteService {
@@ -77,10 +85,33 @@ public class DmsSolrDocumentWriteService {
 	/** Trenner beim Anhängen einer Beschreibung im Merge */
 	private static final String DESCRIPTION_SEPARATOR = " | ";
 
+	/**
+	 * Die AR der Internetfreigabe (User 2026-10-08): isPublic setzt und ändert nur, wer sie hat, in beide Richtungen,
+	 * beim Upload, beim Bearbeiten und beim Zurückladen. Der Admin legt sie an wie jede AR.
+	 */
+	public static final String PUBLIC_ACCESS_ROLE_KEY = "DMS_PUBLIC";
+
+	/**
+	 * Was das Zurückladen nie aus dem ZIP nimmt, weil es technisch nicht kann (User 2026-10-08, alles andere wörtlich):
+	 * id ist dieselbe, _version_ vergibt Solr bei jedem Schreiben selbst, fileIdRevisionNo zählt hoch wie bei jedem
+	 * Schreiben, changingUsers und lastChangedAt setzt das Zurückladen als Stempel seiner eigenen Handlung.
+	 */
+	private static final Set<String> NOT_FROM_REVISION = Set.of(SolrCore.ID_FIELD_NAME,
+			SolrDocumentService.VERSION_FIELD_NAME, DmsSolrDocumentFieldNames.FILE_ID_REVISION_NO,
+			DmsSolrDocumentFieldNames.CHANGING_USERS, DmsSolrDocumentFieldNames.LAST_CHANGED_AT);
+
+	/**
+	 * Der Stempel jedes Schreibens eines Menschen: Er geht immer mit, zählt aber nicht als geändertes Feld im Register
+	 * und entscheidet nicht, ob überhaupt etwas zu schreiben ist.
+	 */
+	private static final Set<String> STAMP_FIELD_NAMES = Set.of(DmsSolrDocumentFieldNames.CHANGING_USERS,
+			DmsSolrDocumentFieldNames.LAST_CHANGED_AT);
+
 	private final SolrDocumentService solrDocumentService;
 	private final DmsSolrDocumentChecker dmsSolrDocumentChecker;
 	private final DmsExactFieldValueResolveService dmsExactFieldValueResolveService;
 	private final DmsSolrDocumentExistenceService dmsSolrDocumentExistenceService;
+	private final DmsSolrDocumentRevisionService dmsSolrDocumentRevisionService;
 	private final SolrFieldService solrFieldService;
 	private final SolrHookService solrHookService;
 	private final FileSubClassService fileSubClassService;
@@ -92,7 +123,8 @@ public class DmsSolrDocumentWriteService {
 	public DmsSolrDocumentWriteService(SolrDocumentService solrDocumentService,
 			DmsSolrDocumentChecker dmsSolrDocumentChecker,
 			DmsExactFieldValueResolveService dmsExactFieldValueResolveService,
-			DmsSolrDocumentExistenceService dmsSolrDocumentExistenceService, SolrFieldService solrFieldService,
+			DmsSolrDocumentExistenceService dmsSolrDocumentExistenceService,
+			DmsSolrDocumentRevisionService dmsSolrDocumentRevisionService, SolrFieldService solrFieldService,
 			SolrHookService solrHookService, FileSubClassService fileSubClassService, DmsStateService dmsStateService,
 			DmsDocumentLanguageService dmsDocumentLanguageService, CurrentUsersProvider currentUsersProvider,
 			ObjectMapper objectMapper) {
@@ -100,6 +132,7 @@ public class DmsSolrDocumentWriteService {
 		this.dmsSolrDocumentChecker = dmsSolrDocumentChecker;
 		this.dmsExactFieldValueResolveService = dmsExactFieldValueResolveService;
 		this.dmsSolrDocumentExistenceService = dmsSolrDocumentExistenceService;
+		this.dmsSolrDocumentRevisionService = dmsSolrDocumentRevisionService;
 		this.solrFieldService = solrFieldService;
 		this.solrHookService = solrHookService;
 		this.fileSubClassService = fileSubClassService;
@@ -158,6 +191,7 @@ public class DmsSolrDocumentWriteService {
 		requireExtensionAllowedByFileSubClass(fileSubClass, facts.fileExtension());
 		requireWriteRoleOfFileSubClass(fileSubClass);
 		requireClientStatusValid(clientFieldValuesByFieldName);
+		requireClientPublicAccessAllowed(clientFieldValuesByFieldName);
 		createDmsSolrDocument(DmsSolrDocumentWriteProcess.DMS_UPLOAD_CREATE, clientFieldValuesByFieldName,
 				newDocumentBackendFieldValues(facts, fileSubClass, UUID.randomUUID().toString(), 1L,
 						clientFieldValuesByFieldName));
@@ -165,17 +199,19 @@ public class DmsSolrDocumentWriteService {
 	}
 
 	/**
-	 * Neue Fassung einer Versionskette: Der Client schickt versionChain, das Backend löst die Kette mit der Lesegrenze
-	 * des Users auf, unbekannt und unsichtbar sehen gleich aus (404). Die Dateiart kommt vom Kopf der Kette, nie vom
-	 * Client, der User braucht ihre Schreibrolle. Die neue Fassung bekommt version plus eins und ACTIVE, danach wird
-	 * jedes ACTIVE-Glied der Kette auf ARCHIVED gesetzt, je Glied mit Schreibcheck. Scheitert ein Archivieren, hat die
-	 * Kette zwei ACTIVE: Das steht im Log, die neue Fassung bleibt.
+	 * Neue Fassung einer Versionskette: Der Upload reicht die Kette als Parameter, kein Feld des Clients (2026-10-08),
+	 * das Backend löst sie mit der Lesegrenze des Users auf, unbekannt und unsichtbar sehen gleich aus (404). Die
+	 * Dateiart kommt vom Kopf der Kette, nie vom
+	 * Client, der User braucht ihre Schreibrolle. Vor dem Anlegen muss er jedes ACTIVE-Glied, das er sieht, auch
+	 * schreiben dürfen, sonst 403, bevor etwas geschrieben ist. Die neue Fassung bekommt version plus eins und ACTIVE,
+	 * danach wird jedes ACTIVE-Glied der Kette auf ARCHIVED gesetzt, je Glied mit Revision. Scheitert ein Archivieren
+	 * trotzdem, hat die Kette zwei ACTIVE: Das steht im Log, die neue Fassung bleibt.
 	 *
 	 * @return die id der neuen Fassung
 	 */
 	@PreAuthorize("hasRole('DMS')")
-	public String createNextVersionInVersionChain(DmsSolrDocumentUploadFacts facts, JsonNode clientFieldValuesByFieldName) {
-		String versionChain = text(clientFieldValuesByFieldName, DmsSolrDocumentFieldNames.VERSION_CHAIN);
+	public String createNextVersionInVersionChain(String versionChain, DmsSolrDocumentUploadFacts facts,
+			JsonNode clientFieldValuesByFieldName) {
 		requireUuid(versionChain);
 		List<Map<String, Object>> members = dmsExactFieldValueResolveService.loadDmsVersionChainMembers(versionChain);
 		if (members.isEmpty()) {
@@ -198,6 +234,8 @@ public class DmsSolrDocumentWriteService {
 		requireExtensionAllowedByFileSubClass(fileSubClass, facts.fileExtension());
 		requireWriteRoleOfFileSubClass(fileSubClass);
 		requireClientStatusValid(clientFieldValuesByFieldName);
+		requireClientPublicAccessAllowed(clientFieldValuesByFieldName);
+		requireActiveMembersWritable(members, facts.sha256());
 		createDmsSolrDocument(DmsSolrDocumentWriteProcess.DMS_NEW_VERSION_CREATE, clientFieldValuesByFieldName,
 				newDocumentBackendFieldValues(facts, fileSubClass, versionChain, highestVersion + 1,
 						clientFieldValuesByFieldName));
@@ -220,6 +258,35 @@ public class DmsSolrDocumentWriteService {
 			}
 		}
 		return facts.sha256();
+	}
+
+	/**
+	 * Vor dem Anlegen einer neuen Fassung (nach requireVorgaengerArchivierbar der Vorlage): Jedes ACTIVE-Glied, das der
+	 * User sieht, muss er auch schreiben dürfen, denn gleich danach setzt er es auf ARCHIVED. Fehlt das Schreibrecht,
+	 * kommt die Absage hier, bevor etwas geschrieben ist, statt danach mit zwei ACTIVE in der Kette. Ein ACTIVE-Glied,
+	 * das der User nicht sieht, kennt die Kette hier nicht: Es bliebe ACTIVE, das steht dann im Log des Archivierens.
+	 */
+	private void requireActiveMembersWritable(List<Map<String, Object>> members, String newId) {
+		List<String> activeIds = new ArrayList<>();
+		for (Map<String, Object> member : members) {
+			String memberId = text(member, SolrCore.ID_FIELD_NAME);
+			if (memberId != null && !memberId.equals(newId)
+					&& DmsStateService.ACTIVE.equals(text(member, DmsSolrDocumentFieldNames.STATUS))) {
+				activeIds.add(memberId);
+			}
+		}
+		if (activeIds.isEmpty()) {
+			return;
+		}
+		Set<String> writableIds = Set.copyOf(dmsExactFieldValueResolveService.resolveWritableDmsSolrDocumentIdsAmong(activeIds));
+		for (Map<String, Object> member : members) {
+			String memberId = text(member, SolrCore.ID_FIELD_NAME);
+			if (activeIds.contains(memberId) && !writableIds.contains(memberId)) {
+				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "die geltende Fassung v"
+						+ number(member, DmsSolrDocumentFieldNames.VERSION) + " (id " + memberId
+						+ ") ist für dich nicht schreibbar, sie kann nicht archiviert werden");
+			}
+		}
 	}
 
 	// ===== Ändern =====
@@ -361,6 +428,10 @@ public class DmsSolrDocumentWriteService {
 						}
 					}
 				}
+				case DmsSolrDocumentFieldNames.IS_PUBLIC -> {
+					requireCurrentUserMayChangePublicAccess();
+					checked.add(change);
+				}
 				default -> checked.add(change);
 			}
 		}
@@ -376,14 +447,104 @@ public class DmsSolrDocumentWriteService {
 		return dmsExactFieldValueResolveService.loadDmsSolrDocumentForDocumentPage(id);
 	}
 
-	/** Weiches Löschen: status DELETED, sonst nichts. 403 ohne Schreibrecht. */
+	/**
+	 * Weiches Löschen: status DELETED, sonst nichts. 403 ohne Schreibrecht. Danach gibt es das Dokument für User auf
+	 * keinem Weg mehr (User 2026-10-08), deshalb kommt nichts zurück; zurückholen kann es der Admin im DMS-Manager.
+	 */
 	@PreAuthorize("hasRole('DMS')")
-	public DmsSolrDocumentForClient softDeleteDmsSolrDocument(String id) {
+	public void softDeleteDmsSolrDocument(String id) {
 		List<SolrDocumentFieldChange> changes = new ArrayList<>();
 		changes.add(SolrDocumentFieldChange.set(DmsSolrDocumentFieldNames.STATUS, DmsStateService.DELETED));
 		changes.addAll(changedByCurrentUser());
 		updateDmsSolrDocument(DmsSolrDocumentWriteProcess.DMS_SOFT_DELETE, id, List.of(), changes);
-		return dmsExactFieldValueResolveService.loadDmsSolrDocumentForDocumentPage(id);
+	}
+
+	/**
+	 * Eine Revision zurückladen (User 2026-10-08): jedes Feld aus dem ZIP wörtlich zurück, als Atomic Update, je Feld
+	 * SET oder SET_ALL, ein Feld, das heute da ist und im ZIP fehlt, kommt raus. Auch readAcl, writeAcl,
+	 * userGrantedAccess, isPublic, status und die Dateiart. Nicht aus dem ZIP, weil sie technisch nicht können
+	 * ({@link #NOT_FROM_REVISION}): id ist dieselbe, _version_ vergibt Solr selbst, ein alter Wert wäre eine Bedingung
+	 * und ein 409, fileIdRevisionNo zählt hoch wie bei jedem Schreiben. Dazu der Stempel jedes Schreibens eines Menschen:
+	 * changingUsers aus dem ZIP mit dem Wiederhersteller am Ende, lastChangedAt jetzt. Ein Feld, das der Kern nicht mehr
+	 * kennt, wird übersprungen und steht im Log. Das Zurückladen ist ein revisionierter Vorgang: Der heutige Stand wird
+	 * vorher selbst als Revision gesichert, ein Rückwärtsgang, der seine Spuren verwischt, wäre wertlos. 403 ohne
+	 * Schreibrecht, 404 ohne diese Revision.
+	 *
+	 * @return das Dokument, wie es jetzt steht, mit der Lesegrenze des Users; null, wenn er es danach nicht mehr sehen
+	 *         darf, denn das ZIP kann eine readAcl zurückbringen, in der er nicht steht
+	 */
+	@PreAuthorize("hasRole('DMS')")
+	public DmsSolrDocumentForClient restoreDmsSolrDocumentRevision(String id, long revisionNo) {
+		Map<String, Object> today = dmsExactFieldValueResolveService.loadWholeDmsSolrDocumentForWrite(id);
+		if (today == null) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "kein Schreibrecht an diesem Dokument");
+		}
+		Map<String, Object> revision = dmsSolrDocumentRevisionService.readRevisionDocument(id, revisionNo);
+
+		Set<String> fieldNames = new LinkedHashSet<>(revision.keySet());
+		fieldNames.addAll(today.keySet());
+		List<SolrDocumentFieldChange> changes = new ArrayList<>();
+		List<String> unknown = new ArrayList<>();
+		boolean mayChangePublicAccess = currentUserMayChangePublicAccess();
+		for (String fieldName : fieldNames) {
+			if (NOT_FROM_REVISION.contains(fieldName)) {
+				continue;
+			}
+			if (DmsSolrDocumentFieldNames.IS_PUBLIC.equals(fieldName) && !mayChangePublicAccess) {
+				// die Internetfreigabe ändert nur DMS_PUBLIC: ohne die Rolle bleibt sie, wie sie heute ist
+				log.info("Zurückladen von {} Revision {}: isPublic bleibt, {} hat kein {}", id, revisionNo,
+						currentUsersProvider.getCurrentUsersGuid(), PUBLIC_ACCESS_ROLE_KEY);
+				continue;
+			}
+			if (!dmsSolrDocumentChecker.isFieldOrHookOfDmsCore(fieldName)) {
+				unknown.add(fieldName);
+				continue;
+			}
+			Object then = revision.get(fieldName);
+			// ob Liste oder Wert, sagt der Wert, der da ist: multiValued kommt aus Solr und aus dem ZIP immer als Liste
+			Object shape = then != null ? then : today.get(fieldName);
+			if (shape instanceof List<?>) {
+				changes.add(SolrDocumentFieldChange.setAll(fieldName, then instanceof List<?> list ? list : List.of()));
+			} else {
+				changes.add(SolrDocumentFieldChange.set(fieldName, then));
+			}
+		}
+		if (!unknown.isEmpty()) {
+			log.warn("Zurückladen von {} Revision {}: Felder, die der Kern DMS nicht mehr kennt, übersprungen: {}", id,
+					revisionNo, unknown);
+		}
+		String currentUsersGuid = currentUsersProvider.getCurrentUsersGuid().toString();
+		List<Object> changingUsers = new ArrayList<>();
+		Object thenChangingUsers = revision.get(DmsSolrDocumentFieldNames.CHANGING_USERS);
+		for (Object user : thenChangingUsers instanceof List<?> list ? list : List.of()) {
+			if (user != null && !currentUsersGuid.equals(user.toString())) {
+				changingUsers.add(user);
+			}
+		}
+		changingUsers.add(currentUsersGuid);
+		changes.add(SolrDocumentFieldChange.setAll(DmsSolrDocumentFieldNames.CHANGING_USERS, changingUsers));
+		changes.add(SolrDocumentFieldChange.set(DmsSolrDocumentFieldNames.LAST_CHANGED_AT, Instant.now()));
+
+		updateDmsSolrDocument(DmsSolrDocumentWriteProcess.DMS_REVISION_RESTORE, id, List.of(), changes);
+		log.info("Revision {} von {} zurückgeladen von {}", revisionNo, id, currentUsersGuid);
+		return dmsExactFieldValueResolveService.loadDmsSolrDocumentForUploadAnswer(id);
+	}
+
+	/**
+	 * Der Download-Zähler (User 2026-10-08): downloadCount INC 1, nach jedem Download und jedem Abruf durch einen Viewer,
+	 * beide kommen über denselben Download-Weg. Die eine Ausnahme von der Regel „Atomic Update nur mit Schreibcheck und
+	 * Stempel“: Ein Download ist keine Änderung durch einen Menschen, sondern Buchhaltung des Backends. Deshalb kein
+	 * writeAcl-Check (wer nur lesen darf, lädt auch herunter, die Leseprüfung hat der Download gemacht), kein
+	 * changingUsers, kein lastChangedAt, keine Revision. Scheitert Solr, meldet das der Aufrufer nur im Log: Die Bytes
+	 * sind dann schon beim Client, ein Zähltick ist keinen Abbruch wert.
+	 */
+	@PreAuthorize("hasRole('DMS')")
+	public void countDownloadOfDmsSolrDocument(String id) {
+		SolrDocumentFieldChange increment = dmsSolrDocumentChecker.checkDocumentFieldChanges(
+				List.of(SolrDocumentFieldChange.inc(DmsSolrDocumentFieldNames.DOWNLOAD_COUNT, 1))).get(0);
+		solrDocumentService.atomicUpdateDocument(DmsSolrDocumentFieldNames.CORE_KEY, id, modifiersOf(List.of(increment)));
+		log.debug("{} von {} an {}", DmsSolrDocumentWriteProcess.DMS_DOWNLOAD_COUNT,
+				currentUsersProvider.getCurrentUsersGuid(), id);
 	}
 
 	/**
@@ -440,13 +601,20 @@ public class DmsSolrDocumentWriteService {
 
 	/**
 	 * Atomic Update eines Dokuments: Schreibcheck, die Änderungen des Clients durch die Schreibregel, dann beide Listen
-	 * durch die Form, dann die Modifier an Solr. 403 ohne writeAcl-Match.
+	 * durch die Form, dann die Modifier an Solr. 403 ohne writeAcl-Match. Bei einem revisionierten Vorgang ist der
+	 * Schreibcheck das Laden des ganzen Dokuments: Nur Änderungen, die gegen diesen Stand wirklich etwas ändern, bleiben
+	 * (der Stempel changingUsers und lastChangedAt geht immer mit, zählt aber nicht); bleibt keine, wird weder gesichert
+	 * noch geschrieben. Sonst wird der Stand als ZIP gesichert, mit genau diesen Feldnamen im Register, und
+	 * fileIdRevisionNo INC kommt in dieselbe Änderungsliste.
 	 *
-	 * @return true, wenn geschrieben wurde; false, wenn nach der Schreibregel nichts übrig blieb
+	 * @return true, wenn geschrieben wurde; false, wenn nach der Schreibregel nichts übrig blieb oder nichts sich ändert
 	 */
 	private boolean updateDmsSolrDocument(DmsSolrDocumentWriteProcess process, String id,
 			List<SolrDocumentFieldChange> clientFieldChanges, List<SolrDocumentFieldChange> backendFieldChanges) {
-		if (dmsExactFieldValueResolveService.loadDmsSolrDocumentFieldsForWrite(id, List.of()) == null) {
+		Map<String, Object> before = process.isRevisioned()
+				? dmsExactFieldValueResolveService.loadWholeDmsSolrDocumentForWrite(id)
+				: dmsExactFieldValueResolveService.loadDmsSolrDocumentFieldsForWrite(id, List.of());
+		if (before == null) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "kein Schreibrecht an diesem Dokument");
 		}
 		Map<String, SolrDocumentFieldChange> changes = new LinkedHashMap<>();
@@ -461,14 +629,72 @@ public class DmsSolrDocumentWriteService {
 			log.debug("{}: nichts zu schreiben an {}", process, id);
 			return false;
 		}
+		if (process.isRevisioned()) {
+			// nur was gegen den Stand davor wirklich etwas ändert, zählt; ein Zurückladen schickt jedes Feld aus dem ZIP
+			List<String> changedFieldNames = new ArrayList<>();
+			for (SolrDocumentFieldChange change : new ArrayList<>(changes.values())) {
+				if (STAMP_FIELD_NAMES.contains(change.fieldName())) {
+					continue;
+				}
+				if (changesSomething(before, change)) {
+					changedFieldNames.add(change.fieldName());
+				} else {
+					changes.remove(change.fieldName());
+				}
+			}
+			if (changedFieldNames.isEmpty()) {
+				log.info("{}: nichts ändert sich an {}, keine Revision, nichts geschrieben", process, id);
+				return false;
+			}
+			// erst das ZIP, dann Solr: scheitert die Sicherung, gibt es keine Änderung
+			dmsSolrDocumentRevisionService.saveRevisionBeforeWrite(before, changedFieldNames);
+			SolrDocumentFieldChange increment = dmsSolrDocumentChecker.checkDocumentFieldChanges(
+					List.of(SolrDocumentFieldChange.inc(DmsSolrDocumentFieldNames.FILE_ID_REVISION_NO, 1))).get(0);
+			changes.put(increment.fieldName(), increment);
+		}
 		solrDocumentService.atomicUpdateDocument(DmsSolrDocumentFieldNames.CORE_KEY, id, modifiersOf(changes.values()));
 		log.info("{} von {} an {}: {}", process, currentUsersProvider.getCurrentUsersGuid(), id, changes.keySet());
 		return true;
 	}
 
 	/**
+	 * Ändert diese Änderung am Dokument wirklich etwas? Gegen den Stand davor: SET gegen den Wert, SET_ALL als Menge, ADD
+	 * nur, wenn ein Wert noch fehlt, REMOVE nur, wenn einer da ist, INC immer. Kein Wert und kein Feld sind derselbe
+	 * Zustand.
+	 */
+	private static boolean changesSomething(Map<String, Object> before, SolrDocumentFieldChange change) {
+		Object current = before.get(change.fieldName());
+		Set<String> currentValues = comparableValues(
+				current instanceof List<?> list ? list : current == null ? List.of() : List.of(current));
+		Set<String> newValues = comparableValues(change.values());
+		return switch (change.operation()) {
+			case SET, SET_ALL -> !currentValues.equals(newValues);
+			case ADD -> !currentValues.containsAll(newValues);
+			case REMOVE -> newValues.stream().anyMatch(currentValues::contains);
+			case INC -> true;
+		};
+	}
+
+	/** Vergleichswerte: ganze Zahlen ohne Typunterschied (Integer gegen Long), Instant als ISO-Text, der Rest als Text */
+	private static Set<String> comparableValues(Collection<?> values) {
+		Set<String> comparable = new LinkedHashSet<>();
+		for (Object value : values) {
+			if (value == null) {
+				continue;
+			}
+			if (value instanceof Integer || value instanceof Long) {
+				comparable.add(Long.toString(((Number) value).longValue()));
+			} else {
+				comparable.add(value.toString());
+			}
+		}
+		return comparable;
+	}
+
+	/**
 	 * Dasselbe Atomic Update für viele Dokumente, nur Änderungen des Backends. Die ids werden noch einmal gegen writeAcl
-	 * aufgelöst, geschrieben wird nur, was der current user schreiben darf.
+	 * aufgelöst, geschrieben wird nur, was der current user schreiben darf. Ein revisionierter Vorgang läuft je Dokument
+	 * über den Einzelweg, jedes mit seinem eigenen ZIP; nur ein nicht revisionierter geht als ein Request an Solr.
 	 *
 	 * @return wie viele Dokumente geschrieben wurden
 	 */
@@ -478,6 +704,17 @@ public class DmsSolrDocumentWriteService {
 			return 0;
 		}
 		List<String> writableIds = dmsExactFieldValueResolveService.resolveWritableDmsSolrDocumentIdsAmong(ids);
+		if (process.isRevisioned()) {
+			int written = 0;
+			for (String id : writableIds) {
+				if (updateDmsSolrDocument(process, id, List.of(), backendFieldChanges)) {
+					written++;
+				}
+			}
+			log.info("{} von {}: {} von {} Dokumenten einzeln mit Revision geschrieben", process,
+					currentUsersProvider.getCurrentUsersGuid(), written, ids.size());
+			return written;
+		}
 		Map<String, SolrDocumentFieldChange> changes = new LinkedHashMap<>();
 		for (SolrDocumentFieldChange change : dmsSolrDocumentChecker.checkDocumentFieldChanges(backendFieldChanges)) {
 			changes.put(change.fieldName(), change);
@@ -640,6 +877,29 @@ public class DmsSolrDocumentWriteService {
 		if (status != null && !dmsStateService.isDmsState(status)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
 					"status " + status + " ist kein Status des Bereichs " + DmsStateService.SCOPE);
+		}
+	}
+
+	/** Darf der current user die Internetfreigabe setzen? Nur mit der AR DMS_PUBLIC im Token. */
+	private boolean currentUserMayChangePublicAccess() {
+		return currentUsersProvider.getCurrentUsersAccessRoleKeys().contains(PUBLIC_ACCESS_ROLE_KEY);
+	}
+
+	/** Die Internetfreigabe ändern: 403 ohne DMS_PUBLIC, in beide Richtungen */
+	private void requireCurrentUserMayChangePublicAccess() {
+		if (!currentUserMayChangePublicAccess()) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+					"die Internetfreigabe (" + DmsSolrDocumentFieldNames.IS_PUBLIC + ") ändert nur, wer die Rolle "
+							+ PUBLIC_ACCESS_ROLE_KEY + " hat");
+		}
+	}
+
+	/** Beim Anlegen: isPublic true nur mit DMS_PUBLIC. false ist der Standard, das darf jeder schicken. */
+	private void requireClientPublicAccessAllowed(JsonNode clientFieldValuesByFieldName) {
+		JsonNode isPublic = clientFieldValuesByFieldName == null ? null
+				: clientFieldValuesByFieldName.get(DmsSolrDocumentFieldNames.IS_PUBLIC);
+		if (isPublic != null && isPublic.isBoolean() && isPublic.booleanValue()) {
+			requireCurrentUserMayChangePublicAccess();
 		}
 	}
 

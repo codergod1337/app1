@@ -1,5 +1,8 @@
 server:
   port: 6969
+  # Die Begründung einer Ablehnung (ResponseStatusException) geht als message mit, sonst sähe der Client nur „Bad Request“
+  error:
+    include-message: always
 
 spring:
   application:

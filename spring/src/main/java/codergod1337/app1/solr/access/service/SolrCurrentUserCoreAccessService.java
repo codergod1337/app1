@@ -4,7 +4,6 @@ import codergod1337.app1.solr.access.model.SolrCurrentUserReadAndWriteAccessForC
 import codergod1337.app1.solr.core.model.SolrCore;
 import codergod1337.app1.solr.core.service.SolrCoreService;
 import codergod1337.app1.solr.field.model.SolrField;
-import codergod1337.app1.solr.field.model.SolrFieldReadAccessLevel;
 import codergod1337.app1.solr.field.service.SolrFieldService;
 import codergod1337.app1.solr.grant.service.SolrAdvancedFieldGrantAccessPerCoreService;
 import codergod1337.app1.solr.grant.service.SolrHookGrantAccessService;
@@ -12,6 +11,7 @@ import codergod1337.app1.solr.hook.model.SolrHook;
 import codergod1337.app1.solr.hook.service.SolrHookService;
 import codergod1337.app1.system.security.CurrentUsersProvider;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -25,31 +25,27 @@ import org.springframework.web.server.ResponseStatusException;
  * guid und den Kopien im Speicher, kein Zugriff auf Postgres, damit die Suche normaler User durch die Rechteprüfung
  * nicht langsamer wird.
  *
- * Drei Rollen je Kern, aus dem Kern-Key abgeleitet, alle additiv: {@code <KERN>} heißt Kern betreten und Auflösen,
- * {@code <KERN>_FULL} ist die Vollsicht ohne Suche, {@code <KERN>_SUCHE} die Vollsicht mit Suche. Wer suchen darf,
- * kommt ohnehin an alles, eine Feldgrenze wäre dort Theater.
+ * Feldachse (neu gefasst 2026-10-09): Jedes Feld und jeder Hook trägt die ARs, die es lesen dürfen
+ * (readAccessRoleKeys): USER für die Grundmenge, die jeder bekommt, sonst SOLR_FIELD_VIEW_*. Ein User bekommt ein Feld,
+ * wenn eine seiner Rollen dransteht. SOLR_USERS_VIEW_ALL bekommt jedes Feld und jeden Hook in jedem Kern,
+ * SOLR_USERS_VIEW_HOOKS jeden Hook, {@code <KERN>_SUCHE} ebenfalls alles, denn wer suchen darf, kommt ohnehin an
+ * alles. backendOnly-Felder bekommt kein Client, auch nicht mit ALL. Dieselbe Liste
+ * entscheidet, wonach er filtern, sortieren, facettieren und auflösen darf: Lesen heißt Auflösen, sofern das Feld
+ * indexiert ist, und id immer. Die alten Feld- und Hook-Freigaben je User zählen noch mit, bis sie abgebaut sind.
  *
- * Zwei Prüfungen am Dokument, die nichts miteinander zu tun haben:
+ * Dokumentachse, zwei Prüfungen, die nichts miteinander zu tun haben:
  * <ul>
  * <li>readAcl und writeAcl (nur in Kernen, die die Felder haben, im DMS aus der Dateiart): die AR-Keys als Liste, ohne
- * Präfix. Welche Gruppen im Betrieb welche Dateiart lesen und ändern dürfen. Gilt für jeden, auch mit Vollsicht, denn
- * die Dateiart entscheidet, wer eine Rechnung liest, nicht die Rolle am Kern.</li>
- * <li>userGrantedAccess (in jedem Kern): die Freigabe je User, z. B. die Dokumente einer Artikelnummer für einen
- * Sublieferanten. Nur wer allein {@code <KERN>} hat, ist daran gebunden. Mit Vollsicht sieht er alle Dokumente, die
- * readAcl zulässt; in einem Kern ohne readAcl alle.</li>
+ * Präfix. Welche Gruppen im Betrieb welche Dateiart lesen und ändern dürfen.</li>
+ * <li>userGrantedAccess (in jedem Kern): die Freigabe je User.</li>
  * </ul>
  *
- * Schreiben heißt: Metadaten eines Dokuments ändern, ein neues anlegen oder ein vorhandenes mergen. Vor jedem
- * Schreibvorgang an einem vorhandenen Dokument, in jedem Kern, muss writeAcl eine AR des Users enthalten, sonst wird
- * nichts geschrieben. Den Check macht die Lesemechanik mit dem Schreib-fq von hier (requireWriteAclMatch), dieser
- * Service rechnet nur und liest nie aus Solr (Vorgabe 2026-10-07). Vollsicht gibt kein Schreibrecht, Schreiben
- * impliziert kein Lesen. In einem Kern ohne writeAcl schreibt kein User.
- *
- * Felder: Mit Vollsicht alle Felder und Hooks. Ohne nur die Minimum-Felder plus die Feldfreigaben des Users für diesen
- * Kern. Hooks stehen nicht im Sheet, ohne Vollsicht sieht ein User einen Hook nur über eine Feldfreigabe.
+ * Schreiben: Vor jedem Schreibvorgang an einem vorhandenen Dokument muss writeAcl eine AR des Users enthalten. Den Check
+ * macht die Lesemechanik mit dem Schreib-fq von hier, dieser Service rechnet nur und liest nie aus Solr. Vollsicht gibt
+ * kein Schreibrecht, Schreiben impliziert kein Lesen. In einem Kern ohne writeAcl schreibt kein User.
  *
  * Ob ein Kern readAcl und writeAcl hat, liest dieser Service am Vorhandensein der Felder ab. Die Namen der Felder, mit
- * denen das Backend rechnet, stehen hart im Code (Vorgabe 2026-10-07), fehlt eins, fliegen Fehler.
+ * denen das Backend rechnet, stehen hart im Code, fehlt eins, fliegen Fehler.
  */
 @Service
 public class SolrCurrentUserCoreAccessService {
@@ -57,13 +53,19 @@ public class SolrCurrentUserCoreAccessService {
 	/** Die Rechtefelder, die ein Kern haben kann. userGrantedAccess hat jeder Kern (SolrCore.USER_GRANTED_ACCESS_FIELD_NAME). */
 	public static final String READ_ACL_FIELD_NAME = "readAcl";
 	public static final String WRITE_ACL_FIELD_NAME = "writeAcl";
-	/** Die Internetfreigabe: noch in keiner Prüfung, kommt ganz zum Schluss */
+	/** Die Internetfreigabe: noch in keiner Prüfung, kommt mit dem Freigabe-Service */
 	public static final String IS_PUBLIC_FIELD_NAME = "isPublic";
 
 	public static final String SEARCH_ROLE_SUFFIX = "_SUCHE";
-	public static final String FULL_ROLE_SUFFIX = "_FULL";
-	/** Kernunabhängig, weil Hooks in jedem Kern dieselben sind: nach jedem Hook auflösen und die Hooks lesen */
-	public static final String HOOK_FULL_ROLE_KEY = "HOOK_FULL";
+
+	/**
+	 * Jedes Feld und jeder Hook in jedem Kern, ohne dass die Rolle an einem Feld steht. Ein User-Recht, kein Feld-Recht
+	 * (User 2026-10-09), deshalb SOLR_USERS_VIEW_ und nicht SOLR_FIELD_. Die AR gibt es in der Datenbank.
+	 */
+	public static final String ALL_FIELDS_ROLE_KEY = "SOLR_USERS_VIEW_ALL";
+
+	/** Jeder Hook in jedem Kern, weil Hooks in jedem Kern dieselben sind. Früher HOOK_FULL. Ebenfalls ein User-Recht. */
+	public static final String ALL_HOOKS_ROLE_KEY = "SOLR_USERS_VIEW_HOOKS";
 
 	/** Ein fq, das kein Dokument trifft: die Schreibprüfung, wo kein User schreibt */
 	private static final String FILTER_QUERY_MATCHING_NO_DOCUMENT = "-*:*";
@@ -93,46 +95,40 @@ public class SolrCurrentUserCoreAccessService {
 		if (!accessRoleKeys.contains(coreKey)) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "keine Rolle " + coreKey);
 		}
-		// Rollen am Kern (Vorgabe 2026-10-04): <KERN> heißt nur, ein Dokument über seine id anfordern. <KERN>_FULL heißt
-		// alle Felder lesen, nicht auflösen. <KERN>_SUCHE heißt suchen, damit alle Felder lesen und nach allem auflösen.
-		// HOOK_FULL (kernunabhängig) heißt nach jedem Hook auflösen. Eine Feldfreigabe ist ein Auflöserecht an einem
-		// Feld oder Hook und macht ihn damit auch lesbar.
 		boolean freeTextSearchAllowed = accessRoleKeys.contains(coreKey + SEARCH_ROLE_SUFFIX);
-		// Vollsicht: _FULL oder _SUCHE, beides heißt alle Felder und keine Bindung an die Freigabe
-		boolean everyFieldAndHookReadable = freeTextSearchAllowed
-				|| accessRoleKeys.contains(coreKey + FULL_ROLE_SUFFIX);
-		boolean everyHookResolvable = freeTextSearchAllowed || accessRoleKeys.contains(HOOK_FULL_ROLE_KEY);
+		boolean everyFieldAndHookReadable = freeTextSearchAllowed || accessRoleKeys.contains(ALL_FIELDS_ROLE_KEY);
+		boolean everyHookReadable = everyFieldAndHookReadable || accessRoleKeys.contains(ALL_HOOKS_ROLE_KEY);
 		UUID usersGuid = currentUsersProvider.getCurrentUsersGuid();
-		// Freigaben zählen, solange der User nicht suchen darf: auch mit _FULL, denn _FULL löst nicht auf.
-		// Feldfreigaben je Kern, Hook-Freigaben serverweit (Vorgabe 2026-10-07).
-		Set<String> grantedFieldNames = freeTextSearchAllowed ? Set.of()
+		// die alten Freigaben je User zählen noch mit, bis sie abgebaut sind
+		Set<String> grantedFieldNames = everyFieldAndHookReadable ? Set.of()
 				: advancedFieldGrantService.activeGrantedAdvancedFieldNamesOfUsersInCore(usersGuid, coreKey);
-		Set<String> grantedHookKeys = everyHookResolvable ? Set.of()
+		Set<String> grantedHookKeys = everyHookReadable ? Set.of()
 				: hookGrantService.activeGrantedHookKeysOfUsers(usersGuid);
 
 		List<SolrField> solrFields = solrFieldService.getSolrFieldsByCoreKey(coreKey);
 		List<String> readableFieldAndHookNames = new ArrayList<>();
 		List<String> exactResolveAllowedFieldAndHookNames = new ArrayList<>();
 		for (SolrField solrField : solrFields) {
-			boolean granted = grantedFieldNames.contains(solrField.getName());
-			boolean readable = everyFieldAndHookReadable
-					|| solrField.getReadAccessLevel() == SolrFieldReadAccessLevel.MINIMUM_SET_EVERY_READER || granted;
+			if (solrField.isBackendOnly()) {
+				continue;
+			}
+			// id ist immer lesbar und auflösbar, egal was an seiner Zeile steht: ohne id ist kein Dokument brauchbar
+			boolean readable = SolrCore.ID_FIELD_NAME.equals(solrField.getName()) || everyFieldAndHookReadable
+					|| grantedFieldNames.contains(solrField.getName())
+					|| containsAny(solrField.getReadAccessRoleKeys(), accessRoleKeys);
 			if (!readable) {
 				continue;
 			}
 			readableFieldAndHookNames.add(solrField.getName());
-			boolean resolvable = SolrCore.ID_FIELD_NAME.equals(solrField.getName()) || freeTextSearchAllowed
-					|| granted;
-			if (resolvable && solrField.isIndexed()) {
+			if (solrField.isIndexed()) {
 				exactResolveAllowedFieldAndHookNames.add(solrField.getName());
 			}
 		}
 		for (SolrHook solrHook : solrHookService.getAllSolrHooks()) {
-			boolean resolvable = everyHookResolvable || grantedHookKeys.contains(solrHook.getKey());
-			if (everyFieldAndHookReadable || resolvable) {
+			boolean readable = everyHookReadable || grantedHookKeys.contains(solrHook.getKey())
+					|| containsAny(solrHook.getReadAccessRoleKeys(), accessRoleKeys);
+			if (readable) {
 				readableFieldAndHookNames.add(solrHook.getKey());
-			}
-			if (resolvable) {
 				exactResolveAllowedFieldAndHookNames.add(solrHook.getKey());
 			}
 		}
@@ -144,12 +140,21 @@ public class SolrCurrentUserCoreAccessService {
 				writeAclFilterQueries(solrFields, accessRoleKeys));
 	}
 
+	private static boolean containsAny(Collection<String> fieldAccessRoleKeys, Collection<String> usersAccessRoleKeys) {
+		for (String accessRoleKey : fieldAccessRoleKeys) {
+			if (usersAccessRoleKeys.contains(accessRoleKey)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * Die Leseprüfung als ein fq: (userGrantedAccess:guid OR readAcl:(AR …)). readAcl nur, wenn der Kern das Feld hat.
 	 * Mit Vollsicht in einem Kern ohne readAcl gibt es keine Prüfung: leere Liste. Mit Vollsicht in einem Kern mit
-	 * readAcl bleibt die Dateiart-Prüfung, die eigenen Freigaben kommen dazu. isPublic spielt noch nicht mit, das ist der
-	 * seltene Sonderfall fürs Internet und kommt ganz zum Schluss (2026-10-03). Jeder Wert escaped, auch die AR-Keys,
-	 * obwohl die Key-Regel nichts Gefährliches zulässt: Hier wird nichts zusammengeklebt, dem man trauen muss.
+	 * readAcl bleibt die Dateiart-Prüfung, die eigenen Freigaben kommen dazu. isPublic spielt hier nicht mit, das ist
+	 * Sache des Freigabe-Service. Jeder Wert escaped, auch die AR-Keys, obwohl die Key-Regel nichts Gefährliches
+	 * zulässt: Hier wird nichts zusammengeklebt, dem man trauen muss.
 	 */
 	private static List<String> readAclAndGrantedAccessFilterQueries(List<SolrField> solrFields,
 			List<String> accessRoleKeys, UUID usersGuid, boolean everyFieldAndHookReadable) {
