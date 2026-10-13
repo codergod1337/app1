@@ -4,7 +4,7 @@ import { Icon } from '../../components/Icon.tsx'
 import { Subheader } from '../../components/Subheader.tsx'
 
 /** Tabs mit einer Matrix: Sie steht ohne ContentBox direkt unter dem subheader, bündig an beiden Rändern. */
-const MATRIX_PATHS = ['/admin/users-arc', '/admin/arc-ar', '/admin/filematrix', '/admin/fsc-acl']
+const MATRIX_PATHS = ['/admin/users-arc', '/admin/arc-ar', '/admin/fsc-matrix', '/admin/fsc-acl']
 
 /** Administrationsmodul: subheader mit den Tabs, darunter der gewählte Tab. */
 export function Admin() {
@@ -27,8 +27,9 @@ export function Admin() {
           { label: 'User-ARC', icon: 'accessRoleCollections', to: '/admin/users-arc' },
           { label: 'ARC-AR', icon: 'accessRoleCollectionAccessRoles', to: '/admin/arc-ar' },
           { label: 'FSC', icon: 'fileSubClasses', to: '/admin/filesubclasses' },
+          { label: t('admin.tabs.fileSubClassDestinations'), icon: 'fileSubClassDestinations', to: '/admin/filesubclassdestinations' },
           { label: 'Endungen', icon: 'fileExtensions', to: '/admin/fileextensions' },
-          { label: 'FileMatrix', icon: 'fileMatrix', to: '/admin/filematrix' },
+          { label: t('admin.tabs.fileSubClassMatrix'), icon: 'fileMatrix', to: '/admin/fsc-matrix' },
           { label: 'FSC-ACL', icon: 'fileSubClassAcl', to: '/admin/fsc-acl' },
           { label: t('admin.tabs.entityStates'), icon: 'entityStates', to: '/admin/entitystates' },
           { label: 'Stammdaten', icon: 'masterData', to: '/admin/masterdata' },

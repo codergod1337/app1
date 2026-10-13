@@ -41,7 +41,8 @@ public class FileSubClassAdminController {
 		return fileSubClassService.createFileSubClass(newFileSubClassData.getKey(), newFileSubClassData.getDisplayName(),
 				newFileSubClassData.getDescription(), newFileSubClassData.getListingPosition(),
 				newFileSubClassData.getSymbol(), newFileSubClassData.getColor(),
-				newFileSubClassData.getReadAccessRoleKeys(), newFileSubClassData.getWriteAccessRoleKeys());
+				newFileSubClassData.getReadAccessRoleKeys(), newFileSubClassData.getWriteAccessRoleKeys(),
+				newFileSubClassData.getDisplayContextKeys());
 	}
 
 	/** Alle Felder außer extensions. Der key im Body bestimmt, welche Dateiart geändert wird, er selbst ändert sich nie. */
@@ -51,7 +52,7 @@ public class FileSubClassAdminController {
 				changedFileSubClassData.getDisplayName(), changedFileSubClassData.getDescription(),
 				changedFileSubClassData.getListingPosition(), changedFileSubClassData.getSymbol(),
 				changedFileSubClassData.getColor(), changedFileSubClassData.getReadAccessRoleKeys(),
-				changedFileSubClassData.getWriteAccessRoleKeys());
+				changedFileSubClassData.getWriteAccessRoleKeys(), changedFileSubClassData.getDisplayContextKeys());
 	}
 
 	/**
@@ -146,6 +147,37 @@ public class FileSubClassAdminController {
 			extensionsByKey.put(key, extensions);
 		}
 		return fileSubClassService.changeFileSubClassExtensions(extensionsByKey);
+	}
+
+	/**
+	 * Die Anzeigeorte mehrerer Dateiarten auf einmal, für die FSC-Matrix:
+	 * [{"key": "DATENBLATT", "displayContextKeys": ["ARTIKELMAPPE_DOKUMENTE"]}, …], je Dateiart die ganze neue Liste,
+	 * eine leere nimmt die Art von jedem Ort. 200 mit allen Dateiarten, 400 bei ungültiger Eingabe oder einem Ort, der
+	 * nicht angelegt ist, 404 wenn es eine Dateiart nicht gibt.
+	 */
+	@PutMapping("/displaycontexts")
+	public List<FileSubClass> changeFileSubClassDisplayContextKeys(
+			@RequestBody List<Map<String, Object>> changedDisplayContextKeysData) {
+		Map<String, List<String>> displayContextKeysByKey = new LinkedHashMap<>();
+		for (Map<String, Object> changedDisplayContextKeys : changedDisplayContextKeysData) {
+			String key = changedDisplayContextKeys.get("key") instanceof String keyValue ? keyValue : null;
+			if (!HelperInputs.isValidKey(key)) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "key fehlt oder ist ungültig");
+			}
+			if (!(changedDisplayContextKeys.get("displayContextKeys") instanceof List<?> displayContextKeysValue)) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "displayContextKeys fehlt bei " + key);
+			}
+			List<String> displayContextKeys = new ArrayList<>();
+			for (Object displayContextKeyValue : displayContextKeysValue) {
+				if (!(displayContextKeyValue instanceof String displayContextKey)
+						|| !HelperInputs.isValidKey(displayContextKey)) {
+					throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ungültiger Anzeigeort bei " + key);
+				}
+				displayContextKeys.add(displayContextKey);
+			}
+			displayContextKeysByKey.put(key, displayContextKeys);
+		}
+		return fileSubClassService.changeFileSubClassDisplayContextKeys(displayContextKeysByKey);
 	}
 
 	/** Nur per key. 200 mit der gelöschten Dateiart, 400 bei ungültigem key, 404 wenn es sie nicht gibt. */

@@ -76,15 +76,27 @@ function formatSessionTime(isoTime: string) {
   return new Date(isoTime).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })
 }
 
+interface ProfileOverviewProps {
+  /**
+   * Die guid eines anderen Users: dann ist es sein Profil (User 2026-10-10), dieselbe Seite ohne das, was nur dem
+   * Angemeldeten gehört: kein Bearbeiten, kein Konto, keine Sicherheit, keine Sitzungen, keine Rechte, kein Gästebuch.
+   * Fehlt sie oder ist es die eigene, ist es das eigene Profil.
+   */
+  usersGuid?: string
+}
+
 /**
- * Das eigene Profil: oben der Profilkopf, darunter links Kontakt, Konto, Sicherheit und Sitzungen, rechts „Über
- * mich“, die Rechte und das Gästebuch. Bearbeitet wird je Entity auf einer eigenen Seite (Users oder UsersDetails).
+ * Das Profil: oben der Profilkopf, darunter links Kontakt, Konto, Sicherheit und Sitzungen, rechts „Über mich“, die
+ * Rechte und das Gästebuch. Bearbeitet wird je Entity auf einer eigenen Seite (Users oder UsersDetails). Mit einer
+ * fremden guid dieselbe Seite als fremdes Profil, nur mit dem, was das Backend über andere herausgibt.
  */
-export function ProfileOverview() {
+export function ProfileOverview({ usersGuid: requestedUsersGuid }: ProfileOverviewProps = {}) {
   const navigate = useNavigate()
   const { sessionInfo, reloadSession } = useSession()
   const { accessRoles } = useMasterData()
-  const usersGuid = sessionInfo?.usersGuid ?? ''
+  const ownUsersGuid = sessionInfo?.usersGuid ?? ''
+  const usersGuid = requestedUsersGuid ?? ownUsersGuid
+  const own = usersGuid === ownUsersGuid
   const loadUsers = useCallback(() => getUsersByGuid(usersGuid), [usersGuid])
   const { data: users, errorMessage: usersErrorMessage } = useLoad(loadUsers)
   const loadUsersDetails = useCallback(() => getUsersDetailsByUsersGuid(usersGuid), [usersGuid])
@@ -138,7 +150,7 @@ export function ProfileOverview() {
         sessionNumber={sessionInfo?.sessionNumber ?? 0}
         accessRoleCount={ownAccessRoles?.length ?? null}
         errorMessage={usersErrorMessage}
-        onEdit={() => navigate('/profile/edit/users', { state: ORIGIN_STATE })}
+        onEdit={own ? () => navigate('/profile/edit/users', { state: ORIGIN_STATE }) : undefined}
       />
 
       <div className="profile-grid">
@@ -147,9 +159,17 @@ export function ProfileOverview() {
             <ContentBox
               title="Kontakt"
               actions={
-                <EditButton label="Kontakt bearbeiten" onClick={() => navigate('/profile/edit/details', { state: ORIGIN_STATE })} />
+                own ? (
+                  <EditButton label="Kontakt bearbeiten" onClick={() => navigate('/profile/edit/details', { state: ORIGIN_STATE })} />
+                ) : undefined
               }
-              footer={usersDetailsErrorMessage !== null ? <span className="text-danger">{usersDetailsErrorMessage}</span> : 'Andere sehen das erst mit den fremden Profilen.'}
+              footer={
+                usersDetailsErrorMessage !== null ? (
+                  <span className="text-danger">{usersDetailsErrorMessage}</span>
+                ) : own ? (
+                  'Andere sehen das in deinem Profil, wenn sie die Rolle USER_DETAIL haben.'
+                ) : undefined
+              }
             >
               {usersDetails === null && usersDetailsErrorMessage === null && loadingSpinner}
               {usersDetails !== null && contactRows.length === 0 && <p className="mb-0">Noch keine Kontaktdaten.</p>}
@@ -175,7 +195,7 @@ export function ProfileOverview() {
                   ))}
                 </ul>
               )}
-              {usersDetails !== null && (usersDetails.kundenNummer !== null || usersDetails.lieferantenNummer !== null) && (
+              {own && usersDetails !== null && (usersDetails.kundenNummer !== null || usersDetails.lieferantenNummer !== null) && (
                 <div className="profile-admin-managed">
                   <div className="profile-admin-managed-title">
                     <Icon name="locked" /> Vom Admin verwaltet
@@ -189,6 +209,7 @@ export function ProfileOverview() {
             </ContentBox>
           </div>
 
+          {own && (
           <div className="profile-box-account">
             <ContentBox
               title="Konto"
@@ -216,7 +237,9 @@ export function ProfileOverview() {
               )}
             </ContentBox>
           </div>
+          )}
 
+          {own && (
           <div className="profile-box-security">
             {/* Nur das Passwort: Ein Konto löscht allein der Admin, nie der User selbst. */}
             <ContentBox title="Sicherheit" footer="Ein Passwortwechsel beendet alle Sitzungen, auch diese.">
@@ -231,7 +254,9 @@ export function ProfileOverview() {
               </div>
             </ContentBox>
           </div>
+          )}
 
+          {own && (
           <div className="profile-box-sessions">
             <ContentBox
               title={
@@ -282,14 +307,17 @@ export function ProfileOverview() {
               )}
             </ContentBox>
           </div>
+          )}
         </div>
 
         <div className="profile-column">
           <div className="profile-box-about">
             <ContentBox
-              title="Über mich"
+              title={own ? 'Über mich' : 'Über'}
               actions={
-                <EditButton label="Über mich bearbeiten" onClick={() => navigate('/profile/edit/details', { state: ORIGIN_STATE })} />
+                own ? (
+                  <EditButton label="Über mich bearbeiten" onClick={() => navigate('/profile/edit/details', { state: ORIGIN_STATE })} />
+                ) : undefined
               }
               language={{ value: language, onChange: setLanguage }}
             >
@@ -298,6 +326,7 @@ export function ProfileOverview() {
             </ContentBox>
           </div>
 
+          {own && (
           <div className="profile-box-rights">
             <ContentBox
               title={
@@ -325,13 +354,16 @@ export function ProfileOverview() {
               )}
             </ContentBox>
           </div>
+          )}
 
+          {own && (
           <div className="profile-box-guestbook">
             <ProfileGuestbook
               ownInitials={users ? usersInitials(users) : ''}
               ownAvatarBackground={usersAvatarBackground(usersGuid)}
             />
           </div>
+          )}
         </div>
       </div>
 

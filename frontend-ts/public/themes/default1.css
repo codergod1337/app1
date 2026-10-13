@@ -776,3 +776,85 @@ button.solr-hook-catalog-entry:focus-visible {
   margin-left: 0.4rem;
   opacity: 1;
 }
+
+/*
+ * ===== AbasOpenButton: in ABAS öffnen =====
+ * Ein heller Knopf, denn die Bildmarke behält die Farben von abas und das Dunkelblau wäre auf dunklem Grund unsichtbar.
+ * Groß steht „öffnen“ dauerhaft offen; beim Hover zieht es sich zu und die Sternzeit geht auf, derselbe Atem wie beim
+ * NewEntityButton. Schmal: nur die Marke im runden Knopf, ein Stück niedriger, damit er in einer Tabellenzeile bleibt.
+ */
+.abas-open-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.8rem;
+  /* kein gap: den Abstand trägt die Beschriftung als margin-left, der mit ihr auf- und zugezogen wird */
+  padding: 0 0.7rem 0 0.4rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background-color: rgb(255 255 255 / 0.85);
+  color: #112033;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    border-color 0.15s ease-in-out,
+    background-color 0.15s ease-in-out;
+}
+
+.abas-open-button:hover,
+.abas-open-button:focus-visible {
+  border-color: #4f46e5;
+  background-color: #ffffff;
+  color: #112033;
+}
+
+.abas-open-button-mark {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+}
+
+.abas-open-button-text {
+  display: inline-block;
+  max-width: 0;
+  margin-left: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-width 0.24s ease-in-out,
+    margin-left 0.24s ease-in-out,
+    opacity 0.16s ease-in-out;
+}
+
+.abas-open-button-text-hover {
+  font-variant-numeric: tabular-nums;
+}
+
+.abas-open-button-text-open,
+.abas-open-button:hover .abas-open-button-text-hover,
+.abas-open-button:focus-visible .abas-open-button-text-hover {
+  max-width: 24rem;
+  margin-left: 0.4rem;
+  opacity: 1;
+}
+
+/* der Gegenzug: „öffnen“ zieht sich zu, sobald die Sternzeit aufgeht; steht nach der Regel oben, damit es beim Hover gewinnt */
+.abas-open-button:hover .abas-open-button-text-open,
+.abas-open-button:focus-visible .abas-open-button-text-open {
+  max-width: 0;
+  margin-left: 0;
+  opacity: 0;
+}
+
+.abas-open-button-compact {
+  height: 1.5rem;
+  width: 1.5rem;
+  padding: 0;
+}
+
+.abas-open-button-compact .abas-open-button-mark {
+  width: 1rem;
+  height: 1rem;
+}

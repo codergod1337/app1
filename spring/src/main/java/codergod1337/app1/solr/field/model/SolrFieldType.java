@@ -14,6 +14,14 @@ public enum SolrFieldType {
 	/** exakter Wert, nicht zerlegt, z. B. ein Status oder ein Key */
 	STRING("string", "code_suggest"),
 
+	/**
+	 * Eine E-Mail-Adresse (User 2026-10-13): im Feld selbst ein exakter Wert wie string, der Zwilling email_suggest
+	 * kennt aber jeden Anfang bis zur vollen Länge der Adresse, nicht nur bis 30 Zeichen wie code_suggest. So trifft
+	 * jede getippte Länge, und die ganze Adresse klein geschrieben trifft immer, auch ohne Rücksicht auf Groß- und
+	 * Kleinschreibung.
+	 */
+	EMAIL("string", "email_suggest"),
+
 	BOOLEAN("boolean", null),
 
 	/** ganze Zahl, 64 Bit. Es gibt bewusst kein pint: Ganze Zahlen sind bei uns immer long. */

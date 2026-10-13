@@ -9,6 +9,7 @@ import { translate } from '../../components/multilingual.ts'
 import { Popup } from '../../components/Popup.tsx'
 import { Table, type TableColumn } from '../../components/Table.tsx'
 import { showToast } from '../../components/toastStore.ts'
+import { UsersGuidName } from '../../components/UsersGuidName.tsx'
 import { solrFieldDisplayNameOf } from '../solrmanager/SolrField.ts'
 import {
   DMS_CORE_KEY,
@@ -208,7 +209,7 @@ export function DmsSolrDocumentRevisionsBox({ id, document, onRestored }: DmsSol
                   {' · '}
                   {dateTime(revision.changedAt)}
                   {' · '}
-                  {revision.changedByUsersDisplayName}
+                  <UsersGuidName guid={revision.changedByUsersGuid} />
                   {revision.changedFieldNames.length > 0 && (
                     <span className="text-muted"> · {revision.changedFieldNames.map(labelOf).join(', ')}</span>
                   )}

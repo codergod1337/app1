@@ -4,6 +4,7 @@ import codergod1337.app1.system.HelperInputs;
 import codergod1337.app1.system.security.CurrentUsersProvider;
 import codergod1337.app1.system.user.model.UsersDetails;
 import codergod1337.app1.system.user.service.UsersDetailsService;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -16,8 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Der User-Weg zu {@link UsersDetails}: jeder nur bei sich selbst. Fremde Details gibt es erst mit den fremden
- * Profilen, kundenNummer und lieferantenNummer setzt später der Admin-Weg.
+ * Der User-Weg zu {@link UsersDetails}: ändern nur bei sich selbst. Lesen bei sich immer, fremde Details mit der AR
+ * USER_DETAIL oder ADMIN, für die fremden Profile (User 2026-10-10). kundenNummer und lieferantenNummer setzt der
+ * Admin-Weg.
  */
 @RestController
 @RequestMapping("/api/rest/v1/usersdetails")
@@ -31,7 +33,10 @@ public class UsersDetailsController {
 		this.currentUsersProvider = currentUsersProvider;
 	}
 
-	/** Die eigenen Details, ohne Zeile leere. 200, 400 bei ungültiger guid, 403 bei fremder guid. */
+	/**
+	 * Die Details eines Users, ohne Zeile leere: die eigenen immer, fremde nur mit USER_DETAIL oder ADMIN (das fremde
+	 * Profil). 200, 400 bei ungültiger guid, 403 ohne das Recht.
+	 */
 	@GetMapping("/{usersGuid}")
 	public UsersDetails getUsersDetails(@PathVariable("usersGuid") String usersGuidText) {
 		if (!HelperInputs.isValidGuid(usersGuidText)) {
@@ -40,7 +45,10 @@ public class UsersDetailsController {
 		UUID usersGuid = UUID.fromString(usersGuidText);
 
 		if (!usersGuid.equals(currentUsersProvider.getCurrentUsersGuid())) {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "nur die eigenen Details dürfen gelesen werden");
+			List<String> accessRoleKeys = currentUsersProvider.getCurrentUsersAccessRoleKeys();
+			if (!accessRoleKeys.contains("ADMIN") && !accessRoleKeys.contains("USER_DETAIL")) {
+				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "fremde Details nur mit USER_DETAIL");
+			}
 		}
 
 		return usersDetailsService.getUsersDetailsByUsersGuid(usersGuid);

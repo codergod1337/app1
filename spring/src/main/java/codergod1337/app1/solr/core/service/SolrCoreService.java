@@ -79,7 +79,8 @@ public class SolrCoreService {
 
 	/**
 	 * Neuer Kern. 400 wenn der key ungültig ist, 409 wenn er vergeben ist. Seine Felder kommen aus solr_field: die ohne
-	 * Kern hat er sofort, seine eigenen legt der Admin im Kern-Tab an oder der Initialisierer des Kerns im Code.
+	 * Kern hat er sofort, die Zeilen aller Hooks legt der SolrFieldService gleich an, seine eigenen legt der Admin im
+	 * Kern-Tab an oder der Import bringt sie mit.
 	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
@@ -92,24 +93,7 @@ public class SolrCoreService {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "key ist bereits vergeben");
 		}
 		SolrCore solrCore = solrCoreRepository.save(new SolrCore(key, displayName, look, listingPosition));
-		reloadSolrCoresAfterCommit();
-		return solrCore;
-	}
-
-	/**
-	 * Der Initialisierer eines Kerns beim Start, ohne Token, deshalb ohne @PreAuthorize: Gibt es den Kern, bleibt er,
-	 * wie der Admin ihn gestaltet hat. Sonst entsteht er mit diesen Werten.
-	 */
-	@Transactional
-	public SolrCore createSolrCoreIfMissing(String key, String displayName, SolrLook look, int listingPosition) {
-		if (!isValidSolrCoreKey(key)) {
-			throw new IllegalArgumentException("Kern-Key aus dem Code ist ungültig: " + key);
-		}
-		SolrCore existing = solrCoreRepository.findById(key).orElse(null);
-		if (existing != null) {
-			return existing;
-		}
-		SolrCore solrCore = solrCoreRepository.save(new SolrCore(key, displayName, look, listingPosition));
+		solrFieldService.createHookFieldsForCore(key);
 		reloadSolrCoresAfterCommit();
 		return solrCore;
 	}

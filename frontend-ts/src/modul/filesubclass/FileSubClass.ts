@@ -20,8 +20,24 @@ export interface FileSubClass {
   readAccessRoleKeys: string[] | null
   /** wer Dateien dieser Art ändern darf */
   writeAccessRoleKeys: string[] | null
-  /** freigeschaltete Endungen, die pflegt die Freischalt-Matrix */
+  /**
+   * Die Anzeigeorte (User 2026-10-10, seit 2026-10-13 angelegte FileSubClassDestination): Keys der Stellen, die diese
+   * Dateiart als Abschnitt zeigen und zum Hochladen anbieten, z. B. ARTIKELMAPPE_DOKUMENTE. So steht im Katalog, welche
+   * Dateiart in welche Mappe gehört.
+   */
+  displayContextKeys: string[] | null
+  /** freigeschaltete Endungen, die pflegt die FSC-Matrix */
   extensions: string[] | null
+}
+
+/** Gehört die Dateiart an diesen Anzeigeort? */
+export function isFileSubClassShownIn(fileSubClass: Pick<FileSubClass, 'displayContextKeys'>, displayContextKey: string): boolean {
+  return (fileSubClass.displayContextKeys ?? []).includes(displayContextKey)
+}
+
+/** Darf der User mit diesen Rollen Dateien dieser Art hochladen und ändern? Anzeige, das Backend prüft die writeAcl selbst. */
+export function isFileSubClassWritableBy(fileSubClass: Pick<FileSubClass, 'writeAccessRoleKeys'>, hasAccessRole: (accessRoleKey: string) => boolean): boolean {
+  return (fileSubClass.writeAccessRoleKeys ?? []).some(hasAccessRole)
 }
 
 /** Daten zum Anlegen und Ändern: alles außer den Endungen, die fasst das Speichern nie an. */
@@ -89,6 +105,20 @@ export interface FileSubClassExtensions {
 /** Die freigeschalteten Endungen mehrerer Dateiarten auf einmal (FileMatrix), in einer Transaktion. Zurück kommen alle. */
 export function changeFileSubClassExtensions(changedExtensions: FileSubClassExtensions[]) {
   return request<FileSubClass[]>('PUT', `${FILE_SUB_CLASS_ADMIN_PATH}/extensions`, changedExtensions)
+}
+
+/** Die vollständige neue Liste der Anzeigeorte einer Dateiart. Leer: die Art steht an keinem Ort. */
+export interface FileSubClassDisplayContextKeys {
+  key: string
+  displayContextKeys: string[]
+}
+
+/**
+ * Die Anzeigeorte mehrerer Dateiarten auf einmal (FSC-Matrix), in einer Transaktion. Jeder Key muss ein angelegter
+ * Anzeigeort sein, sonst 400. Zurück kommen alle Dateiarten.
+ */
+export function changeFileSubClassDisplayContextKeys(changedDisplayContextKeys: FileSubClassDisplayContextKeys[]) {
+  return request<FileSubClass[]>('PUT', `${FILE_SUB_CLASS_ADMIN_PATH}/displaycontexts`, changedDisplayContextKeys)
 }
 
 /** Jeder key bekommt seine neue Position, z. B. { RECHNUNG: 1, DATENBLATT: 2 }. Zurück kommen alle in neuer Reihenfolge. */

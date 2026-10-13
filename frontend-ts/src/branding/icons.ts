@@ -11,6 +11,8 @@ export const icons = {
   accessRoles: { pack: 'bootstrap', id: 'shield-lock-fill' },
   accessRoleCollections: { pack: 'tabler', id: 'desk' },
   fileSubClasses: { pack: 'bootstrap', id: 'files' },
+  /** die Anzeigeorte der Dateiarten: wo eine Dateiart als Abschnitt steht */
+  fileSubClassDestinations: { pack: 'bootstrap', id: 'signpost-split' },
   fileExtensions: { pack: 'bootstrap', id: 'file-earmark-code' },
   fileMatrix: { pack: 'bootstrap', id: 'grid-3x3' },
   fileSubClassAcl: { pack: 'bootstrap', id: 'file-earmark-lock' },
@@ -18,7 +20,23 @@ export const icons = {
   masterData: { pack: 'bootstrap', id: 'database-gear' },
   entityStates: { pack: 'bootstrap', id: 'flag-fill' },
   solrManager: { pack: 'bootstrap', id: 'hdd-network-fill' },
+  /** das Modul AbasManager: die Anbindung an das ABAS-ERP, Sternzeiten holen und spiegeln */
+  abasManager: { pack: 'bootstrap', id: 'cloud-arrow-down-fill' },
+  /** das Modul Mapping: JSON als Baum ansehen und Feldern JSON-Adressen hinterlegen */
+  mapping: { pack: 'bootstrap', id: 'diagram-2-fill' },
+  /** das Modul Infosysteme: die hinterlegten Aufrufe bei ABAS mit Platzhaltern, von Subfetches und Masken genutzt */
+  infosys: { pack: 'bootstrap', id: 'collection-fill' },
   dms: { pack: 'bootstrap', id: 'folder2-open' },
+  /** das Modul Artikel: die Artikelmappe aus dem Kern ARTIKEL, dem Spiegel des ERP */
+  artikel: { pack: 'bootstrap', id: 'box-seam' },
+  /** ein Treffer des Kerns KONTAKTE, der eine Firma ist (kontaktorig „Adresse“): das Gebäude wie in der Vorlage */
+  kontaktFirma: { pack: 'bootstrap', id: 'building' },
+  /** ein Treffer des Kerns KONTAKTE, der ein Ansprechpartner ist (kontaktorig „Kontakt“): der Kopf wie in der Vorlage */
+  kontaktPerson: { pack: 'bootstrap', id: 'person' },
+  /** das Modul Belegnummer: eine Nummer bei ABAS nachschlagen, was sie ist und wo sie steht */
+  belegnummer: { pack: 'bootstrap', id: 'upc-scan' },
+  /** die Favoriten-Ansicht einer Dokumentenliste: eigene Reihenfolge, Abschnitte auf- und zuklappbar */
+  favorite: { pack: 'bootstrap', id: 'star-fill' },
   // wie die Hooks-Spalte im Dokumente-Tab der Vorlage
   solrHooks: { pack: 'bootstrap', id: 'diagram-3' },
   solrHookGroups: { pack: 'bootstrap', id: 'tags' },
@@ -26,11 +44,6 @@ export const icons = {
   /** das Modul GraphManager: Microsoft Graph, Mailvorlagen und später die Postfächer */
   graph: { pack: 'bootstrap', id: 'microsoft' },
   mailTemplates: { pack: 'bootstrap', id: 'envelope-paper' },
-  /** das Modul Freigaben: Dateifreigaben und Feldfreigaben je Kern */
-  grant: { pack: 'bootstrap', id: 'person-check-fill' },
-  documentGrants: { pack: 'bootstrap', id: 'file-earmark-check' },
-  fieldGrants: { pack: 'bootstrap', id: 'list-check' },
-  hookGrants: { pack: 'bootstrap', id: 'link-45deg' },
   /** Auflösen: exakt nach Feld und Wert */
   resolve: { pack: 'bootstrap', id: 'funnel-fill' },
   /** das Auge: eine Datei im Viewer ansehen */
@@ -45,6 +58,8 @@ export const icons = {
   /** der Volltext eines Dokuments, z. B. als Treffergrund */
   fullText: { pack: 'bootstrap', id: 'file-text' },
   download: { pack: 'bootstrap', id: 'download' },
+  /** Freigeben per Abholschein: der Link an jemanden ohne Konto */
+  share: { pack: 'bootstrap', id: 'share-fill' },
   upload: { pack: 'bootstrap', id: 'upload' },
   /** eine neue Fassung an eine Versionskette hängen: das Journal mit dem Pfeil nach oben, wie in der Vorlage */
   newVersion: { pack: 'bootstrap', id: 'journal-arrow-up' },

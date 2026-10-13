@@ -1,10 +1,6 @@
-import { request, upload, type UploadProgress } from '../../api/client.ts'
-import type {
-  SolrAdvancedFieldGrantAccessPerCore,
-  SolrDocumentGrantedDocsPerCore,
-  SolrHookGrantAccess,
-} from '../grant/Grant.ts'
-import type { SearchRequest, SearchResultPage, SearchSuggestResult } from '../search/Search.ts'
+import { download, request, upload, type DownloadProgress, type UploadProgress } from '../../api/client.ts'
+import { useUsersSettings } from '../../components/usersSettingsContext.ts'
+import type { SearchRequest, SearchResultPage } from '../search/Search.ts'
 import { clearSearchResultCache } from '../search/searchResultCache.ts'
 import { SOLR_CORE_BUILT_IN_FIELD_NAMES } from '../solrmanager/SolrCore.ts'
 import { isClientAllowedToSetOnCreate, solrFieldDisplayNameOf, type SolrField } from '../solrmanager/SolrField.ts'
@@ -13,7 +9,10 @@ import type { LanguageCode } from '../../branding/languages.ts'
 /** Die AR, die das DMS-Modul sichtbar und den Upload erlaubt macht. Das Backend prüft dieselbe. */
 export const DMS_ACCESS_ROLE_KEY = 'DMS'
 
-/** Die AR der Suche im Kern DMS, dazu immer DMS. Ohne sie 403 vor Solr, auch für den Admin. */
+/**
+ * Die AR der Suche im Kern DMS (User 2026-10-09): Sie gibt in der Suche alle Felder und Hooks frei, nur readAcl und
+ * Status gelten weiter. Ohne sie 403 vor Solr, außer für ADMIN.
+ */
 export const DMS_SEARCH_ACCESS_ROLE_KEY = 'DMS_SUCHE'
 
 /**
@@ -93,21 +92,6 @@ export function dmsFieldLabel(
   language?: LanguageCode,
 ): string {
   return solrFieldDisplayNameOf(solrFields ?? [], DMS_CORE_KEY, name, language) ?? fallback
-}
-
-/** Bytes lesbar: 1,2 MB statt 1234567. Infobox, Trefferzeile der Suche. */
-export function readableBytes(value: unknown): string {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return ''
-  }
-  const units = ['B', 'kB', 'MB', 'GB']
-  let amount = value
-  let unit = 0
-  while (amount >= 1000 && unit < units.length - 1) {
-    amount /= 1000
-    unit += 1
-  }
-  return `${unit === 0 ? amount : amount.toFixed(1)} ${units[unit]}`
 }
 
 /** Die Endung nach derselben Regel wie im Backend (DmsUploadService.extensionOf): nach dem letzten Punkt, klein. Ohne Punkt leer. */
@@ -196,6 +180,7 @@ export interface DmsExistence {
   status: string | null
 }
 
+/** file und data als JSON; steht versionChain in data, ist es ein Versionsupdate dieser Kette */
 function uploadFormData(file: File, document: Record<string, unknown>): FormData {
   const formData = new FormData()
   formData.append('file', file, file.name)
@@ -204,27 +189,28 @@ function uploadFormData(file: File, document: Record<string, unknown>): FormData
 }
 
 /**
- * Die Probe: Datei und Felder ans Backend, das prüft, mit Tika liest und die Vorschau rechnet, aber nichts speichert.
- * Bleibt dauerhaft neben dem echten Upload, z. B. um die Spracherkennung zu testen. document trägt jedes Feld unter
- * seinem Solr-Namen, multiValued als Liste, Hooks genauso, denn in Solr sind sie Felder.
+ * Die Probe (FileDataController): Datei und Felder ans Backend, das prüft, mit Tika liest und die Vorschau rechnet,
+ * aber nichts speichert. document trägt jedes Feld unter seinem Solr-Namen, multiValued als Liste, Hooks genauso.
  */
 export function probeDmsUpload(file: File, document: Record<string, unknown>) {
-  return upload<DmsUploadProbe>('/api/rest/v1/dms/upload-probe', uploadFormData(file, document))
+  return upload<DmsUploadProbe>('/api/rest/v1/filedata/upload-probe', uploadFormData(file, document))
 }
 
 /**
- * Der Upload: wie die Probe, dann speichern (SFTP, Solr). Die Dateiart ist Pflicht, der User braucht ihr Schreibrecht.
- * onProgress meldet die gesendeten Bytes, nach 100 % arbeitet das Backend noch.
+ * Der Upload (FileDataController): wie die Probe, dann speichern (SFTP, Solr). Die Dateiart ist Pflicht, der User
+ * braucht ihr Schreibrecht. Ein normaler Upload schickt nie versionChain, das Backend vergibt eine neue Kette; steht
+ * versionChain im Dokument, ist es ein Versionsupdate: Das Backend nimmt den aktiven Kopf der Kette als abgelöste
+ * Fassung (User 2026-10-10). onProgress meldet die gesendeten Bytes, nach 100 % arbeitet das Backend noch.
  */
 export function uploadDmsFile(file: File, document: Record<string, unknown>, onProgress?: UploadProgress) {
   // ein Schreibvorgang: Die Treffer der Suche im Zwischenspeicher sind danach alt
   clearSearchResultCache()
-  return upload<DmsUploadResult>('/api/rest/v1/dms/upload', uploadFormData(file, document), onProgress)
+  return upload<DmsUploadResult>('/api/rest/v1/filedata/upload', uploadFormData(file, document), onProgress)
 }
 
 /** Gibt es diese Bytes schon? sha256 in Hex, klein, wie sha256Hex.ts ihn liefert. */
 export function getDmsExistence(sha256: string) {
-  return request<DmsExistence>('GET', `/api/rest/v1/dms/exists/${sha256}`)
+  return request<DmsExistence>('GET', `/api/rest/v1/filedata/exists/${sha256}`)
 }
 
 // ===== Endpunkte des DmsExactFieldValueResolveController und des DmsDownloadController =====
@@ -263,35 +249,62 @@ export interface DmsResolvedDocumentsPage {
 }
 
 export function getCurrentUserDmsAccess() {
-  return request<CurrentUserDmsAccessForClient>('GET', '/api/rest/v1/dms/access')
-}
-
-export function resolveDmsDocumentsPageByExactFieldValues(resolveRequest: DmsExactFieldValueResolveRequest) {
-  return request<DmsResolvedDocumentsPage>('POST', '/api/rest/v1/dms/resolve', resolveRequest)
+  return request<CurrentUserDmsAccessForClient>('GET', '/api/rest/v1/solr/dms/access')
 }
 
 /**
- * Der einzige Weg zu den Bytes einer Datei (DmsDownloadController): ein normaler Link, das Token kommt aus dem Cookie.
- * Das Backend lädt das Dokument mit der Leseprüfung des Users noch einmal, bevor es die Datei vom SFTP holt.
+ * Auflösen über den SolrDocumentDmsController: ein Wert je Feld (der erste der Liste), Seiten ab 0 mit der Größe aus
+ * der YAML des Backends; Sortierung und Größe der Maske nimmt das Backend heute nicht an. Die Antwort nennt die
+ * Seitengröße pageSize, die Maske kennt sie als size.
+ */
+export function resolveDmsDocumentsPageByExactFieldValues(resolveRequest: DmsExactFieldValueResolveRequest) {
+  const exactValueByFieldName: Record<string, string> = {}
+  for (const [fieldName, values] of Object.entries(resolveRequest.fieldValuesByFieldName)) {
+    if (values.length > 0) {
+      exactValueByFieldName[fieldName] = String(values[0])
+    }
+  }
+  return request<{ totalFound: number; page: number; pageSize: number; documents: Record<string, unknown>[] }>(
+    'POST',
+    '/api/rest/v1/solr/dms/resolve',
+    { exactValueByFieldName, page: resolveRequest.page },
+  ).then((result) => ({
+    ...result,
+    data: {
+      totalFound: result.data.totalFound,
+      page: result.data.page,
+      size: result.data.pageSize,
+      documents: result.data.documents,
+    } satisfies DmsResolvedDocumentsPage,
+  }))
+}
+
+/**
+ * Der Weg zu den Bytes einer Datei für einen angemeldeten User (FileDataController): ein normaler Link, das Token
+ * kommt aus dem Cookie. Das Backend prüft readAcl oder die guid-Freigabe, bevor es die Datei vom SFTP holt. Die
+ * öffentlichen Wege (isPublic, Abholschein) liegen unter /api/rest/v1/public/filedata/.
  */
 export function dmsFileDownloadUrl(id: string): string {
-  return `/api/rest/v1/dms/download/${id}`
+  return `/api/rest/v1/filedata/download/${id}`
 }
-
-// ===== Endpunkte des DmsSearchController: die Suche im Kern DMS =====
 
 /**
- * Die Suche: Tür DMS und DMS_SUCHE, Status ACTIVE oder ARCHIVED, alle Felder außer dem Volltext, mit Treffergrund.
- * Filter sind Chips (Feld, Wert), die das Backend gegen seine feste Liste prüft (DmsSearchService.EXACT_FILTER_FIELD_NAMES
- * plus Hooks), fremde überliest es.
+ * Die Bytes einer Datei als Blob für den Viewer, über denselben Weg mit derselben Rechteprüfung wie der Download-Link;
+ * onProgress meldet die empfangenen Bytes. Der Viewer braucht die Bytes im Speicher, weil der Download-Endpunkt
+ * attachment schickt (siehe download in api/client.ts).
  */
-export function searchDmsDocuments(searchRequest: SearchRequest) {
-  return request<SearchResultPage>('POST', '/api/rest/v1/dms/search', searchRequest)
+export function downloadDmsFileBlob(id: string, onProgress?: DownloadProgress) {
+  return download(dmsFileDownloadUrl(id), onProgress)
 }
 
-/** Die Vervollständigung beim Tippen: dieselbe Tür, Treffer über die Suggested-Zwillinge und die Filterangebote. Seite und Größe ignoriert das Backend. */
-export function suggestDmsDocuments(searchRequest: SearchRequest) {
-  return request<SearchSuggestResult>('POST', '/api/rest/v1/dms/search/suggest', searchRequest)
+// ===== Endpunkte des SolrDocumentDmsController (solr/dms): die Suche im Kern DMS =====
+
+/**
+ * Die Suche: Tür DMS_SEARCH oder ADMIN, Status ACTIVE oder ARCHIVED, alle Felder und Hooks, mit Treffergrund und
+ * Vorschau. Chips sind exakte Filter je Feld, gleiches Feld heißt ODER. Nur die besten Treffer, keine Seiten.
+ */
+export function searchDmsDocuments(searchRequest: SearchRequest) {
+  return request<SearchResultPage>('POST', '/api/rest/v1/solr/dms/search', searchRequest)
 }
 
 // ===== Endpunkte des DmsSolrDocumentController: ein einzelnes Dokument lesen und ändern =====
@@ -315,55 +328,35 @@ export interface DmsSolrDocumentPatchData {
   fieldValuesByFieldName: Record<string, unknown>
 }
 
-/**
- * Die Freigaben, die ein ADMIN zu einem Dokument sieht (DmsSolrDocumentGrantsForClient.java): die guids in
- * userGrantedAccess, die Wahrheit für den Zugriff, dazu die wirksamen Dateifreigaben dieser User im Kern DMS aus dem
- * Register und Anzeigenamen zu den guids. Ein Kontrollblick, kein Schutz.
- */
-export interface DmsSolrDocumentGrantsForClient {
-  grantedUsersGuids: string[]
-  documentGrantsInForce: SolrDocumentGrantedDocsPerCore[]
-  usersDisplayNameByGuid: Record<string, string>
-}
-
-export function getDmsSolrDocumentGrants(id: string) {
-  return request<DmsSolrDocumentGrantsForClient>('GET', `/api/rest/v1/dms/solr-document/${id}/grants`)
-}
-
-// ===== Endpunkte des DmsCurrentUsersGrantsController: der Tab „Meine Freigaben“ =====
-
-/** Was dem current user freigegeben ist (DmsCurrentUsersGrantsForClient.java), Register mit allen Status */
-export interface DmsCurrentUsersGrantsForClient {
-  documentGrants: SolrDocumentGrantedDocsPerCore[]
-  fieldGrants: SolrAdvancedFieldGrantAccessPerCore[]
-  /** serverweit, nicht nur im DMS */
-  hookGrants: SolrHookGrantAccess[]
-  /** guid → Anzeigename, für „freigegeben von“ */
-  usersDisplayNameByGuid: Record<string, string>
-}
-
-export function getCurrentUsersDmsGrants() {
-  return request<DmsCurrentUsersGrantsForClient>('GET', '/api/rest/v1/dms/my-grants')
-}
-
-/** Die DMS-Dokumente, die die guid des current users in userGrantedAccess tragen, mit seiner Leseprüfung, seitenweise */
-export function resolveDmsDocumentsPageGrantedToCurrentUser(page: number, size: number) {
-  return request<DmsResolvedDocumentsPage>('POST', '/api/rest/v1/dms/my-grants/documents', { page, size })
+/** Meine Freigaben: die Dokumente, die meine guid in userGrantedAccess tragen, seitenweise ab 0, Größe aus dem Backend */
+export function getDmsDocumentsGrantedToMe(page: number) {
+  return request<{ totalFound: number; page: number; pageSize: number; documents: Record<string, unknown>[] }>(
+    'GET',
+    `/api/rest/v1/solr/dms/granted-to-me?page=${page}`,
+  ).then((result) => ({
+    ...result,
+    data: {
+      totalFound: result.data.totalFound,
+      page: result.data.page,
+      size: result.data.pageSize,
+      documents: result.data.documents,
+    } satisfies DmsResolvedDocumentsPage,
+  }))
 }
 
 export function getDmsSolrDocument(id: string) {
-  return request<DmsSolrDocumentForClient>('GET', `/api/rest/v1/dms/solr-document/${id}`)
+  return request<DmsSolrDocumentForClient>('GET', `/api/rest/v1/solr/dms/document/${id}`)
 }
 
 export function patchDmsSolrDocument(patchData: DmsSolrDocumentPatchData) {
   clearSearchResultCache()
-  return request<DmsSolrDocumentForClient>('PATCH', '/api/rest/v1/dms/solr-document', patchData)
+  return request<DmsSolrDocumentForClient>('PATCH', '/api/rest/v1/solr/dms/document', patchData)
 }
 
 /** Weiches Löschen: Status DELETED, die Datei bleibt. Danach sieht der User das Dokument auf keinem Weg mehr. */
 export function softDeleteDmsSolrDocument(id: string) {
   clearSearchResultCache()
-  return request<void>('DELETE', '/api/rest/v1/dms/solr-document', { id })
+  return request<void>('DELETE', '/api/rest/v1/solr/dms/document', { id })
 }
 
 // ===== Revisionen (DmsSolrDocumentRevisionService): der Stand vor jeder Änderung durch einen Menschen =====
@@ -377,19 +370,19 @@ export function softDeleteDmsSolrDocument(id: string) {
 export interface DmsSolrDocumentRevision {
   revisionNo: number
   changedAt: string
+  /** nur die guid, den Namen löst UsersGuidName auf (User 2026-10-10) */
   changedByUsersGuid: string
-  changedByUsersDisplayName: string
   changedFieldNames: string[]
 }
 
 /** Die Revisionen eines Dokuments, neueste zuerst. 404, wenn der User das Dokument nicht sehen darf. */
 export function getDmsSolrDocumentRevisions(id: string) {
-  return request<DmsSolrDocumentRevision[]>('GET', `/api/rest/v1/dms/solr-document/${id}/revisions`)
+  return request<DmsSolrDocumentRevision[]>('GET', `/api/rest/v1/solr/dms/document/${id}/revisions`)
 }
 
 /** Eine Revision als Dokument, wie das Backend es aus dem ZIP liest, mit der Feldgrenze des Users wie die Dokumentseite */
 export function getDmsSolrDocumentRevision(id: string, revisionNo: number) {
-  return request<Record<string, unknown>>('GET', `/api/rest/v1/dms/solr-document/${id}/revision/${revisionNo}`)
+  return request<Record<string, unknown>>('GET', `/api/rest/v1/solr/dms/document/${id}/revision/${revisionNo}`)
 }
 
 /**
@@ -399,7 +392,7 @@ export function getDmsSolrDocumentRevision(id: string, revisionNo: number) {
  */
 export function restoreDmsSolrDocumentRevision(id: string, revisionNo: number) {
   clearSearchResultCache()
-  return request<DmsSolrDocumentForClient | null>('POST', '/api/rest/v1/dms/solr-document/revision/restore', {
+  return request<DmsSolrDocumentForClient | null>('POST', '/api/rest/v1/solr/dms/document/revision/restore', {
     id,
     revisionNo,
   })
@@ -412,7 +405,7 @@ export function restoreDmsSolrDocumentRevision(id: string, revisionNo: number) {
  * das Feld lesen darf. Leer, wenn es die Kette nicht gibt oder er nichts davon sieht.
  */
 export function getDmsVersionChain(versionChain: string) {
-  return request<Record<string, unknown>[]>('GET', `/api/rest/v1/dms/version-chain/${versionChain}`)
+  return request<Record<string, unknown>[]>('GET', `/api/rest/v1/solr/dms/version-chain/${versionChain}`)
 }
 
 /** Die Nummer der Fassung als Zahl, 0 wenn das Feld fehlt oder der User es nicht lesen darf */
@@ -466,3 +459,51 @@ export function dmsSolrDocumentViewerPath(id: string): string {
 /** Der Status, den das weiche Löschen setzt (DmsStateService.DELETED) */
 export const DMS_STATE_DELETED = 'DELETED'
 export const DMS_STATE_ACTIVE = 'ACTIVE'
+
+// ===== Die kontextgebundene Dokumentenliste je Dateiart (DmsFileSubClassDocumentsList), nach DmsFscDokumente der Vorlage =====
+
+/**
+ * Die drei Ansichten (User 2026-10-10): ALL zeigt jede Dateiart des Orts in Katalogreihenfolge, die Vorgabe;
+ * WITH_FILES nur die Dateiarten mit Dateien, in der eigenen Reihenfolge, am Griff ziehbar; FAVORITES jede Dateiart in
+ * der eigenen Reihenfolge, ziehbar und je Abschnitt auf- oder zuklappbar. Der Klick auf den Umschalter geht im Kreis.
+ */
+export const DMS_DOCUMENT_LIST_MODES = ['ALL', 'WITH_FILES', 'FAVORITES'] as const
+
+export type DmsDocumentListMode = (typeof DMS_DOCUMENT_LIST_MODES)[number]
+
+/** Die Ansicht aus einer UsersSetting; alles Unbekannte ist ALL, die Vorgabe */
+export function dmsDocumentListModeOf(value: string | null): DmsDocumentListMode {
+  return (DMS_DOCUMENT_LIST_MODES as readonly string[]).includes(value ?? '') ? (value as DmsDocumentListMode) : 'ALL'
+}
+
+export function nextDmsDocumentListMode(mode: DmsDocumentListMode): DmsDocumentListMode {
+  return DMS_DOCUMENT_LIST_MODES[(DMS_DOCUMENT_LIST_MODES.indexOf(mode) + 1) % DMS_DOCUMENT_LIST_MODES.length]
+}
+
+/** Die Ansicht eines Orts aus seiner UsersSetting (z. B. ARTIKELMAPPE_DATENTYPEN), ALL ohne eine */
+export function useDmsDocumentListMode(settingKey: string): DmsDocumentListMode {
+  const { settingValue } = useUsersSettings()
+  return dmsDocumentListModeOf(settingValue(settingKey))
+}
+
+/**
+ * Die eigene Reihenfolge der Dateiarten, eine UsersSetting mit einer JSON-Liste ihrer Keys: die Stelle in der Liste ist
+ * die Position. Projektweit eine Liste; jeder Ort nimmt daraus seine Dateiarten, was er nicht kennt, bleibt hinten stehen.
+ */
+export const DMS_FILE_SUB_CLASS_ORDER_SETTING_KEY = 'DMS_FSC_ORDER'
+
+/** Die zugeklappten Dateiarten der Favoriten-Ansicht, eine UsersSetting mit einer JSON-Liste ihrer Keys */
+export const DMS_FILE_SUB_CLASS_COLLAPSED_SETTING_KEY = 'DMS_FSC_COLLAPSED'
+
+/** Die Keys aus einer solchen UsersSetting; null, wenn es sie nicht gibt oder sie unlesbar ist */
+export function fileSubClassKeysOfSetting(value: string | null): string[] | null {
+  if (value === null) {
+    return null
+  }
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === 'string') : null
+  } catch {
+    return null
+  }
+}

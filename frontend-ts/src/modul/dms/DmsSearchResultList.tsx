@@ -9,7 +9,7 @@ import { translate } from '../../components/multilingual.ts'
 import { FileSubClassSymbol } from '../filesubclass/FileSubClassSymbol.tsx'
 import type { SearchResultListProps } from '../search/searchCores.ts'
 import { SearchHitReasons } from '../search/SearchHitReasons.tsx'
-import { SolrHookChip } from '../solrmanager/SolrHookChip.tsx'
+import { SolrHookValues } from '../solrmanager/SolrHookValues.tsx'
 import {
   DMS_CORE_KEY,
   DMS_STATE_ACTIVE,
@@ -17,9 +17,9 @@ import {
   dmsFieldLabel,
   dmsSolrDocumentPath,
   FILE_SUB_CLASS_FIELD_NAME,
-  readableBytes,
   STATUS_FIELD_NAME,
 } from './Dms.ts'
+import { readableBytes } from '../../components/readableBytes.ts'
 import { DmsDocumentLanguageFlag } from './DmsDocumentLanguageFlag.tsx'
 import { DmsSolrDocumentActionButtons } from './DmsSolrDocumentActionButtons.tsx'
 import { DmsSolrDocumentIdentifiersHint } from './DmsSolrDocumentFacts.tsx'
@@ -35,8 +35,10 @@ function asList(value: unknown): string[] {
 /**
  * Die Treffer des Kerns DMS in der Suche, nach DmsTreffer der Vorlage: je Treffer das Symbol der Dateiart oder das
  * Vorschaubild, der Dateiname als Weg zur Dokumentseite mit der Beschreibung im Hoverlay, die Fakten in einer Zeile,
- * die Hooks mit ihren Werten, darunter der Treffergrund, rechts die bekannten Aktionen. Ein Klick auf einen Hook-Wert
- * loggt ihn als Filter ein.
+ * die Hooks mit ihren Werten, darunter der Treffergrund, rechts die bekannten Aktionen (Schreibknöpfe nur, wenn das
+ * Backend den Treffer als writable meldet). Ein Klick auf einen Hook-Wert loggt ihn als Filter ein, hat sein Hook eine
+ * Mappe als Ziel, öffnet er die Mappe (SolrHookValueBadge). Die Felder eines
+ * Treffers (fieldValues) sind die der Trefferbox plus die durchsuchten, nicht das ganze Dokument.
  */
 export function DmsSearchResultList({ hits, origin, onFilter }: SearchResultListProps) {
   const { t, i18n } = useTranslation()
@@ -56,7 +58,7 @@ export function DmsSearchResultList({ hits, origin, onFilter }: SearchResultList
   return (
     <div className="search-hits">
       {hits.map((hit) => {
-        const document = hit.document
+        const document = hit.fieldValues
         const id = typeof document.id === 'string' ? document.id : ''
         const fileName = typeof document.fileName === 'string' ? document.fileName : id
         const fileSubClassKey =
@@ -149,23 +151,15 @@ export function DmsSearchResultList({ hits, origin, onFilter }: SearchResultList
               {hooksWithValues.length > 0 && (
                 <div className="search-hit-hooks">
                   {hooksWithValues.map((hook) => (
-                    <span key={hook.key} className="solr-hook-values">
-                      <SolrHookChip solrHook={hook} language={language} />
-                      {asList(document[hook.key]).map((value) => (
-                        <button
-                          key={value}
-                          type="button"
-                          className="solr-hook-value-badge solr-hook-value-badge-link search-hit-hook-value"
-                          aria-label={t('search.filters.addValue', {
-                            field: translate(hook.displayName, language) || hook.key,
-                            value,
-                          })}
-                          onClick={() => onFilter({ fieldName: hook.key, value })}
-                        >
-                          {value}
-                        </button>
-                      ))}
-                    </span>
+                    <SolrHookValues
+                      key={hook.key}
+                      solrHook={hook}
+                      values={asList(document[hook.key])}
+                      language={language}
+                      origin={origin}
+                      onSearchFilter={onFilter}
+                      badgeClassName="search-hit-hook-value"
+                    />
                   ))}
                 </div>
               )}
@@ -174,7 +168,8 @@ export function DmsSearchResultList({ hits, origin, onFilter }: SearchResultList
             </div>
 
             <div className="search-hit-actions">
-              <DmsSolrDocumentActionButtons document={document} origin={origin} />
+              {/* writable sagt das Backend je Treffer: Stift, neue Fassung, Freigeben nur dann */}
+              <DmsSolrDocumentActionButtons document={document} origin={origin} writeAclMatchForCurrentUser={hit.writable} />
             </div>
           </div>
         )

@@ -21,21 +21,19 @@ import { solrHookValuesOf } from '../solrmanager/SolrHook.ts'
 import { SolrHookFields, type SolrHookValuesByKey } from '../solrmanager/SolrHookFields.tsx'
 import {
   DMS_PUBLIC_ACCESS_ROLE_KEY,
-  DOCUMENT_LANGUAGE_FIELD_NAME,
   dmsSolrDocumentPath,
   dmsVersionChainHead,
   dmsVersionOf,
   FILE_SUB_CLASS_FIELD_NAME,
   fileExtensionOf,
   getDmsExistence,
+  getDmsSolrDocument,
   getDmsVersionChain,
   uploadDmsFile,
   VERSION_CHAIN_FIELD_NAME,
   type DmsExistence,
   type DmsUploadStatus,
 } from './Dms.ts'
-import { documentLanguageAppliesToFileExtension } from './DmsDocumentLanguage.ts'
-import { DmsDocumentLanguagePicker } from './DmsDocumentLanguagePicker.tsx'
 import { useDmsUploadPrefill } from './DmsUploadPrefill.ts'
 
 /** So viele Dateien nimmt ein Stapel: eine Mappe ist kein Massenimport */
@@ -56,12 +54,12 @@ interface BatchEntry {
   fileIndex: string
   /** mehrsprachiges JSON wie das Feld, null solange leer */
   fileDescription: string | null
-  /** die Sprache, nur gefragt, wenn die Endungsgruppe eine vorsieht; null: keine gewählt, bei Dokumenten erkennt sie das Backend */
-  documentLanguage: string | null
   /** 'pending' solange der Browser rechnet, 'failed' wenn er es nicht kann, sonst der Hash */
   hash: 'pending' | 'failed' | string
   /** 'pending' bis das Backend geantwortet hat, 'failed' ohne Antwort, sonst die Antwort */
   existence: 'pending' | 'failed' | DmsExistence
+  /** das Dokument, das mit diesen Bytes schon im DMS liegt, soweit der User es lesen darf; null solange keins bekannt ist */
+  existing: Record<string, unknown> | null
   /** gesetzt, sobald der Upload durch ist */
   result: DmsUploadStatus | null
   uploadError: string | null
@@ -95,11 +93,16 @@ function fileKey(file: File): string {
  * ablaufenden Balken und räumen sich nach fünf Sekunden weg. Die Maske bleibt stehen, Dateiart und Hooks bleiben gesetzt:
  * Wer aus einer Mappe kommt, lädt selten nur einen Rutsch. Ein Toast läuft mit und wird am Ende zum Ergebnis.
  *
+ * Liegen die Bytes schon unter derselben Dateiart, ergänzt der Upload das vorhandene Dokument (Merge): Hooks kommen
+ * dazu, Index und Beschreibung werden gesetzt, wie die Zeile sie schickt. Darum lädt die Zeile bei der Kollision den
+ * Bestand und zeigt ihn zum Ändern (User 2026-10-09).
+ *
  * Gesteuert wird die Maske über eine Vorbelegung im Router-State (DmsUploadPrefill, User 2026-10-08), jeder Parameter
  * für sich. Mit versionChain ist sie dieselbe Maske wie beim frischen Upload, nur dass die Kette mitgeht (User
  * 2026-10-08): die Dateiart des Kopfes gesperrt, seine Hooks vorbelegt und änderbar, alles andere kommt von der neuen
  * Datei, genau eine Datei (ein zweites Ablegen ersetzt sie), dieselben Bytes sind gesperrt, nach dem Upload geht es
- * zur neuen Fassung.
+ * zur neuen Fassung. Der Upload schickt dafür versionChain im Dokument, ein normaler Upload nie: Allein daran erkennt
+ * das Backend das Versionsupdate und nimmt den aktiven Kopf der Kette (User 2026-10-10).
  */
 export function DmsUploadBatchTab() {
   const { t } = useTranslation()
@@ -109,7 +112,7 @@ export function DmsUploadBatchTab() {
   const { hasAccessRole } = useSession()
   /** die Internetfreigabe setzt nur DMS_PUBLIC: ohne die Rolle gibt es den Haken nicht und das Feld geht nicht mit */
   const canSetPublic = hasAccessRole(DMS_PUBLIC_ACCESS_ROLE_KEY)
-  const { fileSubClasses, fileExtensions, fileExtensionCollections, solrHooks } = useMasterData()
+  const { fileSubClasses, solrHooks } = useMasterData()
   const [language, setLanguage] = useState<LanguageCode>(useLanguage().language)
   const [fileSubClassKey, setFileSubClassKey] = useState<string | null>(prefill?.fileSubClassKey ?? null)
   const [hooks, setHooks] = useState<SolrHookValuesByKey>(prefill?.hooks ?? {})
@@ -204,11 +207,6 @@ export function DmsUploadBatchTab() {
     return entry.existence.fileSubClassKey === fileSubClassKey && mergeableStatus ? 'merge' : 'exists'
   }
 
-  /** Hat die Datei dieser Zeile eine Sprache? Sagt ihre Endungsgruppe, dieselbe Regel wie im Backend */
-  function documentLanguageApplies(entry: BatchEntry): boolean {
-    return documentLanguageAppliesToFileExtension(entry.extension, fileExtensions ?? [], fileExtensionCollections ?? [])
-  }
-
   function changeEntry(nr: number, patch: Partial<BatchEntry>) {
     setEntries((current) => current.map((entry) => (entry.nr === nr ? { ...entry, ...patch } : entry)))
   }
@@ -262,9 +260,9 @@ export function DmsUploadBatchTab() {
         extension: fileExtensionOf(file.name),
         fileIndex: '',
         fileDescription: null,
-        documentLanguage: null,
         hash: 'pending',
         existence: 'pending',
+        existing: null,
         result: null,
         uploadError: null,
       }
@@ -294,11 +292,41 @@ export function DmsUploadBatchTab() {
     }
     occupied.current.get(nr)!.hash = hash
     changeEntry(nr, { hash })
+    let existence: DmsExistence
     try {
-      const existence = (await getDmsExistence(hash)).data
+      existence = (await getDmsExistence(hash)).data
       changeEntry(nr, { existence })
     } catch {
       changeEntry(nr, { existence: 'failed' })
+      return
+    }
+    if (!existence.exists || existence.id === null || newVersion) {
+      return
+    }
+    // Kollision: der Bestand kommt in die Zeile, denn der Merge setzt Index und Beschreibung so, wie die Zeile sie
+    // schickt (User 2026-10-09). Darf der User das Dokument nicht lesen, bleibt die Zeile leer.
+    try {
+      const existing = (await getDmsSolrDocument(existence.id)).data.document
+      setEntries((current) =>
+        current.map((entry) => {
+          if (entry.nr !== nr) {
+            return entry
+          }
+          const existingIndex = existing[FILE_INDEX_FIELD_NAME]
+          const existingDescription = existing[FILE_DESCRIPTION_FIELD_NAME]
+          return {
+            ...entry,
+            existing,
+            fileIndex: entry.fileIndex === '' && typeof existingIndex === 'string' ? existingIndex : entry.fileIndex,
+            fileDescription:
+              entry.fileDescription === null && typeof existingDescription === 'string'
+                ? existingDescription
+                : entry.fileDescription,
+          }
+        }),
+      )
+    } catch {
+      // ohne Leserecht oder ohne Antwort: der Merge nimmt dann, was die Zeile hat
     }
   }
 
@@ -337,7 +365,7 @@ export function DmsUploadBatchTab() {
           document[IS_PUBLIC_FIELD_NAME] = isPublic
         }
         if (versionChain !== null) {
-          // der Parameter der neuen Fassung; die Dateiart nimmt das Backend vom Kopf der Kette
+          // das Signal für das Versionsupdate: die Kette; den Kopf und seine Dateiart bestimmt das Backend selbst
           document[VERSION_CHAIN_FIELD_NAME] = versionChain
         } else {
           document[FILE_SUB_CLASS_FIELD_NAME] = fileSubClass.key
@@ -347,9 +375,6 @@ export function DmsUploadBatchTab() {
         }
         if (entry.fileDescription !== null) {
           document[FILE_DESCRIPTION_FIELD_NAME] = entry.fileDescription
-        }
-        if (entry.documentLanguage !== null && documentLanguageApplies(entry)) {
-          document[DOCUMENT_LANGUAGE_FIELD_NAME] = entry.documentLanguage
         }
         for (const [key, values] of Object.entries(hooks)) {
           if (values.length > 0) {
@@ -517,25 +542,10 @@ export function DmsUploadBatchTab() {
           maxLength={12}
           placeholder={t('dms.batch.indexPlaceholder')}
           value={entry.fileIndex}
-          disabled={uploading || entry.result !== null || statusOf(entry) === 'merge'}
+          disabled={uploading || entry.result !== null}
           onChange={(event) => changeEntry(entry.nr, { fileIndex: event.target.value })}
         />
       ),
-    },
-    {
-      header: t('dms.batch.columns.language'),
-      width: '4.5rem',
-      cell: (entry) =>
-        documentLanguageApplies(entry) ? (
-          <DmsDocumentLanguagePicker
-            compact
-            value={entry.documentLanguage}
-            disabled={uploading || entry.result !== null || statusOf(entry) === 'merge'}
-            onChange={(documentLanguage) => changeEntry(entry.nr, { documentLanguage })}
-          />
-        ) : (
-          <span className="text-muted">—</span>
-        ),
     },
     {
       header: t('dms.batch.columns.description'),

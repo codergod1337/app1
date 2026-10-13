@@ -3,11 +3,7 @@ import type { LanguageCode } from '../../branding/languages.ts'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
 import { solrFieldDisplayNameOf } from '../solrmanager/SolrField.ts'
-import type { SearchHitReason } from './Search.ts'
-
-/** Dieselben zwei Zeichen wie DmsSearchHitReason.MARK_OPEN und MARK_CLOSE, aus dem Zeichencode gebaut */
-const MARK_OPEN = String.fromCharCode(2)
-const MARK_CLOSE = String.fromCharCode(3)
+import { SEARCH_MARK_CLOSE, SEARCH_MARK_OPEN, type SearchHitReason } from './Search.ts'
 
 interface SearchHitReasonsProps {
   reasons: readonly SearchHitReason[]
@@ -20,8 +16,8 @@ interface SearchHitReasonsProps {
 /**
  * Warum ist das ein Treffer, die Zeile unter jedem Treffer, nach dem Treffergrund der Vorlage: je Feld sein Name und
  * der Wert mit den Fundstellen als mark. Hook und Feld stehen mit ihrem Anzeigenamen (User 2026-10-07), ohne einen mit
- * dem technischen Namen. Beim Volltext nur der Feldname, selbst markiert, denn der Text kommt nie mit. Sie gehört
- * keinem Kern, jede Trefferzeile stellt ihren Grund damit dar.
+ * dem technischen Namen. Beim Volltext nur der Feldname, selbst markiert, denn der Text kommt nie mit (User
+ * 2026-10-09). Sie gehört keinem Kern, jede Trefferzeile stellt ihren Grund damit dar.
  *
  * Kein HTML aus fremden Dokumenten: Das Backend markiert mit zwei Steuerzeichen, hier wird daran zerteilt und jedes
  * Stück als Text gerendert. Eine Marke ohne Ende wird als gewöhnlicher Text ausgegeben statt den Rest zu verschlucken.
@@ -64,7 +60,7 @@ function marked(snippet: string): ReactNode[] {
   let rest = snippet
   let number = 0
   while (rest.length > 0) {
-    const start = rest.indexOf(MARK_OPEN)
+    const start = rest.indexOf(SEARCH_MARK_OPEN)
     if (start < 0) {
       pieces.push(<Fragment key={number++}>{rest}</Fragment>)
       break
@@ -72,7 +68,7 @@ function marked(snippet: string): ReactNode[] {
     if (start > 0) {
       pieces.push(<Fragment key={number++}>{rest.slice(0, start)}</Fragment>)
     }
-    const end = rest.indexOf(MARK_CLOSE, start)
+    const end = rest.indexOf(SEARCH_MARK_CLOSE, start)
     if (end < 0) {
       pieces.push(<Fragment key={number++}>{rest.slice(start + 1)}</Fragment>)
       break

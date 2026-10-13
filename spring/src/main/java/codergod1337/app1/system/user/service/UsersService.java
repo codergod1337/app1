@@ -30,6 +30,7 @@ public class UsersService {
 	private final UsersCredentialsService usersCredentialsService;
 	private final UsersSettingsService usersSettingsService;
 	private final UsersDetailsService usersDetailsService;
+	private final UsersDebuffsService usersDebuffsService;
 
 	/**
 	 * DROHENDER ZIRKELSCHLUSS: Die Zuordnungen User ↔ AR ziehen beim guid-Wechsel über diesen Service um und werden
@@ -50,6 +51,7 @@ public class UsersService {
 
 	public UsersService(UsersRepository usersRepository, UsersCredentialsService usersCredentialsService,
 			UsersSettingsService usersSettingsService, UsersDetailsService usersDetailsService,
+			UsersDebuffsService usersDebuffsService,
 			AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
 			AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService,
 			UsersRefreshTokenService usersRefreshTokenService, UsersLogin2faService usersLogin2faService,
@@ -58,6 +60,7 @@ public class UsersService {
 		this.usersCredentialsService = usersCredentialsService;
 		this.usersSettingsService = usersSettingsService;
 		this.usersDetailsService = usersDetailsService;
+		this.usersDebuffsService = usersDebuffsService;
 		this.accessRoleUsersAssignmentService = accessRoleUsersAssignmentService;
 		this.accessRoleCollectionUsersAssignmentService = accessRoleCollectionUsersAssignmentService;
 		this.usersRefreshTokenService = usersRefreshTokenService;
@@ -161,6 +164,7 @@ public class UsersService {
 
 		usersCredentialsService.changeUsersCredentialsGuid(guidCurrent, guidNew);
 		usersSettingsService.changeAllUsersSettingsGuid(guidCurrent, guidNew);
+		usersDebuffsService.changeAllUsersDebuffsGuid(guidCurrent, guidNew);
 		usersDetailsService.changeUsersDetailsGuid(guidCurrent, guidNew);
 		accessRoleUsersAssignmentService.changeAllAccessRoleUsersAssignmentsGuid(guidCurrent, guidNew);
 		accessRoleCollectionUsersAssignmentService.changeAccessRoleCollectionUsersAssignmentGuid(guidCurrent, guidNew);
@@ -187,6 +191,7 @@ public class UsersService {
 	public Users deleteUsers(UUID guid) {
 		Users users = getUsersByGuid(guid);
 		usersSettingsService.deleteAllUsersSettings(guid);
+		usersDebuffsService.deleteAllUsersDebuffs(guid);
 		usersDetailsService.deleteUsersDetails(guid);
 		usersCredentialsService.deleteUsersCredentials(guid);
 		accessRoleUsersAssignmentService.deleteAllAccessRoleUsersAssignmentsOfUsers(guid);
@@ -210,6 +215,19 @@ public class UsersService {
 	@Transactional(readOnly = true)
 	public Optional<Users> findUsersByEmail(String email) {
 		return usersRepository.findByEmail(email.trim().toLowerCase(Locale.ROOT));
+	}
+
+	/**
+	 * Die Vervollständigung beim Freigeben (User 2026-10-10, wie der Message-Empfänger der Vorlage): ab zwei Zeichen
+	 * E-Mail-Schnipsel, höchstens zehn User, egal wie geschrieben. Unter zwei Zeichen kommt nichts.
+	 */
+	@Transactional(readOnly = true)
+	public List<Users> suggestUsers(String emailPart) {
+		String part = emailPart == null ? "" : emailPart.trim();
+		if (part.length() < 2) {
+			return List.of();
+		}
+		return usersRepository.findTop10ByEmailContainingIgnoreCaseOrderByEmailAsc(part);
 	}
 
 	/** Gibt es den User nicht, kommt 404. Groß- und Kleinschreibung der email spielt keine Rolle. */

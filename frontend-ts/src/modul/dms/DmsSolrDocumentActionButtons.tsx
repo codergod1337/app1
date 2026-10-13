@@ -6,10 +6,9 @@ import { Hoverlay } from '../../components/Hoverlay.tsx'
 import { Icon } from '../../components/Icon.tsx'
 import type { OriginState } from '../../components/Origin.ts'
 import { ADMIN_ACCESS_ROLE_KEY } from '../accessrole/AccessRole.ts'
-import { DOCUMENT_GRANTS_TAB_PATH, type DocumentGrantPrefillState } from '../grant/DocumentGrantPrefill.ts'
 import { useSession } from '../login/sessionContext.ts'
 import {
-  DMS_CORE_KEY,
+  DMS_PUBLIC_ACCESS_ROLE_KEY,
   DMS_STATE_DELETED,
   dmsFileDownloadUrl,
   dmsSolrDocumentEditPath,
@@ -34,6 +33,13 @@ interface DmsSolrDocumentActionButtonsProps {
   writeAclMatchForCurrentUser?: boolean
   /** das weiche Löschen, nur wo der Aufrufer es anbietet */
   onDelete?: () => void
+  /** das Freigabe-Popup (Abholschein), nur wo der Aufrufer es anbietet */
+  onShare?: () => void
+  /**
+   * Der Download-Link statt des angemeldeten Weges über die id: die Station „Detailansicht“ eines Abholscheins gibt
+   * hier den Link über denselben Schein mit, null heißt kein Download. Fehlt die Angabe, gilt der Weg über die id.
+   */
+  downloadUrl?: string | null
 }
 
 /**
@@ -42,10 +48,8 @@ interface DmsSolrDocumentActionButtonsProps {
  * Mülleimer löschen. Stift, neue Fassung und Mülleimer nur mit writeAcl-Match, an jeder Fassung, auch einer
  * archivierten (User 2026-10-08). Die neue Fassung spricht die Kette an, nicht dieses Dokument: Sie öffnet die
  * Upload-Maske mit der versionChain als Vorbelegung, die Maske hängt an den aktuellen Kopf, der Stift ändert Angaben,
- * dieser Knopf bringt neue Bytes. Freigeben ebenso nur mit
- * writeAcl-Match, denn wer schreiben darf, darf freigeben, und solange das Freigabemodul nur ADMIN offensteht, nur mit
- * ADMIN; es öffnet den Tab „Dateifreigaben“ mit Kern DMS und der id als Bedingung im Router-State, die Dokumentseite
- * als Herkunft. Das ist Anzeige, kein Schutz: Das Backend prüft jeden Schreibweg selbst.
+ * dieser Knopf bringt neue Bytes. Freigeben öffnet das Popup für den Abholschein, nur für ADMIN und DMS_PUBLIC (User
+ * 2026-10-09), unabhängig vom Schreibrecht. Das ist Anzeige, kein Schutz: Das Backend prüft jeden Schreibweg selbst.
  */
 export function DmsSolrDocumentActionButtons({
   document,
@@ -54,6 +58,8 @@ export function DmsSolrDocumentActionButtons({
   onViewerPage = false,
   writeAclMatchForCurrentUser = false,
   onDelete,
+  onShare,
+  downloadUrl,
 }: DmsSolrDocumentActionButtonsProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -70,17 +76,10 @@ export function DmsSolrDocumentActionButtons({
   const canEdit = writeAclMatchForCurrentUser
   const versionChain = document[VERSION_CHAIN_FIELD_NAME]
   const canNewVersion = canEdit && typeof versionChain === 'string' && versionChain !== ''
-  const canGrant = writeAclMatchForCurrentUser && hasAccessRole(ADMIN_ACCESS_ROLE_KEY)
+  const canShare =
+    onShare !== undefined && (hasAccessRole(ADMIN_ACCESS_ROLE_KEY) || hasAccessRole(DMS_PUBLIC_ACCESS_ROLE_KEY))
   const canDelete = writeAclMatchForCurrentUser && status !== DMS_STATE_DELETED && onDelete !== undefined
-
-  /** Den Tab „Dateifreigaben“ öffnen: Kern DMS, Bedingung id = dieses Dokument, zurück führt auf die Dokumentseite */
-  function openDocumentGrant(documentId: string) {
-    const state: DocumentGrantPrefillState & OriginState = {
-      documentGrantPrefill: { coreKey: DMS_CORE_KEY, fieldValuesByFieldName: { id: [documentId] } },
-      origin: { path: dmsSolrDocumentPath(documentId), label: 'dms.document.title' },
-    }
-    navigate(DOCUMENT_GRANTS_TAB_PATH, { state })
-  }
+  const effectiveDownloadUrl = downloadUrl === undefined ? dmsFileDownloadUrl(id) : downloadUrl
 
   /** Die Upload-Maske als neue Fassung öffnen: die Kette als Vorbelegung, zurück zur Herkunft, sonst zur Dokumentseite */
   function openNewVersionUpload(chain: string, documentId: string) {
@@ -117,11 +116,13 @@ export function DmsSolrDocumentActionButtons({
           </button>
         </Hoverlay>
       )}
-      <Hoverlay text={t('dms.document.download', { name: fileName })}>
-        <a className="button-other" href={dmsFileDownloadUrl(id)} download aria-label={t('dms.document.download', { name: fileName })}>
-          <Icon name="download" />
-        </a>
-      </Hoverlay>
+      {effectiveDownloadUrl !== null && (
+        <Hoverlay text={t('dms.document.download', { name: fileName })}>
+          <a className="button-other" href={effectiveDownloadUrl} download aria-label={t('dms.document.download', { name: fileName })}>
+            <Icon name="download" />
+          </a>
+        </Hoverlay>
+      )}
       {canEdit && (
         <EditButton
           label={t('dms.document.edit', { name: fileName })}
@@ -140,15 +141,15 @@ export function DmsSolrDocumentActionButtons({
           </button>
         </Hoverlay>
       )}
-      {canGrant && (
-        <Hoverlay text={t('dms.document.grant', { name: fileName })}>
+      {canShare && (
+        <Hoverlay text={t('dms.document.share', { name: fileName })}>
           <button
             type="button"
             className="button-other"
-            aria-label={t('dms.document.grant', { name: fileName })}
-            onClick={() => openDocumentGrant(id)}
+            aria-label={t('dms.document.share', { name: fileName })}
+            onClick={onShare}
           >
-            <Icon name="documentGrants" />
+            <Icon name="share" />
           </button>
         </Hoverlay>
       )}

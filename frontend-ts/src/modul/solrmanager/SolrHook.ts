@@ -2,16 +2,17 @@ import { request } from '../../api/client.ts'
 import i18n from '../../branding/i18n.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { translate } from '../../components/multilingual.ts'
+import { kontakteMappePath } from '../kontakte/Kontakte.ts'
 import { SEARCH_PATH, searchPrefillStateOf, type SearchPrefillState } from '../search/Search.ts'
 import type { SolrFieldSetting, SolrFieldType } from './SolrField.ts'
 import type { SolrHookGroup } from './SolrHookGroup.ts'
 
 /**
  * Ein Hook, wie ihn das Backend liefert (SolrHook.java): eine Adresse, über die ein Solr-Dokument auf ein Fachobjekt
- * zeigt. Jeder Kern bekommt dieselben Hooks. Kein Aussehen am Hook: Alle Chips (SolrHookChip) sehen gleich aus, der
- * Look steht fest in basic.css. Wer den Hook lesen und danach filtern darf, steht wie bei jedem Feld als AR-Liste am
- * Hook, in jedem Kern gleich; SOLR_USERS_VIEW_ALL und SOLR_USERS_VIEW_HOOKS bekommen jeden. Gelesen wird über die
- * Stammdaten.
+ * zeigt, hier nur die Definition. Jeder Kern bekommt dieselben Hooks: In jedem Kern liegt der Hook als Zeile der
+ * Feldtabelle (SolrField.hookKey), dort stehen je Kern Leseliste und Suchgewicht, der Kern-Tab zeigt sie unter den
+ * Feldern. Kein Aussehen am Hook: Alle Chips (SolrHookChip) sehen gleich aus, der Look steht fest in basic.css.
+ * Gelesen wird über die Stammdaten.
  */
 export interface SolrHook {
   /** der Name des Feldes in Solr, z. B. artikelNummer, ändert sich nie */
@@ -22,10 +23,19 @@ export interface SolrHook {
   description: string | null
   /** der key der Gruppe (SolrHookGroup), nur für die Anzeige. null: ohne Gruppe */
   hookGroupKey: string | null
-  /** die ARs, deren Inhaber den Hook lesen dürfen; leer heißt niemand außer SOLR_USERS_VIEW_ALL und SOLR_USERS_VIEW_HOOKS */
-  readAccessRoleKeys: string[]
+  /** wohin ein Badge mit einem Wert dieses Hooks führt (SolrHookValueBadgeLinkTarget.java), nur für das Frontend */
+  valueBadgeLinkTarget: SolrHookValueBadgeLinkTarget
   listingPosition: number
 }
+
+/**
+ * Wohin ein Badge mit dem Wert eines Hooks führt (User 2026-10-13), gepflegt je Hook im SolrManager, gelesen über die
+ * Stammdaten. Es steht nur an der Definition des Hooks, nie in den Kernen. Ein neues Ziel ist ein weiterer Wert hier,
+ * im Enum des Backends und in solrHookValueLink.
+ */
+export const SOLR_HOOK_VALUE_BADGE_LINK_TARGETS = ['SEARCH', 'ARTIKELMAPPE', 'KUNDENMAPPE', 'LIEFERANTENMAPPE'] as const
+
+export type SolrHookValueBadgeLinkTarget = (typeof SOLR_HOOK_VALUE_BADGE_LINK_TARGETS)[number]
 
 /** Die Hooks einer Gruppe, in Listenreihenfolge. solrHookGroup null: die Hooks ohne Gruppe, immer zuletzt. */
 export interface SolrHookGroupWithHooks {
@@ -78,8 +88,9 @@ export function solrHookGroupLabel(solrHookGroup: SolrHookGroup | null, language
 }
 
 /**
- * Die hauseigenen Artikelnummern, nach ARTIKEL_NUMMER_FELDER der Vorlage: Ihr Wert ist eine Nummer unseres
- * Artikelstamms und hat eine eigene Artikelmappe. Fremde Nummern (Kunde, Hersteller, Lieferant, EAN) haben keine.
+ * Die Hooks der hauseigenen Artikelnummern, nach ARTIKEL_NUMMER_FELDER der Vorlage: Ihr Wert ist eine Nummer unseres
+ * Artikelstamms. Die Artikelmappe liest damit ihre Nummern; wohin ein Badge führt, sagt seit 2026-10-13 das Ziel am
+ * Hook (valueBadgeLinkTarget), nicht diese Liste.
  */
 export const ARTICLE_NUMBER_HOOK_KEYS: readonly string[] = ['artikelNummer', 'masterArtikelNummer']
 
@@ -90,16 +101,22 @@ export interface SolrHookValueLink {
 }
 
 /**
- * Wohin ein Hook-Wert führt, nach hookWeg der Vorlage: eine hauseigene Artikelnummer in ihre Mappe, nicht in die Suche,
- * denn zu ihr gibt es genau einen Ort. Alles andere geht in die Suche mit sich selbst als Filter, denn eine
- * Kundennummer hat keine Mappe, sie hat Fundstellen in mehreren Kernen. Die Vorbelegung reist als Router-State, nie
- * in der Adresse.
+ * Wohin ein Hook-Wert führt, nach hookWeg der Vorlage, entschieden vom Ziel am Hook (User 2026-10-13): eine Nummer mit
+ * eigener Mappe in diese Mappe, denn zu ihr gibt es genau einen Ort; alles andere in die Suche mit sich selbst als
+ * Filter. Die Vorbelegung der Suche reist als Router-State, nie in der Adresse. Der Pfad der Artikelmappe steht hier als
+ * Text, denn Artikel.ts liest diese Datei.
  */
-export function solrHookValueLink(hookKey: string, value: string): SolrHookValueLink {
-  if (ARTICLE_NUMBER_HOOK_KEYS.includes(hookKey)) {
-    return { to: `/artikel/${encodeURIComponent(value)}` }
+export function solrHookValueLink(solrHook: Pick<SolrHook, 'key' | 'valueBadgeLinkTarget'>, value: string): SolrHookValueLink {
+  switch (solrHook.valueBadgeLinkTarget) {
+    case 'ARTIKELMAPPE':
+      return { to: `/artikel/${encodeURIComponent(value)}` }
+    case 'KUNDENMAPPE':
+      return { to: kontakteMappePath('KUNDE', value) }
+    case 'LIEFERANTENMAPPE':
+      return { to: kontakteMappePath('LIEFERANT', value) }
+    default:
+      return { to: SEARCH_PATH, state: searchPrefillStateOf([{ fieldName: solrHook.key, value }]) }
   }
-  return { to: SEARCH_PATH, state: searchPrefillStateOf([{ fieldName: hookKey, value }]) }
 }
 
 /** In Solr ist jeder Hook in jedem Kern dasselbe Feld: ein string, der exakte Wert (SolrHook.java, FIELD_TYPE) */

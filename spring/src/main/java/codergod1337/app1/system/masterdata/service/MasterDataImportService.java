@@ -5,7 +5,11 @@ import codergod1337.app1.file.fileextension.model.FileExtensionCollection;
 import codergod1337.app1.file.fileextension.service.FileExtensionCollectionService;
 import codergod1337.app1.file.fileextension.service.FileExtensionService;
 import codergod1337.app1.file.filesubclass.model.FileSubClass;
+import codergod1337.app1.file.filesubclass.model.FileSubClassDestination;
+import codergod1337.app1.file.filesubclass.service.FileSubClassDestinationService;
 import codergod1337.app1.file.filesubclass.service.FileSubClassService;
+import codergod1337.app1.abas.model.AbasInfosys;
+import codergod1337.app1.abas.service.AbasInfosysService;
 import codergod1337.app1.graph.mail.model.GraphMailTemplate;
 import codergod1337.app1.graph.mail.service.GraphMailTemplateService;
 import codergod1337.app1.solr.SolrFieldName;
@@ -122,12 +126,14 @@ public class MasterDataImportService {
 	private final FileExtensionCollectionService fileExtensionCollectionService;
 	private final FileExtensionService fileExtensionService;
 	private final FileSubClassService fileSubClassService;
+	private final FileSubClassDestinationService fileSubClassDestinationService;
 	private final SolrHookGroupService solrHookGroupService;
 	private final SolrHookService solrHookService;
 	private final SolrCoreService solrCoreService;
 	private final SolrFieldService solrFieldService;
 	private final EntityStateService entityStateService;
 	private final GraphMailTemplateService graphMailTemplateService;
+	private final AbasInfosysService abasInfosysService;
 	private final UsersService usersService;
 	private final UsersCredentialsService usersCredentialsService;
 	private final UsersDetailsService usersDetailsService;
@@ -142,19 +148,22 @@ public class MasterDataImportService {
 	public MasterDataImportService(AccessRoleService accessRoleService,
 			AccessRoleCollectionService accessRoleCollectionService,
 			FileExtensionCollectionService fileExtensionCollectionService, FileExtensionService fileExtensionService,
-			FileSubClassService fileSubClassService, SolrHookGroupService solrHookGroupService,
-			SolrHookService solrHookService, SolrCoreService solrCoreService,
+			FileSubClassService fileSubClassService, FileSubClassDestinationService fileSubClassDestinationService,
+			SolrHookGroupService solrHookGroupService, SolrHookService solrHookService, SolrCoreService solrCoreService,
 			SolrFieldService solrFieldService, EntityStateService entityStateService,
-			GraphMailTemplateService graphMailTemplateService, UsersService usersService,
-			UsersCredentialsService usersCredentialsService, UsersDetailsService usersDetailsService,
-			UsersSettingsService usersSettingsService, AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
+			GraphMailTemplateService graphMailTemplateService, AbasInfosysService abasInfosysService,
+			UsersService usersService, UsersCredentialsService usersCredentialsService,
+			UsersDetailsService usersDetailsService, UsersSettingsService usersSettingsService,
+			AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
 			AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService,
 			MasterDataExportService masterDataExportService, JsonMapper jsonMapper, Validator validator) {
+		this.abasInfosysService = abasInfosysService;
 		this.accessRoleService = accessRoleService;
 		this.accessRoleCollectionService = accessRoleCollectionService;
 		this.fileExtensionCollectionService = fileExtensionCollectionService;
 		this.fileExtensionService = fileExtensionService;
 		this.fileSubClassService = fileSubClassService;
+		this.fileSubClassDestinationService = fileSubClassDestinationService;
 		this.solrHookGroupService = solrHookGroupService;
 		this.solrHookService = solrHookService;
 		this.solrCoreService = solrCoreService;
@@ -224,6 +233,7 @@ public class MasterDataImportService {
 		planAccessRoleCollections(plan, linesBySection.get(MasterDataSection.ACCESS_ROLE_COLLECTIONS));
 		planFileExtensionCollections(plan, linesBySection.get(MasterDataSection.FILE_EXTENSION_COLLECTIONS));
 		planFileExtensions(plan, linesBySection.get(MasterDataSection.FILE_EXTENSIONS));
+		planFileSubClassDestinations(plan, linesBySection.get(MasterDataSection.FILE_SUB_CLASS_DESTINATIONS));
 		planFileSubClasses(plan, linesBySection.get(MasterDataSection.FILE_SUB_CLASSES));
 		planSolrHookGroups(plan, linesBySection.get(MasterDataSection.SOLR_HOOK_GROUPS));
 		planSolrHooks(plan, linesBySection.get(MasterDataSection.SOLR_HOOKS));
@@ -231,6 +241,7 @@ public class MasterDataImportService {
 		planSolrFields(plan, linesBySection.get(MasterDataSection.SOLR_FIELDS));
 		planEntityStates(plan, linesBySection.get(MasterDataSection.ENTITY_STATES));
 		planGraphMailTemplates(plan, linesBySection.get(MasterDataSection.GRAPH_MAIL_TEMPLATES));
+		planAbasInfosys(plan, linesBySection.get(MasterDataSection.ABAS_INFOSYS));
 		planUsers(plan, linesBySection.get(MasterDataSection.USERS));
 		planUsersDetails(plan, linesBySection.get(MasterDataSection.USERS_DETAILS));
 		planUsersSettings(plan, linesBySection.get(MasterDataSection.USERS_SETTINGS));
@@ -323,7 +334,18 @@ public class MasterDataImportService {
 		plan.extensions.addAll(newKeys(plan, MasterDataSection.FILE_EXTENSIONS));
 	}
 
-	/** FSC: unbekannte AR und Endungen fallen weg. Schreiben schließt Lesen ein. */
+	/** Anzeigeorte der Dateiarten: normale Key-Regel. Sie verweisen auf nichts, es kann nichts wegfallen. */
+	private void planFileSubClassDestinations(ImportPlan plan, List<Line> lines) {
+		Map<String, FileSubClassDestination> existing = byKey(
+				fileSubClassDestinationService.getAllFileSubClassDestinations(), FileSubClassDestination::getKey);
+		plan.rowsBySection.put(MasterDataSection.FILE_SUB_CLASS_DESTINATIONS, planKeyedRows(lines,
+				FileSubClassDestination.class, FileSubClassDestination::getKey, FileSubClassDestination::getDisplayName,
+				existing, HelperInputs::isValidKey, "key fehlt oder ist ungültig"));
+		plan.fileSubClassDestinationKeys.addAll(existing.keySet());
+		plan.fileSubClassDestinationKeys.addAll(newKeys(plan, MasterDataSection.FILE_SUB_CLASS_DESTINATIONS));
+	}
+
+	/** FSC: unbekannte AR, Endungen und Anzeigeorte fallen weg. Schreiben schließt Lesen ein. */
 	private void planFileSubClasses(ImportPlan plan, List<Line> lines) {
 		Map<String, FileSubClass> existing = byKey(fileSubClassService.getAllFileSubClasses(), FileSubClass::getKey);
 		List<PlannedRow> rows = planKeyedRows(lines, FileSubClass.class, FileSubClass::getKey,
@@ -345,6 +367,8 @@ public class MasterDataImportService {
 			}
 			fileSubClass.setReadAccessRoleKeys(readAccessRoleKeys);
 			fileSubClass.setWriteAccessRoleKeys(writeAccessRoleKeys);
+			fileSubClass.setDisplayContextKeys(
+					keepKnown(row, fileSubClass.getDisplayContextKeys(), plan.fileSubClassDestinationKeys, "Anzeigeort"));
 			fileSubClass.setExtensions(keepKnown(row, fileSubClass.getExtensions(), plan.extensions, "Endung"));
 		}
 	}
@@ -380,6 +404,21 @@ public class MasterDataImportService {
 				"key fehlt oder ist ungültig"));
 	}
 
+	/** Infosystem-Aufrufe: normale Key-Regel. Unbekannte Anzeigeorte fallen weg; die Vorlage prüft der AbasInfosysService beim Schreiben. */
+	private void planAbasInfosys(ImportPlan plan, List<Line> lines) {
+		Map<String, AbasInfosys> existing = byKey(abasInfosysService.getAllAbasInfosys(), AbasInfosys::getKey);
+		List<PlannedRow> rows = planKeyedRows(lines, AbasInfosys.class, AbasInfosys::getKey,
+				AbasInfosys::getDisplayName, existing, HelperInputs::isValidKey, "key fehlt oder ist ungültig");
+		plan.rowsBySection.put(MasterDataSection.ABAS_INFOSYS, rows);
+		for (PlannedRow row : rows) {
+			if (row.isNew()) {
+				AbasInfosys abasInfosys = (AbasInfosys) row.data;
+				abasInfosys.setDisplayContextKeys(
+						keepKnown(row, abasInfosys.getDisplayContextKeys(), plan.fileSubClassDestinationKeys, "Anzeigeort"));
+			}
+		}
+	}
+
 	/**
 	 * Hooks: der key ist ein Solr-Feldname. Gibt es ihre Gruppe weder bei uns noch im Import, kommt der Hook ohne Gruppe.
 	 * Unbekannte AR in der Leseliste fallen weg.
@@ -399,7 +438,6 @@ public class MasterDataImportService {
 						+ " gibt es weder bei uns noch im Import, der Hook kommt ohne Gruppe");
 				solrHook.setHookGroupKey(null);
 			}
-			solrHook.setReadAccessRoleKeys(keepKnown(row, solrHook.getReadAccessRoleKeys(), plan.accessRoleKeys, "AR"));
 		}
 		plan.solrHookKeys.addAll(existing.keySet());
 		plan.solrHookKeys.addAll(newKeys(plan, MasterDataSection.SOLR_HOOKS));
@@ -419,17 +457,25 @@ public class MasterDataImportService {
 	}
 
 	/**
-	 * Felder: erkannt am name, der über alle Kerne eindeutig ist. coreKey leer heißt in jedem Kern. Verwaist, wenn es
-	 * den Kern weder bei uns noch angehakt im Import gibt. Ungültig bei einem Namen, den die Regel nicht erlaubt (es sei
-	 * denn, die Zeile gibt es bei uns schon, so kommt id aus dem Code durch), Hook-Namen (die gibt es in jedem Kern
-	 * schon), suggest an einem Typ ohne Zwilling und required an einem Feld, das der Client nicht setzt. Unbekannte AR
-	 * in der Leseliste fallen weg.
+	 * Felder: erkannt an Kern plus name. Ein normales Feld trägt seinen Namen in genau einem Kern (oder in jedem, coreKey
+	 * leer), eine Hook-Zeile (hookKey gesetzt) den Namen ihres Hooks in ihrem Kern. Hook-Zeilen legt der Hook-Import an,
+	 * aus der Datei kommen nur Leseliste und Suchgewicht dazu. Verwaist, wenn es den Kern weder bei uns noch angehakt im
+	 * Import gibt. Ungültig bei einem Namen, den die Regel nicht erlaubt, einem normalen Feld mit Hook-Namen, suggest an
+	 * einem Typ ohne Zwilling und required an einem Feld, das der Client nicht setzt. Unbekannte AR in der Leseliste
+	 * fallen weg.
 	 */
 	private void planSolrFields(ImportPlan plan, List<Line> lines) {
-		Map<String, SolrField> existingByName = byKey(solrFieldService.getAllSolrFields(), SolrField::getName);
+		Map<String, SolrField> existingByCoreAndName = new HashMap<>();
+		Map<String, SolrField> existingPlainByName = new HashMap<>();
+		for (SolrField solrField : solrFieldService.getAllSolrFields()) {
+			existingByCoreAndName.put(coreAndName(solrField), solrField);
+			if (!solrField.isHookField()) {
+				existingPlainByName.put(solrField.getName(), solrField);
+			}
+		}
 		ObjectReader reader = jsonMapper.readerFor(SolrField.class).without(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 		List<PlannedRow> rows = new ArrayList<>();
-		Map<String, Integer> countByName = new HashMap<>();
+		Map<String, Integer> countByCoreAndName = new HashMap<>();
 		for (Line line : lines) {
 			PlannedRow row = new PlannedRow(line);
 			rows.add(row);
@@ -446,10 +492,9 @@ public class MasterDataImportService {
 			}
 			row.data = solrField;
 			if (solrField.getName() != null) {
-				row.id = (solrField.getCoreKey() != null ? solrField.getCoreKey() : "jeder Kern") + " · "
-						+ solrField.getName();
+				row.id = coreAndName(solrField);
 				row.label = row.id;
-				countByName.merge(solrField.getName(), 1, Integer::sum);
+				countByCoreAndName.merge(row.id, 1, Integer::sum);
 			}
 		}
 
@@ -458,14 +503,21 @@ public class MasterDataImportService {
 				continue;
 			}
 			SolrField solrField = (SolrField) row.data;
+			boolean hookRow = solrField.isHookField();
 			if (solrField.getCoreKey() != null && !SolrCoreService.isValidSolrCoreKey(solrField.getCoreKey())) {
 				row.reject(RowStatus.INVALID, "coreKey ist ungültig");
-			} else if (!SolrFieldName.isValid(solrField.getName()) && !existingByName.containsKey(solrField.getName())) {
-				// eine vorhandene Zeile hat die Regel schon bestanden, oder sie ist id aus dem Code
+			} else if (!SolrFieldName.isValid(solrField.getName())) {
 				row.reject(RowStatus.INVALID, "name fehlt oder ist kein gültiger Solr-Feldname");
-			} else if (countByName.get(solrField.getName()) > 1) {
+			} else if (countByCoreAndName.get(coreAndName(solrField)) > 1) {
 				row.reject(RowStatus.INVALID, "steht mehrfach in der Datei");
-			} else if (plan.solrHookKeys.contains(solrField.getName())) {
+			} else if (hookRow && !solrField.getName().equals(solrField.getHookKey())) {
+				row.reject(RowStatus.INVALID, "eine Hook-Zeile trägt den Namen ihres Hooks");
+			} else if (hookRow && solrField.getCoreKey() == null) {
+				row.reject(RowStatus.INVALID, "eine Hook-Zeile gehört zu einem Kern");
+			} else if (hookRow && !plan.solrHookKeys.contains(solrField.getHookKey())) {
+				row.reject(RowStatus.ORPHAN,
+						"Hook " + solrField.getHookKey() + " gibt es weder bei uns noch angehakt im Import");
+			} else if (!hookRow && plan.solrHookKeys.contains(solrField.getName())) {
 				row.reject(RowStatus.INVALID, "name ist ein Hook, den gibt es in jedem Kern schon");
 			} else if (solrField.getType() == null) {
 				row.reject(RowStatus.INVALID, "type fehlt oder ist unbekannt");
@@ -474,18 +526,30 @@ public class MasterDataImportService {
 			} else if (solrField.isRequired() && (solrField.getClientWriteRule() == null
 					|| !solrField.getClientWriteRule().isClientAllowedToSetOnCreate())) {
 				row.reject(RowStatus.INVALID, "required geht nur bei einem Feld, das der Client beim Anlegen setzt");
+			} else if (solrField.getSearchWeight() < -1) {
+				row.reject(RowStatus.INVALID, "searchWeight ist kleiner als -1");
+			} else if (solrField.getSearchWeight() >= 0 && !solrField.isSearchable()) {
+				row.reject(RowStatus.INVALID,
+						"searchWeight ab 0 geht nur bei einem Feld mit indexed, -1 heißt nicht durchsucht");
 			} else if (solrField.getCoreKey() != null && !plan.solrCoreKeys.contains(solrField.getCoreKey())) {
 				row.reject(RowStatus.ORPHAN,
 						"Kern " + solrField.getCoreKey() + " gibt es weder bei uns noch angehakt im Import");
-			} else if (existingByName.containsKey(solrField.getName())) {
+			} else if (existingByCoreAndName.containsKey(coreAndName(solrField))) {
 				row.status = RowStatus.EXISTING;
-				addDifferences(row, existingByName.get(solrField.getName()));
+				addDifferences(row, existingByCoreAndName.get(coreAndName(solrField)));
+			} else if (!hookRow && existingPlainByName.containsKey(solrField.getName())) {
+				row.reject(RowStatus.INVALID, "name ist in einem anderen Kern schon ein Feld, ein Name bedeutet eines");
 			} else {
 				solrField.setReadAccessRoleKeys(keepKnown(row, solrField.getReadAccessRoleKeys(), plan.accessRoleKeys, "AR"));
 				rejectViolations(row, solrField);
 			}
 		}
 		plan.rowsBySection.put(MasterDataSection.SOLR_FIELDS, rows);
+	}
+
+	/** Kern plus Name als Schlüssel einer Feldzeile, „jeder Kern“ bei leerem Kern */
+	private static String coreAndName(SolrField solrField) {
+		return (solrField.getCoreKey() != null ? solrField.getCoreKey() : "jeder Kern") + " · " + solrField.getName();
 	}
 
 	/**
@@ -1133,11 +1197,18 @@ public class MasterDataImportService {
 					fileExtension.isImagePreview());
 		}
 
+		for (PlannedRow row : plan.writtenRows(MasterDataSection.FILE_SUB_CLASS_DESTINATIONS)) {
+			FileSubClassDestination destination = (FileSubClassDestination) row.data;
+			fileSubClassDestinationService.createFileSubClassDestination(destination.getKey(),
+					destination.getDisplayName(), destination.getDescription(), destination.getListingPosition());
+		}
+
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.FILE_SUB_CLASSES)) {
 			FileSubClass fileSubClass = (FileSubClass) row.data;
 			fileSubClassService.createFileSubClass(fileSubClass.getKey(), fileSubClass.getDisplayName(),
 					fileSubClass.getDescription(), fileSubClass.getListingPosition(), fileSubClass.getSymbol(),
-					fileSubClass.getColor(), fileSubClass.getReadAccessRoleKeys(), fileSubClass.getWriteAccessRoleKeys());
+					fileSubClass.getColor(), fileSubClass.getReadAccessRoleKeys(), fileSubClass.getWriteAccessRoleKeys(),
+					fileSubClass.getDisplayContextKeys());
 			if (!fileSubClass.getExtensions().isEmpty()) {
 				fileSubClassService.changeFileSubClassExtensions(fileSubClass.getKey(), fileSubClass.getExtensions());
 			}
@@ -1152,7 +1223,7 @@ public class MasterDataImportService {
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.SOLR_HOOKS)) {
 			SolrHook solrHook = (SolrHook) row.data;
 			solrHookService.createSolrHook(solrHook.getKey(), solrHook.getDisplayName(), solrHook.getDescription(),
-					solrHook.getHookGroupKey(), solrHook.getReadAccessRoleKeys(), solrHook.getListingPosition());
+					solrHook.getHookGroupKey(), solrHook.getValueBadgeLinkTarget(), solrHook.getListingPosition());
 		}
 
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.SOLR_CORES)) {
@@ -1163,11 +1234,17 @@ public class MasterDataImportService {
 
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.SOLR_FIELDS)) {
 			SolrField solrField = (SolrField) row.data;
+			if (solrField.isHookField()) {
+				// die Zeile hat der Hook- oder Kern-Import gerade angelegt, aus der Datei kommen Leseliste und Gewicht
+				solrFieldService.changeHookFieldFromImport(solrField.getCoreKey(), solrField.getHookKey(),
+						solrField.getReadAccessRoleKeys(), solrField.getSearchWeight());
+				continue;
+			}
 			solrFieldService.createSolrField(solrField.getCoreKey(), solrField.getName(), solrField.getType(),
 					solrField.isIndexed(), solrField.isStored(), solrField.isMultiValued(), solrField.isDocValues(),
 					solrField.isRequired(), solrField.isSuggest(), solrField.getReadAccessRoleKeys(),
-					solrField.isBackendOnly(), solrField.getClientWriteRule(), solrField.getDisplayName(),
-					solrField.getDescription(), solrField.getListingPosition());
+					solrField.getClientWriteRule(), solrField.getSearchWeight(), solrField.getDisplayName(),
+					solrField.getDescription(), solrField.getListingPosition(), solrField.getCommand());
 		}
 
 		String startPassword = sha256Hex(START_PASSWORD);
@@ -1183,6 +1260,13 @@ public class MasterDataImportService {
 					graphMailTemplate.getDisplayName(), graphMailTemplate.getDescription(),
 					graphMailTemplate.getSubject(), graphMailTemplate.getHtmlBody(),
 					graphMailTemplate.getListingPosition());
+		}
+
+		for (PlannedRow row : plan.writtenRows(MasterDataSection.ABAS_INFOSYS)) {
+			AbasInfosys abasInfosys = (AbasInfosys) row.data;
+			abasInfosysService.createAbasInfosys(abasInfosys.getKey(), abasInfosys.getDisplayName(),
+					abasInfosys.getInfosysGroup(), abasInfosys.getInfosysName(), abasInfosys.getRequestBodyTemplate(),
+					abasInfosys.getListingPosition(), abasInfosys.getDisplayContextKeys());
 		}
 
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.USERS)) {
@@ -1381,6 +1465,7 @@ public class MasterDataImportService {
 		private final Map<String, List<String>> accessRoleKeysByAccessRoleCollectionKey = new HashMap<>();
 		private final Set<String> fileExtensionCollectionKeys = new HashSet<>();
 		private final Set<String> extensions = new HashSet<>();
+		private final Set<String> fileSubClassDestinationKeys = new HashSet<>();
 		private final Set<String> solrHookGroupKeys = new HashSet<>();
 		private final Set<String> solrHookKeys = new HashSet<>();
 		private final Set<String> solrCoreKeys = new HashSet<>();

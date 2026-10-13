@@ -5,6 +5,7 @@ import codergod1337.app1.system.security.CurrentUsersProvider;
 import codergod1337.app1.system.user.model.Users;
 import codergod1337.app1.system.user.service.UsersService;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -71,6 +72,15 @@ public class UsersController {
 		String nachname = updatedUsersData.get("nachname") instanceof String nachnameValue ? nachnameValue : null;
 
 		return usersService.updateUsers(guid, null, username, vorname, nachname, null, null);
+	}
+
+	/**
+	 * Die Vervollständigung beim Freigeben: {"text": "ma"} → höchstens zehn User, deren E-Mail den Text enthält, ab zwei
+	 * Zeichen. POST, weil freier Suchtext nie in eine GET-URL gehört. Jeder angemeldete Nutzer darf das.
+	 */
+	@PostMapping("/suggest")
+	public List<Users> suggestUsers(@RequestBody Map<String, Object> suggestRequest) {
+		return usersService.suggestUsers(suggestRequest.get("text") instanceof String text ? text : "");
 	}
 
 	/** Ein User. Jeder angemeldete Nutzer darf das, Users enthält nur öffentliche Daten. 200, 400 oder 404. */

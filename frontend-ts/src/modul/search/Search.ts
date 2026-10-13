@@ -6,16 +6,15 @@ export const SEARCH_PATH = '/search'
 /** Die UsersSetting mit den angewählten Kernen des Users, Komma-Liste ihrer Keys */
 export const SEARCH_ACTIVE_CORES_SETTING_KEY = 'SEARCH_ACTIVE_CORES'
 
-/** Mehr Wörter nimmt die Maske nicht an, dieselbe Zahl wie SolrSearchText.MAX_WORDS im Backend (User 2026-10-07) */
-export const SEARCH_MAX_WORDS = 6
+/** Mehr Wörter nimmt die Maske nicht an, eine Regel der Maske (User 2026-10-09: 5), das Backend zählt nicht */
+export const SEARCH_MAX_WORDS = 5
 
-/** Ab so vielen Zeichen zählt ein Wort als Suchwort (SolrSearchText.MIN_CHARACTERS_OF_SEARCH_WORD) */
+/** STX und ETX, wie das Backend den getroffenen Teil eines Werts einrahmt (DmsSearchHitReason), aus dem Zeichencode gebaut */
+export const SEARCH_MARK_OPEN = String.fromCharCode(2)
+export const SEARCH_MARK_CLOSE = String.fromCharCode(3)
+
+/** Ab so vielen Zeichen zählt ein Wort als Suchwort, damit nicht nach jedem ersten Buchstaben gesucht wird */
 export const SEARCH_MIN_CHARACTERS = 3
-
-export const SEARCH_PAGE_SIZE = 25
-
-/** So viele Seiten sind blätterbar (DmsSearchService.MAX_PAGES), dahinter sagt die Maske, dass man enger suchen muss */
-export const SEARCH_MAX_PAGES = 25
 
 /** Beginnt die Eingabe damit, ist sie keine Suche, sondern die Wahl einer Dateiart als Filter (nach der Vorlage) */
 export const FILE_SUB_CLASS_MODE_PREFIX = 'fsc.'
@@ -25,79 +24,87 @@ export const SEARCH_DEBOUNCE_MS = 250
 
 /**
  * Ein eingeloggter Filter, ein Chip: Feld und exakter Wert, ohne Kern, denn er geht an jeden Kern, und wer das Feld
- * nicht kennt, überliest ihn. label ist nur Anzeige, z. B. der Name der Dateiart zum key.
+ * nicht kennt, überliest ihn. label und previewBase64Png sind nur Anzeige, woran man den Wert erkennt (der Name der
+ * Dateiart, der Firmenname zur Kundennummer, Name und Vorschaubild zur Artikelnummer); sie wandern vom Angebot mit und
+ * gehen in keine Abfrage.
  */
 export interface SearchFilter {
   fieldName: string
   value: string
   label?: string
+  previewBase64Png?: string
 }
 
-/** Ein Zeitraum als Filter, nur für Datumsfelder: von und bis als Tag (JJJJ-MM-TT), eins darf fehlen */
-export interface SearchDateRangeFilter {
-  fieldName: string
-  from: string | null
-  to: string | null
-}
-
-/** Was an jeden Kern geht (DmsSearchRequest.java und die Gegenstücke der späteren Kerne, dieselbe Form) */
+/** Was an jeden Kern geht (der Body von POST /api/rest/v1/solr/dms/search, spätere Kerne dieselbe Form) */
 export interface SearchRequest {
   searchText: string
+  /** die Chips je Feld gebündelt, gleiches Feld heißt ODER */
   exactFilterValuesByFieldName: Record<string, string[]>
-  dateRangeFilterByFieldName: Record<string, { from: string | null; to: string | null }>
-  page: number
-  size: number
 }
 
-/** Warum ein Kern nichts gefragt hat (DmsSearchHint.java), die Maske übersetzt */
-export type SearchHint = 'NO_SEARCH_WORD_AND_NO_FILTER' | 'TOO_MANY_SEARCH_WORDS'
-
 /**
- * Warum ein Dokument ein Treffer ist (DmsSearchHitReason.java), nach dem Treffergrund der Vorlage: das Feld und sein
- * Wert mit den Fundstellen in STX und ETX; snippet null beim Volltext, der nie zum Client geht, dann steht nur das Feld.
+ * Warum ein Dokument ein Treffer ist (DmsSearchHitReason.java im Paket solr.dms.model): das Feld mit seinem
+ * ursprünglichen Namen (bei einem Hook sein Key) und der Wert mit dem getroffenen Teil in STX und ETX. Beim Volltext
+ * ist snippet null, der Text geht nie zum Client, dann wird nur der Feldname markiert.
  */
 export interface SearchHitReason {
   fieldName: string
   snippet: string | null
 }
 
-/** Ein Treffer (DmsSearchHit.java): das Dokument und sein Treffergrund, Anfangstreffer zuerst, dann Filter, zuletzt der Volltext */
-export interface SearchHit {
-  document: Record<string, unknown>
-  reasons: SearchHitReason[]
+/**
+ * Ein Angebot über dem Eingabefeld (User 2026-10-09): ein Hook-Wert aus einem Grund der Treffer, den ein Suchwort
+ * getroffen hat. Klick macht ihn zum Filter (fq) und nimmt das Suchwort aus dem Suchtext.
+ */
+export interface SearchOffer {
+  coreKey: string
+  fieldName: string
+  value: string
+  /** das Suchwort, das den Wert traf, wie es im Wert steht */
+  word: string
 }
 
-/** Eine Trefferseite eines Kerns (DmsSearchResultPage.java), auch leer, nie ein Fehler */
-export interface SearchResultPage {
-  totalFound: number
-  page: number
-  size: number
-  hits: SearchHit[]
-  hint: SearchHint | null
+/** Das Angebot aus einem Grund: nur Hooks, der Wert ohne Marken, das Wort zwischen den Marken; sonst null */
+export function searchOfferOfReason(coreKey: string, reason: SearchHitReason, isHook: (fieldName: string) => boolean): SearchOffer | null {
+  if (reason.snippet === null || !isHook(reason.fieldName)) {
+    return null
+  }
+  const start = reason.snippet.indexOf(SEARCH_MARK_OPEN)
+  const end = reason.snippet.indexOf(SEARCH_MARK_CLOSE)
+  if (start < 0 || end <= start) {
+    return null
+  }
+  return {
+    coreKey,
+    fieldName: reason.fieldName,
+    value: reason.snippet.slice(0, start) + reason.snippet.slice(start + 1, end) + reason.snippet.slice(end + 1),
+    word: reason.snippet.slice(start + 1, end),
+  }
+}
+
+/** Der Suchtext ohne dieses Wort, Groß/Klein egal, ein + davor zählt nicht; was bleibt, mit einem Leerzeichen gefügt */
+export function withoutSearchWord(searchText: string, word: string): string {
+  const wanted = word.toLowerCase()
+  return searchText
+    .split(/\s+/)
+    .filter((entry) => entry !== '' && entry.replace(/^\+/, '').toLowerCase() !== wanted)
+    .join(' ')
 }
 
 /**
- * Ein Filterangebot der Vervollständigung (DmsSearchFilterOffer.java): der ganze Wert eines filterbaren Felds aus
- * einem Treffer, dessen Anfang ein Suchwort trifft. label ist ein Zusatz zur Anzeige (beim Dateinamen der key der
- * Dateiart), imagePreviewBase64Png das Vorschaubild des Treffers, beides darf fehlen.
+ * Ein Treffer (DmsSearchHit.java): die Felder der Trefferbox samt Vorschau und den durchsuchten Feldern, ob der User
+ * das Dokument schreiben darf, und die Gründe in der Reihenfolge der Felder im Kern.
  */
-export interface SearchFilterOffer {
-  fieldName: string
-  value: string
-  label: string | null
-  imagePreviewBase64Png: string | null
+export interface SearchHit {
+  fieldValues: Record<string, unknown>
+  writable: boolean
+  reasons: SearchHitReason[]
 }
 
-/** Die Antwort der Vervollständigung eines Kerns (DmsSuggestResult.java): kompakte Treffer und die Angebote */
-export interface SearchSuggestResult {
+/** Das Ergebnis eines Kerns (DmsSearchedDocumentsPage.java): Treffer insgesamt und die besten davon, keine Seiten */
+export interface SearchResultPage {
+  totalFound: number
   hits: SearchHit[]
-  filterOffers: SearchFilterOffer[]
-}
-
-/** Ein Angebot mit dem Kern, aus dem es stammt, für Reihenfolge und später die Kernfarbe */
-export interface SearchCoreFilterOffer {
-  coreKey: string
-  offer: SearchFilterOffer
 }
 
 /** Vorbelegung der Maske von anderswo, per Router-State, nie als URL-Parameter: z. B. ein Hook-Wert als Filter */
@@ -156,13 +163,8 @@ export function hasSearchWord(searchText: string): boolean {
   return searchWordsOf(searchText).some((word) => !word.startsWith('-') && word.replace(/^\+/, '').length >= SEARCH_MIN_CHARACTERS)
 }
 
-/** Die Abfrage an einen Kern: Chips je Feld gebündelt (gleiches Feld ODER), Zeiträume je Feld */
-export function searchRequestOf(
-  searchText: string,
-  filters: readonly SearchFilter[],
-  dateRanges: readonly SearchDateRangeFilter[],
-  page: number,
-): SearchRequest {
+/** Die Abfrage an einen Kern: Chips je Feld gebündelt (gleiches Feld ODER) */
+export function searchRequestOf(searchText: string, filters: readonly SearchFilter[]): SearchRequest {
   const exactFilterValuesByFieldName: Record<string, string[]> = {}
   for (const filter of filters) {
     const values = (exactFilterValuesByFieldName[filter.fieldName] ??= [])
@@ -170,11 +172,7 @@ export function searchRequestOf(
       values.push(filter.value)
     }
   }
-  const dateRangeFilterByFieldName: Record<string, { from: string | null; to: string | null }> = {}
-  for (const range of dateRanges) {
-    dateRangeFilterByFieldName[range.fieldName] = { from: range.from, to: range.to }
-  }
-  return { searchText, exactFilterValuesByFieldName, dateRangeFilterByFieldName, page, size: SEARCH_PAGE_SIZE }
+  return { searchText, exactFilterValuesByFieldName }
 }
 
 /** Zwei Chips sind derselbe Filter, wenn Feld und Wert gleich sind */

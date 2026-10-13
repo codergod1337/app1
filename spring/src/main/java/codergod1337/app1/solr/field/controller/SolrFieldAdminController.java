@@ -32,27 +32,29 @@ public class SolrFieldAdminController {
 		this.solrFieldService = solrFieldService;
 	}
 
-	/** Alle Felder außer id. Kern (leer heißt jeder Kern), name und ARs prüft der Service. */
+	/** Ein normales Feld, alle Spalten außer id und hookKey. Kern (leer heißt jeder Kern), name und ARs prüft der Service. */
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public SolrField createSolrField(@Valid @RequestBody SolrField newSolrFieldData) {
 		return solrFieldService.createSolrField(newSolrFieldData.getCoreKey(), newSolrFieldData.getName(),
 				newSolrFieldData.getType(), newSolrFieldData.isIndexed(), newSolrFieldData.isStored(),
 				newSolrFieldData.isMultiValued(), newSolrFieldData.isDocValues(), newSolrFieldData.isRequired(),
-				newSolrFieldData.isSuggest(), newSolrFieldData.getReadAccessRoleKeys(), newSolrFieldData.isBackendOnly(),
-				newSolrFieldData.getClientWriteRule(), newSolrFieldData.getDisplayName(),
-				newSolrFieldData.getDescription(), newSolrFieldData.getListingPosition());
+				newSolrFieldData.isSuggest(), newSolrFieldData.getReadAccessRoleKeys(),
+				newSolrFieldData.getClientWriteRule(), newSolrFieldData.getSearchWeight(),
+				newSolrFieldData.getDisplayName(), newSolrFieldData.getDescription(),
+				newSolrFieldData.getListingPosition(), newSolrFieldData.getCommand());
 	}
 
-	/** Die id im Body bestimmt, welches Feld geändert wird. Kern und name ändern sich nie. */
+	/** Die id im Body bestimmt, welches Feld geändert wird. Kern, name und hookKey ändern sich nie. */
 	@PutMapping
 	public SolrField updateSolrField(@Valid @RequestBody SolrField changedSolrFieldData) {
 		return solrFieldService.updateSolrField(changedSolrFieldData.getId(), changedSolrFieldData.getType(),
 				changedSolrFieldData.isIndexed(), changedSolrFieldData.isStored(), changedSolrFieldData.isMultiValued(),
 				changedSolrFieldData.isDocValues(), changedSolrFieldData.isRequired(), changedSolrFieldData.isSuggest(),
-				changedSolrFieldData.getReadAccessRoleKeys(), changedSolrFieldData.isBackendOnly(),
-				changedSolrFieldData.getClientWriteRule(), changedSolrFieldData.getDisplayName(),
-				changedSolrFieldData.getDescription(), changedSolrFieldData.getListingPosition());
+				changedSolrFieldData.getReadAccessRoleKeys(), changedSolrFieldData.getClientWriteRule(),
+				changedSolrFieldData.getSearchWeight(), changedSolrFieldData.getDisplayName(),
+				changedSolrFieldData.getDescription(), changedSolrFieldData.getListingPosition(),
+				changedSolrFieldData.getCommand());
 	}
 
 	/**

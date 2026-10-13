@@ -5,6 +5,7 @@ import type { EntityState } from '../modul/entitystate/EntityState.ts'
 import type { FileExtension } from '../modul/fileextension/FileExtension.ts'
 import type { FileExtensionCollection } from '../modul/fileextension/FileExtensionCollection.ts'
 import type { FileSubClass } from '../modul/filesubclass/FileSubClass.ts'
+import type { FileSubClassDestination } from '../modul/filesubclass/FileSubClassDestination.ts'
 import type { SolrCore } from '../modul/solrmanager/SolrCore.ts'
 import type { SolrField } from '../modul/solrmanager/SolrField.ts'
 import type { SolrHook } from '../modul/solrmanager/SolrHook.ts'
@@ -16,6 +17,8 @@ export interface MasterDataState {
   accessRoles: AccessRole[] | null
   /** null, solange sie beim Start laden */
   accessRoleCollections: AccessRoleCollection[] | null
+  /** null, solange sie beim Start laden */
+  fileSubClassDestinations: FileSubClassDestination[] | null
   /** null, solange sie beim Start laden */
   fileSubClasses: FileSubClass[] | null
   /** null, solange sie beim Start laden */

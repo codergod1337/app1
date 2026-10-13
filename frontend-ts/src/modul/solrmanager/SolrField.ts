@@ -3,7 +3,7 @@ import type { LanguageCode } from '../../branding/languages.ts'
 import { translate } from '../../components/multilingual.ts'
 
 /** Unser Typkatalog (SolrFieldType.java): jeder Eintrag ist ein fieldType im Basis-Schema. Genau zwei Texttypen. */
-export type SolrFieldType = 'STRING' | 'BOOLEAN' | 'LONG' | 'DOUBLE' | 'DATE' | 'TEXT_EDGE' | 'TEXT_SUCHE'
+export type SolrFieldType = 'STRING' | 'EMAIL' | 'BOOLEAN' | 'LONG' | 'DOUBLE' | 'DATE' | 'TEXT_EDGE' | 'TEXT_SUCHE'
 
 /**
  * Die Typen, nur der Name: Das ist ein Adminmodul, die Erklärung steht im Hoverlay der Spalte. Ganze Zahlen sind
@@ -12,6 +12,8 @@ export type SolrFieldType = 'STRING' | 'BOOLEAN' | 'LONG' | 'DOUBLE' | 'DATE' | 
  */
 export const SOLR_FIELD_TYPES: { type: SolrFieldType; label: string; suggestable: boolean }[] = [
   { type: 'STRING', label: 'string', suggestable: true },
+  // string mit einem Zwilling, der jeden Anfang bis zur vollen Länge der Adresse kennt (email_suggest)
+  { type: 'EMAIL', label: 'email', suggestable: true },
   { type: 'BOOLEAN', label: 'boolean', suggestable: false },
   { type: 'LONG', label: 'long', suggestable: true },
   { type: 'DOUBLE', label: 'double', suggestable: true },
@@ -64,16 +66,19 @@ export function isClientAllowedToChangeOnUpdate(rule: SolrFieldClientWriteRule):
 }
 
 /**
- * Ein normales Feld eines Kerns, wie es das Backend liefert (SolrField.java, neu gefasst 2026-10-09). Es gibt genau
- * zwei Arten von Solr-Feldern: Hooks, in jedem Kern gleich, und diese normalen Felder. Der Name ist eindeutig über
- * alle Kerne, coreKey null heißt in jedem Kern, so auch id auf Platz 1. Gelesen wird über die Stammdaten.
+ * Eine Zeile der Feldtabelle, wie das Backend sie liefert (SolrField.java, neu gefasst 2026-10-09): ein normales Feld
+ * eines Kerns, oder ein Hook in einem Kern (hookKey gesetzt, name gleich dem Hook-Key). Hook-Zeilen entstehen und
+ * verschwinden mit dem Hook, ihre Technik steht fest, je Kern änderbar sind nur Leseliste und Suchgewicht. coreKey
+ * null heißt in jedem Kern, so auch id auf Platz 1. Gelesen wird über die Stammdaten.
  */
 export interface SolrField {
   id: number
   /** der Kern (SolrCore.key), null heißt in jedem Kern, ändert sich nie */
   coreKey: string | null
-  /** der Name des Feldes in Solr, z. B. fileName, eindeutig über alle Kerne, ändert sich nie */
+  /** der Name des Feldes in Solr, z. B. fileName; bei einem normalen Feld eindeutig über alle Kerne, ändert sich nie */
   name: string
+  /** der Key des Hooks, wenn die Zeile ein Hook in ihrem Kern ist, sonst null; ändert sich nie */
+  hookKey: string | null
   type: SolrFieldType
   indexed: boolean
   stored: boolean
@@ -85,10 +90,12 @@ export interface SolrField {
   suggest: boolean
   /** die ARs, deren Inhaber das Feld lesen dürfen; leer heißt niemand außer SOLR_USERS_VIEW_ALL */
   readAccessRoleKeys: string[]
-  /** nie zum Client, auch nicht mit SOLR_USERS_VIEW_ALL, z. B. sftpPath */
-  backendOnly: boolean
   /** wer das Feld setzt, der Umschaltknopf im Sheet */
   clientWriteRule: SolrFieldClientWriteRule
+  /** das Gewicht in der Suche: -1 nicht durchsucht, 0 durchsucht ohne Punkte, ab 1 das Gewicht; ab 0 nur mit indexed */
+  searchWeight: number
+  /** der lose Fremdschlüssel aufs Mapping: der Key eines Mapping-Eintrags, dessen Werte in dieses Feld gehen; null heißt keiner */
+  command: string | null
   /** mehrsprachiges JSON wie beim Hook: der Name, den ein User sieht; null heißt der technische Name */
   displayName: string | null
   /** mehrsprachiges JSON: wozu das Feld da ist und welche Daten hinein gehören */
@@ -105,6 +112,19 @@ export function isSolrFieldOfCore(solrField: Pick<SolrField, 'coreKey'>, coreKey
   return solrField.coreKey === null || solrField.coreKey === coreKey
 }
 
+/** Ist die Zeile ein Hook in ihrem Kern: Technik fest, nur Lesen und Suche änderbar, kein Löschknopf */
+export function isSolrHookField(solrField: Pick<SolrField, 'hookKey'>): boolean {
+  return solrField.hookKey !== null
+}
+
+/**
+ * Kann ein Suchgewicht wirken: nur indexed zählt, ohne Index hat Solr nichts zum Durchsuchen. Alles andere entscheidet
+ * der Admin allein (User 2026-10-09; SolrField.isSearchable im Backend).
+ */
+export function isSolrFieldSearchable(solrField: Pick<SolrField, 'indexed'>): boolean {
+  return solrField.indexed
+}
+
 /** Die Feld-ARs: nur ARs mit diesem Präfix werden als Leserecht an Feldern und Hooks angeboten (User 2026-10-09) */
 export const FIELD_READ_ACCESS_ROLE_KEY_PREFIX = 'SOLR_FIELD_'
 
@@ -114,7 +134,7 @@ export const EVERY_USER_ACCESS_ROLE_KEY = 'USER'
 /**
  * Die ARs, die der Admin an ein Feld oder einen Hook hängen kann: USER für die Grundmenge und alle Feld-ARs mit dem
  * Präfix SOLR_FIELD_, dazu die, die schon dranstehen, damit nichts stillschweigend verschwindet. SOLR_USERS_VIEW_ALL
- * und SOLR_USERS_VIEW_HOOKS sind User-Rechte, keine Feld-Rechte, und werden nicht angeboten.
+ * ist ein User-Recht, kein Feld-Recht, und wird nicht angeboten.
  */
 export function fieldReadAccessRoleCandidates<T extends { key: string }>(
   accessRoles: readonly T[],

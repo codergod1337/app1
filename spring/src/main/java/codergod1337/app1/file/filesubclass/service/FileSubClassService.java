@@ -32,6 +32,7 @@ public class FileSubClassService {
 
 	private final FileSubClassRepository fileSubClassRepository;
 	private final AccessRoleService accessRoleService;
+	private final FileSubClassDestinationService fileSubClassDestinationService;
 
 	/**
 	 * ZIRKELSCHLUSS: Eigentlich käme die Prüfung „gibt es diese Endung?“ über den FileExtensionService. Der braucht aber
@@ -41,9 +42,11 @@ public class FileSubClassService {
 	private final FileExtensionRepository fileExtensionRepository;
 
 	public FileSubClassService(FileSubClassRepository fileSubClassRepository, AccessRoleService accessRoleService,
+			FileSubClassDestinationService fileSubClassDestinationService,
 			FileExtensionRepository fileExtensionRepository) {
 		this.fileSubClassRepository = fileSubClassRepository;
 		this.accessRoleService = accessRoleService;
+		this.fileSubClassDestinationService = fileSubClassDestinationService;
 		this.fileExtensionRepository = fileExtensionRepository;
 	}
 
@@ -51,7 +54,8 @@ public class FileSubClassService {
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public FileSubClass createFileSubClass(String key, String displayName, String description, int listingPosition,
-			AccessRoleSymbol symbol, String color, List<String> readAccessRoleKeys, List<String> writeAccessRoleKeys) {
+			AccessRoleSymbol symbol, String color, List<String> readAccessRoleKeys, List<String> writeAccessRoleKeys,
+			List<String> displayContextKeys) {
 		if (!HelperInputs.isValidKey(key)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "key ist ungültig");
 		}
@@ -64,7 +68,8 @@ public class FileSubClassService {
 		List<String> checkedReadAccessRoleKeys = withWriteAccessRoleKeys(
 				keepKnownAccessRoleKeys(readAccessRoleKeys, knownAccessRoleKeys), checkedWriteAccessRoleKeys);
 		return fileSubClassRepository.save(new FileSubClass(key, displayName, description, listingPosition, symbol,
-				color, checkedReadAccessRoleKeys, checkedWriteAccessRoleKeys, List.of()));
+				color, checkedReadAccessRoleKeys, checkedWriteAccessRoleKeys, checkedDisplayContextKeys(displayContextKeys),
+				List.of()));
 	}
 
 	/**
@@ -74,7 +79,8 @@ public class FileSubClassService {
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public FileSubClass updateFileSubClass(String key, String displayName, String description, int listingPosition,
-			AccessRoleSymbol symbol, String color, List<String> readAccessRoleKeys, List<String> writeAccessRoleKeys) {
+			AccessRoleSymbol symbol, String color, List<String> readAccessRoleKeys, List<String> writeAccessRoleKeys,
+			List<String> displayContextKeys) {
 		FileSubClass fileSubClass = getFileSubClassByKey(key);
 		Set<String> knownAccessRoleKeys = knownAccessRoleKeys();
 		List<String> checkedWriteAccessRoleKeys = keepKnownAccessRoleKeys(writeAccessRoleKeys, knownAccessRoleKeys);
@@ -87,7 +93,24 @@ public class FileSubClassService {
 		fileSubClass.setReadAccessRoleKeys(withWriteAccessRoleKeys(
 				keepKnownAccessRoleKeys(readAccessRoleKeys, knownAccessRoleKeys), checkedWriteAccessRoleKeys));
 		fileSubClass.setWriteAccessRoleKeys(checkedWriteAccessRoleKeys);
+		fileSubClass.setDisplayContextKeys(checkedDisplayContextKeys(displayContextKeys));
 		return fileSubClassRepository.save(fileSubClass);
+	}
+
+	/** Die Anzeigeorte: jeder ein angelegter Anzeigeort (FileSubClassDestination, 400 sonst), ohne Doppelte, null heißt keine */
+	private List<String> checkedDisplayContextKeys(List<String> displayContextKeys) {
+		if (displayContextKeys == null) {
+			return List.of();
+		}
+		Set<String> checked = new LinkedHashSet<>();
+		for (String displayContextKey : displayContextKeys) {
+			if (!fileSubClassDestinationService.isFileSubClassDestinationKeyKnown(displayContextKey)) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+						"Anzeigeort " + displayContextKey + " ist nicht angelegt");
+			}
+			checked.add(displayContextKey);
+		}
+		return new ArrayList<>(checked);
 	}
 
 	/**
@@ -142,6 +165,23 @@ public class FileSubClassService {
 	public List<FileSubClass> changeFileSubClassExtensions(Map<String, List<String>> extensionsByKey) {
 		for (Map.Entry<String, List<String>> changedExtensions : extensionsByKey.entrySet()) {
 			changeFileSubClassExtensions(changedExtensions.getKey(), changedExtensions.getValue());
+		}
+		return getAllFileSubClasses();
+	}
+
+	/**
+	 * Setzt die Anzeigeorte mehrerer Dateiarten auf einmal, für die FSC-Matrix (User 2026-10-13): je Dateiart die
+	 * vollständige neue Liste der Keys angelegter Anzeigeorte (FileSubClassDestination), geprüft wie beim Anlegen (400
+	 * bei einem nicht angelegten Ort), Doppelte fallen weg, eine leere Liste heißt: die Art steht an keinem Ort. Alle
+	 * übrigen Felder bleiben. Eine Transaktion: scheitert eine, bleibt keine geändert. Zurück kommen alle Dateiarten.
+	 */
+	@PreAuthorize("hasRole('ADMIN')")
+	@Transactional
+	public List<FileSubClass> changeFileSubClassDisplayContextKeys(Map<String, List<String>> displayContextKeysByKey) {
+		for (Map.Entry<String, List<String>> changedDisplayContextKeys : displayContextKeysByKey.entrySet()) {
+			FileSubClass fileSubClass = getFileSubClassByKey(changedDisplayContextKeys.getKey());
+			fileSubClass.setDisplayContextKeys(checkedDisplayContextKeys(changedDisplayContextKeys.getValue()));
+			fileSubClassRepository.save(fileSubClass);
 		}
 		return getAllFileSubClasses();
 	}

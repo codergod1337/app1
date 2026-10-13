@@ -15,7 +15,7 @@ export function Dms() {
     { label: t('dms.tabs.upload'), icon: 'upload', to: '/dms/upload' },
     { label: t('dms.tabs.probe'), icon: 'search', to: '/dms/probe' },
     { label: t('dms.tabs.resolve'), icon: 'resolve', to: '/dms/resolve' },
-    { label: t('dms.tabs.myGrants'), icon: 'documentGrants', to: '/dms/my-grants' },
+    { label: t('dms.tabs.myGrants'), icon: 'share', to: '/dms/my-grants' },
   ]
 
   return (

@@ -25,6 +25,11 @@ interface MatrixProps<R, C> {
   cellContent?: (row: R, column: C) => ReactNode | undefined
   /** eigene Klasse einer Zeile, z. B. für Gruppenzeilen */
   rowClassName?: (row: R) => string | undefined
+  /**
+   * Eine Trennzeile (User 2026-10-13, FSC-Matrix): nur der Zeilenkopf und ein dicker Strich über alle Spalten, keine
+   * Zellen, nichts zu klicken oder zu malen. Fehlt es, ist keine Zeile eine Trennzeile.
+   */
+  isSeparatorRow?: (row: R) => boolean
   /** eigene Klasse einer Zelle, z. B. matrix-cell-pending, solange sie nicht gespeichert ist */
   cellClassName?: (row: R, column: C) => string | undefined
   /** für Screenreader, z. B. „ARC_LAGER für Paul umschalten“ */
@@ -79,6 +84,7 @@ export function Matrix<R, C>({
   isMarked,
   cellContent,
   rowClassName,
+  isSeparatorRow,
   cellClassName,
   cellLabel,
   onCellClick,
@@ -255,7 +261,15 @@ export function Matrix<R, C>({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, rowIndex) => (
+          {rows.map((row, rowIndex) =>
+            isSeparatorRow?.(row) ? (
+              <tr key={rowKey(row)} className={['matrix-separator-row', rowClassName?.(row)].filter(Boolean).join(' ')}>
+                <th scope="row" className="matrix-row-head">
+                  {rowHeader(row)}
+                </th>
+                <td className="matrix-separator" colSpan={columns.length} />
+              </tr>
+            ) : (
             <tr key={rowKey(row)} className={rowClassName?.(row)}>
               <th scope="row" className="matrix-row-head">
                 {rowHeader(row)}
@@ -281,7 +295,8 @@ export function Matrix<R, C>({
                 </td>
               ))}
             </tr>
-          ))}
+            ),
+          )}
         </tbody>
       </table>
     </div>

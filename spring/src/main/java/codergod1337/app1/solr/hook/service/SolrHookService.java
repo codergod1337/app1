@@ -1,21 +1,18 @@
 package codergod1337.app1.solr.hook.service;
 
 import codergod1337.app1.solr.SolrFieldName;
+import codergod1337.app1.solr.field.service.SolrFieldService;
 import codergod1337.app1.solr.hook.model.SolrHook;
+import codergod1337.app1.solr.hook.model.SolrHookValueBadgeLinkTarget;
 import codergod1337.app1.solr.hook.repository.SolrHookGroupRepository;
 import codergod1337.app1.solr.hook.repository.SolrHookRepository;
 import codergod1337.app1.solr.sync.SolrDefinitionChangedEvent;
-import codergod1337.app1.system.HelperInputs;
-import codergod1337.app1.system.access.model.AccessRole;
-import codergod1337.app1.system.access.service.AccessRoleService;
 import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -27,13 +24,15 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Die Hooks. Wer was darf, steht als @PreAuthorize über der Methode, die Rollen kommen aus dem Token.
+ * Die Hooks, ihre Definition: Key, Anzeigename, Beschreibung, Gruppe, Ziel der Wert-Badges, Reihenfolge. Wer was darf, steht als @PreAuthorize
+ * über der Methode, die Rollen kommen aus dem Token.
  *
- * DIE TABELLE LIEGT IM SPEICHER: Bei jeder Suche wird geprüft, über welche Hooks der User fragen darf. Das soll Solr der
- * einzige Dienst bleiben, mit dem gesprochen wird, also kein Zugriff auf Postgres je Abfrage. Der Service hält deshalb
- * die ganze Tabelle als unveränderliche Map, die nie geändert, sondern nur ersetzt wird: Leser sehen immer einen ganzen
- * Stand. Geladen wird beim Start und nach jedem Schreiben, aber erst nach dem Commit, sonst stünde im Speicher, was die
- * Datenbank gleich zurückrollt. Dieser Prozess ist der einzige Schreiber, der Speicher kann also nicht veralten.
+ * In jedem Kern liegt ein Hook als Zeile in solr_field, dort stehen je Kern Leseliste und Suchgewicht. Diese Zeilen legt
+ * der SolrFieldService an und löscht sie, wenn hier ein Hook entsteht oder verschwindet.
+ *
+ * DIE TABELLE LIEGT IM SPEICHER: Die Masken zeigen die Hooks bei jedem Dokument, das soll ohne Postgres gehen. Der
+ * Service hält deshalb die ganze Tabelle als unveränderliche Map, die nie geändert, sondern nur ersetzt wird: Leser
+ * sehen immer einen ganzen Stand. Geladen wird beim Start und nach jedem Schreiben, aber erst nach dem Commit.
  */
 @Service
 public class SolrHookService {
@@ -50,8 +49,8 @@ public class SolrHookService {
 	 */
 	private final SolrHookGroupRepository solrHookGroupRepository;
 
-	/** Für die AR-Liste am Hook: jede AR muss es geben */
-	private final AccessRoleService accessRoleService;
+	/** Legt die Zeile des Hooks in jedem Kern an und löscht sie wieder */
+	private final SolrFieldService solrFieldService;
 
 	/** Meldet jede Änderung nach dem Commit, der SolrSchemaSyncService zieht alle Kerne nach: Ein Hook ist in jedem Kern */
 	private final ApplicationEventPublisher applicationEventPublisher;
@@ -60,10 +59,10 @@ public class SolrHookService {
 	private volatile Map<String, SolrHook> solrHooksByKey = Map.of();
 
 	public SolrHookService(SolrHookRepository solrHookRepository, SolrHookGroupRepository solrHookGroupRepository,
-			AccessRoleService accessRoleService, ApplicationEventPublisher applicationEventPublisher) {
+			SolrFieldService solrFieldService, ApplicationEventPublisher applicationEventPublisher) {
 		this.solrHookRepository = solrHookRepository;
 		this.solrHookGroupRepository = solrHookGroupRepository;
-		this.accessRoleService = accessRoleService;
+		this.solrFieldService = solrFieldService;
 		this.applicationEventPublisher = applicationEventPublisher;
 	}
 
@@ -73,13 +72,13 @@ public class SolrHookService {
 	}
 
 	/**
-	 * Neuer Hook. 400 wenn der key kein Solr-Feldname ist, es die Gruppe nicht gibt oder eine AR unbekannt ist, 409
-	 * wenn der key vergeben ist.
+	 * Neuer Hook, dazu seine Zeile in jedem Kern. 400 wenn der key kein Solr-Feldname ist oder es die Gruppe nicht gibt,
+	 * 409 wenn der key vergeben ist, als Hook oder als Feld.
 	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public SolrHook createSolrHook(String key, String displayName, String description, String hookGroupKey,
-			List<String> readAccessRoleKeys, int listingPosition) {
+			SolrHookValueBadgeLinkTarget valueBadgeLinkTarget, int listingPosition) {
 		if (!SolrFieldName.isValid(key)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "key ist kein gültiger Solr-Feldname");
 		}
@@ -87,25 +86,31 @@ public class SolrHookService {
 		if (solrHookRepository.existsById(key)) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "key ist bereits vergeben");
 		}
+		// ein normales Feld mit diesem Namen in irgendeinem Kern: der Hook käme ihm in die Quere
+		if (solrFieldService.findSolrFieldByName(key) != null) {
+			throw new ResponseStatusException(HttpStatus.CONFLICT, "key ist schon ein Feld in einem Kern");
+		}
 		SolrHook solrHook = solrHookRepository.save(new SolrHook(key, displayName, description,
-				checkedHookGroupKey(hookGroupKey), checkedAccessRoleKeys(readAccessRoleKeys), listingPosition));
+				checkedHookGroupKey(hookGroupKey), valueBadgeLinkTarget, listingPosition));
+		solrFieldService.createHookFields(key, listingPosition);
 		reloadSolrHooksAfterCommit();
 		return solrHook;
 	}
 
 	/**
-	 * Der key bestimmt nur, welcher Hook geändert wird, er selbst ändert sich nie. Alle anderen Felder werden ersetzt.
-	 * 400, wenn es die Gruppe nicht gibt oder eine AR unbekannt ist.
+	 * Der key bestimmt nur, welcher Hook geändert wird, er selbst ändert sich nie. Alle anderen Felder werden ersetzt,
+	 * ein fehlendes Ziel der Badges heißt Suche. 400, wenn es die Gruppe nicht gibt.
 	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public SolrHook updateSolrHook(String key, String displayName, String description, String hookGroupKey,
-			List<String> readAccessRoleKeys, int listingPosition) {
+			SolrHookValueBadgeLinkTarget valueBadgeLinkTarget, int listingPosition) {
 		SolrHook solrHook = findSolrHookForWrite(key);
 		solrHook.setDisplayName(displayName);
 		solrHook.setDescription(description);
 		solrHook.setHookGroupKey(checkedHookGroupKey(hookGroupKey));
-		solrHook.setReadAccessRoleKeys(checkedAccessRoleKeys(readAccessRoleKeys));
+		solrHook.setValueBadgeLinkTarget(
+				valueBadgeLinkTarget != null ? valueBadgeLinkTarget : SolrHookValueBadgeLinkTarget.SEARCH);
 		solrHook.setListingPosition(listingPosition);
 		SolrHook saved = solrHookRepository.save(solrHook);
 		reloadSolrHooksAfterCommit();
@@ -131,13 +136,14 @@ public class SolrHookService {
 	}
 
 	/**
-	 * Löscht den Hook endgültig. Was in den Kernen mit dem Feld passiert, entscheidet der Abgleich mit Solr (SolrManager
-	 * Schritt 4). Gibt den Hook zurück, wie er vor dem Löschen war.
+	 * Löscht den Hook endgültig, mit seinen Zeilen in allen Kernen. Was in Solr mit dem Feld passiert, entscheidet der
+	 * Abgleich mit Solr. Gibt den Hook zurück, wie er vor dem Löschen war.
 	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public SolrHook deleteSolrHook(String key) {
 		SolrHook solrHook = findSolrHookForWrite(key);
+		solrFieldService.deleteHookFields(key);
 		solrHookRepository.delete(solrHook);
 		reloadSolrHooksAfterCommit();
 		return solrHook;
@@ -175,25 +181,6 @@ public class SolrHookService {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "unbekannte Hook-Gruppe " + hookGroupKey);
 		}
 		return hookGroupKey;
-	}
-
-	/** Die AR-Liste: jeder key gültig und vorhanden (400), ohne Doppelte, leer erlaubt */
-	private List<String> checkedAccessRoleKeys(List<String> accessRoleKeys) {
-		if (accessRoleKeys == null) {
-			return List.of();
-		}
-		Set<String> known = new LinkedHashSet<>();
-		for (AccessRole accessRole : accessRoleService.getAllAccessRoles()) {
-			known.add(accessRole.getKey());
-		}
-		Set<String> checked = new LinkedHashSet<>();
-		for (String accessRoleKey : accessRoleKeys) {
-			if (!HelperInputs.isValidKey(accessRoleKey) || !known.contains(accessRoleKey)) {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, accessRoleKey + " ist keine bekannte AR");
-			}
-			checked.add(accessRoleKey);
-		}
-		return List.copyOf(checked);
 	}
 
 	/** Zum Schreiben aus der Datenbank, nicht aus dem Speicher: so bleibt die Entity an der Transaktion. */

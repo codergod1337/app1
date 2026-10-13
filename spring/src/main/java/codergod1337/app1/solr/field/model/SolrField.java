@@ -19,32 +19,51 @@ import org.hibernate.type.SqlTypes;
 
 /**
  * Ein Feld eines Solr-Kerns: sein Name in Solr, sein Typ aus unserem Katalog, die Solr-Schalter, wer es lesen darf, wer
- * es setzt und wozu es da ist. Neu gefasst 2026-10-09 (DMS als Blaupause):
+ * es setzt, wie schwer es in der Suche wiegt und wozu es da ist. Neu gefasst 2026-10-09 (DMS als Blaupause):
  *
  * <ul>
- * <li>Der Name ist eindeutig über alle Kerne. Ein Feldname bedeutet im ganzen System genau eines, wie bei den Hooks.
- * Views und Rechte verweisen deshalb nur auf den Namen, nie auf Kern plus Name.</li>
  * <li>coreKey leer heißt: in jedem Kern, z. B. id, cursorDate und userGrantedAccess. Der Abgleich legt so ein Feld in
  * jedem Kern an, jeder Kern-Tab zeigt es.</li>
- * <li>id steht wie die anderen ohne Kern in dieser Tabelle, auf Platz 1, aus dem Code (User 2026-10-09). Das
- * Basis-Configset hat es schon beim Anlegen des Kerns. Was hineinkommt, sagt der Code des Kerns.</li>
- * <li>required: Der Client muss das Feld beim Anlegen mitschicken, sonst wird der Upload abgelehnt; in Solr derselbe
- * Schalter. Nur bei einer Schreibregel, bei der der Client beim Anlegen setzt: Ein Backend-Feld ist nie required,
- * das Backend setzt es selbst (User 2026-10-09).</li>
+ * <li>Ein Hook (solr_hook) liegt in jedem Kern als eigene Zeile hier, mit hookKey gleich seinem Key und name gleich
+ * seinem Key. Die Zeile entsteht und verschwindet mit dem Hook und mit dem Kern, von Hand gibt es sie nicht. Technik
+ * und Schreibregel stehen fest (HOOK_*), je Kern änderbar sind nur Leseliste und Suchgewicht. So kennen Auflösen und
+ * Suche nur Felder, keinen Sonderfall Hook.</li>
+ * <li>Der Name eines normalen Feldes ist eindeutig über alle Kerne, der eines Hooks in jedem Kern derselbe: Unique ist
+ * deshalb Kern plus Name, der Service prüft bei normalen Feldern weiter über alle Kerne.</li>
  * <li>readAccessRoleKeys: die ARs, deren Inhaber das Feld lesen dürfen, und nur die. Leer heißt niemand außer
- * SOLR_USERS_VIEW_ALL. „Immer“ heißt: USER steht dran, die Grundmenge. Dieselbe Liste entscheidet, wonach ein
- * User filtern, sortieren, facettieren und im Freitext suchen darf. Nur in dieser Tabelle, nie in Solr.</li>
- * <li>backendOnly: nie zum Client, auch nicht mit SOLR_USERS_VIEW_ALL, z. B. sftpPath und searchableWords.</li>
+ * SOLR_USERS_VIEW_ALL. „Immer“ heißt: USER steht dran, die Grundmenge. Dieselbe Liste entscheidet, wonach ein User
+ * auflösen darf. Sensible Felder wie sftpPath oder der Volltext bekommen eine eigene AR, es gibt keine Felder, die
+ * pauschal nie zum Client gehen (User 2026-10-09). Nur in dieser Tabelle, nie in Solr.</li>
+ * <li>searchWeight: das Gewicht in der qf der Suche. -1 heißt nicht durchsucht (die Suchwörter erreichen das Feld und
+ * seinen Zwilling nicht), 0 heißt durchsucht ohne Punkte (feld^0: der Treffer zählt und wird gemeldet, ordnet aber
+ * nicht), ab 1 das Gewicht (User 2026-10-09). Ab 0 nur mit indexed, dann hat Solr etwas zum Durchsuchen; sonst
+ * entscheidet der Admin allein. Was ein Treffer ist, bestimmt der Typ: text_edge und text_suche Wortanfang bzw. Wort,
+ * suggest und Hooks über den Zwilling, string ohne Zwilling nur der ganze Wert exakt.</li>
+ * <li>required: Der Client muss das Feld beim Anlegen mitschicken, sonst wird der Upload abgelehnt; in Solr derselbe
+ * Schalter. Nur bei einer Schreibregel, bei der der Client beim Anlegen setzt.</li>
  * </ul>
  *
- * Hooks sind die zweite Art Solr-Feld, in jedem Kern gleich, mit eigener Tabelle (solr_hook) und derselben AR-Liste.
- *
- * Die id ist nur die Zeile in der Datenbank, wie bei den Zuordnungen, und geht nicht in den Export. Das Format von
- * coreKey und name prüft der Service, nicht diese Klasse.
+ * Kein Code legt Felder an. Sie entstehen im Kern-Tab des SolrManagers, dem Werkzeug der Entwicklung, oder kommen per
+ * Stammdaten-Import zurück; der Export sichert den Stand (User 2026-10-09). Die id ist nur die Zeile in der Datenbank
+ * und geht nicht in den Export.
  */
 @Entity
-@Table(name = "solr_field", uniqueConstraints = @UniqueConstraint(columnNames = "name"))
+@Table(name = "solr_field", uniqueConstraints = @UniqueConstraint(columnNames = { "core_key", "name" }))
 public class SolrField {
+
+	// ===== die feste Technik einer Hook-Zeile: exakter Wert, filterbar, mehrere Werte, Facetten, Zwilling fürs Tippen =====
+
+	public static final SolrFieldType HOOK_TYPE = SolrFieldType.STRING;
+	public static final boolean HOOK_INDEXED = true;
+	public static final boolean HOOK_STORED = true;
+	public static final boolean HOOK_MULTI_VALUED = true;
+	public static final boolean HOOK_DOC_VALUES = true;
+	/** jeder Hook ist je Dokument optional */
+	public static final boolean HOOK_REQUIRED = false;
+	public static final boolean HOOK_SUGGEST = true;
+	public static final SolrFieldClientWriteRule HOOK_CLIENT_WRITE_RULE = SolrFieldClientWriteRule.CLIENT_SETS_AND_CHANGES;
+	/** Startgewicht eines Hooks in der Suche, wie in der Vorlage */
+	public static final int HOOK_SEARCH_WEIGHT = 2;
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,14 +71,19 @@ public class SolrField {
 
 	/** Der Kern, zu dem das Feld gehört (SolrCore.key). null: in jedem Kern. Ändert sich nie. */
 	@Size(max = 200)
-	@Column(updatable = false, length = 200)
+	@Column(name = "core_key", updatable = false, length = 200)
 	private String coreKey;
 
-	/** Der Name des Feldes in Solr, z. B. fileName, eindeutig über alle Kerne. Ändert sich nie: Die Dokumente tragen ihn. */
+	/** Der Name des Feldes in Solr, z. B. fileName. Ändert sich nie: Die Dokumente tragen ihn. */
 	@NotBlank
 	@Size(max = 100)
 	@Column(nullable = false, updatable = false, length = 100)
 	private String name;
+
+	/** Der Key des Hooks (SolrHook.key), wenn diese Zeile ein Hook in diesem Kern ist, sonst null. Ändert sich nie. */
+	@Size(max = 100)
+	@Column(name = "hook_key", updatable = false, length = 100)
+	private String hookKey;
 
 	/** Der Typ aus unserem Katalog. */
 	@NotNull
@@ -96,20 +120,15 @@ public class SolrField {
 	@ColumnDefault("false")
 	private boolean suggest;
 
-	// ===== wer liest, wer schreibt =====
+	// ===== wer liest, wer schreibt, wie schwer in der Suche =====
 
 	/**
 	 * Die ARs, deren Inhaber das Feld lesen dürfen. Leer heißt niemand außer SOLR_USERS_VIEW_ALL. Nur keys, kein
 	 * Fremdschlüssel: dass es sie gibt, prüft der Service beim Speichern. Nur in dieser Tabelle, nie in Solr.
 	 */
 	@JdbcTypeCode(SqlTypes.ARRAY)
-	@Column(columnDefinition = "text[]")
+	@Column(name = "read_access_role_keys", columnDefinition = "text[]")
 	private List<String> readAccessRoleKeys;
-
-	/** Nie zum Client, auch nicht mit SOLR_USERS_VIEW_ALL: Das Backend liest es für sich, z. B. sftpPath. */
-	@Column(nullable = false)
-	@ColumnDefault("false")
-	private boolean backendOnly;
 
 	/**
 	 * Wer das Feld setzt ({@link SolrFieldClientWriteRule}): Client beim Anlegen und Bearbeiten, Client nur beim
@@ -117,25 +136,39 @@ public class SolrField {
 	 */
 	@NotNull
 	@Enumerated(EnumType.STRING)
-	@Column(nullable = false, length = 40)
+	@Column(name = "client_write_rule", nullable = false, length = 40)
 	@ColumnDefault("'BACKEND_ONLY'")
 	private SolrFieldClientWriteRule clientWriteRule = SolrFieldClientWriteRule.BACKEND_ONLY;
+
+	/** Das Gewicht in der qf der Suche, 0 heißt nicht durchsucht. Nur in dieser Tabelle, nie in Solr. */
+	@Column(name = "search_weight", nullable = false)
+	@ColumnDefault("0")
+	private int searchWeight;
+
+	/**
+	 * Der lose Fremdschlüssel aufs Mapping (User 2026-10-10): der Key eines Mapping-Eintrags, z. B. FIRMA_NAME, dessen
+	 * gemappte Werte in dieses Feld gehen. Nur der Key, kein Fremdschlüssel in der Datenbank; ob es den Eintrag gibt,
+	 * zeigt der Kern-Tab. null heißt, kein Mapping füllt das Feld. Nur in dieser Tabelle, nie in Solr.
+	 */
+	@Size(max = 200)
+	@Column(name = "command", length = 200)
+	private String command;
 
 	// ===== Texte und Reihenfolge =====
 
 	/**
 	 * Mehrsprachiges JSON wie beim Hook: der Name, den ein User sieht, wo immer das Feld gezeigt wird. null oder leer
-	 * heißt, es steht der technische Name.
+	 * heißt, es steht der technische Name. Bei einer Hook-Zeile null, der Name kommt vom Hook.
 	 */
-	@Column(columnDefinition = "text")
+	@Column(name = "display_name", columnDefinition = "text")
 	private String displayName;
 
-	/** Mehrsprachiges JSON: wozu das Feld da ist und welche Daten hinein gehören. */
+	/** Mehrsprachiges JSON: wozu das Feld da ist und welche Daten hinein gehören. Bei einer Hook-Zeile null. */
 	@Column(columnDefinition = "text")
 	private String description;
 
 	/** Reihenfolge in der Tabelle des Kerns, nicht eindeutig. Sortiert wird nach Position und dann nach name. */
-	@Column(nullable = false)
+	@Column(name = "listing_position", nullable = false)
 	@ColumnDefault("0")
 	private int listingPosition;
 
@@ -143,10 +176,10 @@ public class SolrField {
 	protected SolrField() {
 	}
 
-	/** Admin, Import und Initialisierer: jedes Feld. clientWriteRule null heißt BACKEND_ONLY. */
+	/** Admin und Import: ein normales Feld. clientWriteRule null heißt BACKEND_ONLY. */
 	public SolrField(String coreKey, String name, SolrFieldType type, boolean indexed, boolean stored,
 			boolean multiValued, boolean docValues, boolean required, boolean suggest, List<String> readAccessRoleKeys,
-			boolean backendOnly, SolrFieldClientWriteRule clientWriteRule, String displayName, String description,
+			SolrFieldClientWriteRule clientWriteRule, int searchWeight, String displayName, String description,
 			int listingPosition) {
 		this.coreKey = coreKey;
 		this.name = name;
@@ -158,11 +191,20 @@ public class SolrField {
 		this.required = required;
 		this.suggest = suggest;
 		this.readAccessRoleKeys = readAccessRoleKeys != null ? List.copyOf(readAccessRoleKeys) : List.of();
-		this.backendOnly = backendOnly;
 		this.clientWriteRule = clientWriteRule != null ? clientWriteRule : SolrFieldClientWriteRule.BACKEND_ONLY;
+		this.searchWeight = searchWeight;
 		this.displayName = displayName;
 		this.description = description;
 		this.listingPosition = listingPosition;
+	}
+
+	/** Der Service: die Zeile eines Hooks in einem Kern, Technik fest, ohne Leserolle, mit dem Startgewicht der Suche. */
+	public static SolrField forHook(String coreKey, String hookKey, int listingPosition) {
+		SolrField solrField = new SolrField(coreKey, hookKey, HOOK_TYPE, HOOK_INDEXED, HOOK_STORED, HOOK_MULTI_VALUED,
+				HOOK_DOC_VALUES, HOOK_REQUIRED, HOOK_SUGGEST, List.of(), HOOK_CLIENT_WRITE_RULE, HOOK_SEARCH_WEIGHT, null,
+				null, listingPosition);
+		solrField.hookKey = hookKey;
+		return solrField;
 	}
 
 	public Long getId() {
@@ -181,6 +223,21 @@ public class SolrField {
 
 	public String getName() {
 		return name;
+	}
+
+	/** null bei einem normalen Feld, sonst der Key des Hooks, den diese Zeile in ihrem Kern vertritt */
+	public String getHookKey() {
+		return hookKey;
+	}
+
+	/** true, wenn diese Zeile ein Hook in ihrem Kern ist */
+	public boolean isHookField() {
+		return hookKey != null;
+	}
+
+	/** true, wenn ein Suchgewicht wirken kann: nur indexed zählt, ohne Index hat Solr nichts zum Durchsuchen */
+	public boolean isSearchable() {
+		return indexed;
 	}
 
 	public SolrFieldType getType() {
@@ -248,14 +305,6 @@ public class SolrField {
 		this.readAccessRoleKeys = readAccessRoleKeys != null ? List.copyOf(readAccessRoleKeys) : List.of();
 	}
 
-	public boolean isBackendOnly() {
-		return backendOnly;
-	}
-
-	public void setBackendOnly(boolean backendOnly) {
-		this.backendOnly = backendOnly;
-	}
-
 	/** Nie null: Eine alte Zeile ohne Wert oder ein Import ohne das Feld gilt als BACKEND_ONLY. */
 	public SolrFieldClientWriteRule getClientWriteRule() {
 		return clientWriteRule != null ? clientWriteRule : SolrFieldClientWriteRule.BACKEND_ONLY;
@@ -263,6 +312,23 @@ public class SolrField {
 
 	public void setClientWriteRule(SolrFieldClientWriteRule clientWriteRule) {
 		this.clientWriteRule = clientWriteRule != null ? clientWriteRule : SolrFieldClientWriteRule.BACKEND_ONLY;
+	}
+
+	public int getSearchWeight() {
+		return searchWeight;
+	}
+
+	public void setSearchWeight(int searchWeight) {
+		this.searchWeight = searchWeight;
+	}
+
+	/** Der Key des Mapping-Eintrags, der das Feld füllt; null heißt keiner */
+	public String getCommand() {
+		return command;
+	}
+
+	public void setCommand(String command) {
+		this.command = command;
 	}
 
 	public String getDisplayName() {

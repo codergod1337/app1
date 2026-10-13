@@ -1,13 +1,16 @@
 import { useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { ColorField } from '../../components/ColorField.tsx'
+import { Hoverlay } from '../../components/Hoverlay.tsx'
 import { KeyInput } from '../../components/KeyInput.tsx'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
 import { MultilingualInput } from '../../components/MultilingualInput.tsx'
 import { SymbolPicker } from '../../components/SymbolPicker.tsx'
 import { BadgeToggleList } from '../accessrole/BadgeToggleList.tsx'
-import type { FileSubClass, FileSubClassData } from './FileSubClass.ts'
+import { type FileSubClass, type FileSubClassData } from './FileSubClass.ts'
+import { fileSubClassDestinationNameOf } from './FileSubClassDestination.ts'
 import { FileSubClassSymbol } from './FileSubClassSymbol.tsx'
 
 /** Startwerte einer neuen Dateiart */
@@ -20,6 +23,7 @@ const NEW_FILE_SUB_CLASS: FileSubClassData = {
   color: null,
   readAccessRoleKeys: [],
   writeAccessRoleKeys: [],
+  displayContextKeys: [],
 }
 
 interface FileSubClassFormProps {
@@ -41,19 +45,29 @@ interface FileSubClassFormProps {
  */
 export function FileSubClassForm({ formId, initialFileSubClass, language, disabled, onSubmit }: FileSubClassFormProps) {
   const editing = initialFileSubClass !== undefined
-  const { accessRoles } = useMasterData()
+  const { t } = useTranslation()
+  const { accessRoles, fileSubClassDestinations } = useMasterData()
   const [fileSubClass, setFileSubClass] = useState<FileSubClassData>(() => {
     if (!initialFileSubClass) {
       return NEW_FILE_SUB_CLASS
     }
     // ohne die Endungen, sie gehören nicht zum Speichern
-    const { key, displayName, description, listingPosition, symbol, color, readAccessRoleKeys, writeAccessRoleKeys } =
+    const { key, displayName, description, listingPosition, symbol, color, readAccessRoleKeys, writeAccessRoleKeys, displayContextKeys } =
       initialFileSubClass
-    return { key, displayName, description, listingPosition, symbol, color, readAccessRoleKeys, writeAccessRoleKeys }
+    return { key, displayName, description, listingPosition, symbol, color, readAccessRoleKeys, writeAccessRoleKeys, displayContextKeys }
   })
 
   const readAccessRoleKeys = fileSubClass.readAccessRoleKeys ?? []
   const writeAccessRoleKeys = fileSubClass.writeAccessRoleKeys ?? []
+  const displayContextKeys = fileSubClass.displayContextKeys ?? []
+
+  /** Einen Anzeigeort an- oder abhaken; die Orte kommen aus den Stammdaten, das Backend lehnt jeden anderen Key ab */
+  function toggleDisplayContextKey(destinationKey: string, checked: boolean) {
+    change(
+      'displayContextKeys',
+      checked ? [...displayContextKeys.filter((key) => key !== destinationKey), destinationKey] : displayContextKeys.filter((key) => key !== destinationKey),
+    )
+  }
 
   function change<K extends keyof FileSubClassData>(field: K, value: FileSubClassData[K]) {
     setFileSubClass((current) => ({ ...current, [field]: value }))
@@ -160,6 +174,34 @@ export function FileSubClassForm({ formId, initialFileSubClass, language, disabl
             disabled={disabled}
             onChange={(color) => change('color', color)}
           />
+        </div>
+        <div className="col-12">
+          <span className="form-label d-block">{t('filesubclass.form.displayContextKeys')}</span>
+          {fileSubClassDestinations === null ? (
+            <span className="spinner-border spinner-border-sm d-block" role="status" aria-label={t('common.loading')} />
+          ) : fileSubClassDestinations.length === 0 ? (
+            <span className="text-body-secondary small">{t('filesubclass.form.noDestinations')}</span>
+          ) : (
+            <div className="d-flex flex-wrap gap-3">
+              {fileSubClassDestinations.map((destination) => (
+                <Hoverlay key={destination.key} text={translate(destination.description, language)}>
+                  <label className="form-check form-check-inline mb-0">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      disabled={disabled}
+                      checked={displayContextKeys.includes(destination.key)}
+                      onChange={(event) => toggleDisplayContextKey(destination.key, event.target.checked)}
+                    />
+                    <span className="form-check-label">
+                      {fileSubClassDestinationNameOf(destination, language)} <code className="small">{destination.key}</code>
+                    </span>
+                  </label>
+                </Hoverlay>
+              ))}
+            </div>
+          )}
+          <div className="form-text">{t('filesubclass.form.displayContextKeysHint')}</div>
         </div>
         <div className="col-12">
           <span className="form-label d-block">Lesen</span>

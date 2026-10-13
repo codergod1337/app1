@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DIE ABAS-BILDMARKE OHNE SCHRIFTZUG.
+
+  Abgeleitet aus abas-logo.svg (Original mit Wortmarke, bitte dort lassen):
+  die Textgruppe ist entfernt, die drei Formen sind UNVERAENDERT uebernommen -
+  keine Koordinate angefasst, nur der Ausschnitt (viewBox) auf die Marke
+  gesetzt. So bleibt sie deckungsgleich mit dem Original, falls das je
+  ersetzt wird.
+
+  Fuer den "in ABAS oeffnen"-Knopf der Artikelmappe. Die Marke traegt die
+  Hausfarben von abas und behaelt sie - deshalb steht sie im Knopf auf
+  hellem Grund: das Dunkelblau (#112033) waere auf unserer dunklen
+  Oberflaeche sonst unsichtbar.
+-->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	width="128" height="128" viewBox="0 0 270 275" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#112033;}
+	.st1{fill:#21B7B3;}
+	.st2{fill:#FDCE0D;}
+</style>
+<g>
+	<path class="st1" d="M187.5,164l-24.6-24.6l-0.4,0.4l-56.2,56.2l-0.4,0.4c-13.6,13.6-13.6,35.6,0,49.2l0,0
+		c13.6,13.6,35.6,13.6,49.2,0l32-32c0,0,0,0,0,0l0.4-0.4C201.1,199.7,201.1,177.6,187.5,164z"/>
+	<path class="st0" d="M236.3,115.3L236.3,115.3l-81.2-81.2c-13.6-13.6-35.6-13.6-49.2,0l0,0c-13.6,13.6-13.6,35.6,0,49.2l81.2,81.2
+		c13.6,13.6,13.6,35.6,0,49.2l49.2-49.2l0,0C249.8,150.9,249.8,128.9,236.3,115.3z"/>
+	<ellipse class="st2" cx="48.7" cy="139.9" rx="34.4" ry="34.4"/>
+</g>
+</svg>

@@ -14,13 +14,10 @@ import { SolrHookFields, type SolrHookValuesByKey } from '../solrmanager/SolrHoo
 import {
   dmsFieldLabel,
   DMS_PUBLIC_ACCESS_ROLE_KEY,
-  DOCUMENT_LANGUAGE_FIELD_NAME,
   FILE_SUB_CLASS_FIELD_NAME,
   patchDmsSolrDocument,
   type DmsSolrDocumentForClient,
 } from './Dms.ts'
-import { documentLanguageAppliesToFileExtension } from './DmsDocumentLanguage.ts'
-import { DmsDocumentLanguagePicker } from './DmsDocumentLanguagePicker.tsx'
 import { DmsSolrDocumentIdentifiersHint, DmsSolrDocumentInfobox } from './DmsSolrDocumentFacts.tsx'
 
 interface DmsSolrDocumentEditBoxProps {
@@ -47,7 +44,7 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
   const { sessionInfo, hasAccessRole } = useSession()
   /** die Internetfreigabe setzt und nimmt zurück, wer writeAcl am Dokument UND die AR DMS_PUBLIC hat; sonst kein Haken */
   const canSetPublic = loaded.writeAclMatchForCurrentUser && hasAccessRole(DMS_PUBLIC_ACCESS_ROLE_KEY)
-  const { fileSubClasses, solrHooks, fileExtensions, fileExtensionCollections, solrFields } = useMasterData()
+  const { fileSubClasses, solrHooks, solrFields } = useMasterData()
   const uiLanguage = useLanguage().language
   // die Sprache der Maske, startet mit der Oberfläche und lässt sich im Kopf der Box für die Beschreibung umschalten
   const [language, setLanguage] = useState<LanguageCode>(uiLanguage)
@@ -63,20 +60,12 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
   const originalFileSubClassKey = typeof document[FILE_SUB_CLASS_FIELD_NAME] === 'string' ? document[FILE_SUB_CLASS_FIELD_NAME] : null
   const originalHooks = solrHookValuesOf(document, solrHooks ?? [])
   const fileExtension = typeof document.fileExtension === 'string' ? document.fileExtension : null
-  const originalDocumentLanguage =
-    typeof document[DOCUMENT_LANGUAGE_FIELD_NAME] === 'string' ? document[DOCUMENT_LANGUAGE_FIELD_NAME] : null
-  // nur Dateien aus Endungsgruppen mit Sprache bekommen die Auswahl, dieselbe Regel wie im Backend
-  const documentLanguageApplies = documentLanguageAppliesToFileExtension(
-    fileExtension,
-    fileExtensions ?? [],
-    fileExtensionCollections ?? [],
-  )
+  // die Sprache setzt allein Tika beim Upload (User 2026-10-10), hier gibt es keine Auswahl
 
   const [fileName, setFileName] = useState(originalFileName)
   const [fileIndex, setFileIndex] = useState(originalFileIndex)
   const [description, setDescription] = useState<string | null>(originalDescription)
   const [createdDay, setCreatedDay] = useState(originalCreatedDay)
-  const [documentLanguage, setDocumentLanguage] = useState<string | null>(originalDocumentLanguage)
   const [fileSubClassKey, setFileSubClassKey] = useState<string | null>(originalFileSubClassKey)
   const [hooks, setHooks] = useState<SolrHookValuesByKey>(originalHooks)
   const originalIsPublic = document.isPublic === true
@@ -119,9 +108,6 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
     }
     if (createdDay !== originalCreatedDay && createdDay !== '') {
       fieldValuesByFieldName.documentCreatedAt = createdDay
-    }
-    if (documentLanguageApplies && documentLanguage !== originalDocumentLanguage) {
-      fieldValuesByFieldName[DOCUMENT_LANGUAGE_FIELD_NAME] = documentLanguage ?? ''
     }
     if (fileSubClassKey !== null && fileSubClassKey !== originalFileSubClassKey) {
       fieldValuesByFieldName[FILE_SUB_CLASS_FIELD_NAME] = fileSubClassKey
@@ -216,12 +202,6 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
                 onChange={(event) => setCreatedDay(event.target.value)}
               />
             </div>
-            {documentLanguageApplies && (
-              <div className="col-12">
-                <span className="form-label d-block">{labelOf(DOCUMENT_LANGUAGE_FIELD_NAME, t('dms.document.documentLanguage'))}</span>
-                <DmsDocumentLanguagePicker value={documentLanguage} onChange={setDocumentLanguage} disabled={saving} />
-              </div>
-            )}
           </div>
           <div>
             <label className="form-label" htmlFor="dms-edit-description">

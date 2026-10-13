@@ -21,14 +21,16 @@ interface ProfileHeroProps {
   /** null, solange die Stammdaten laden */
   accessRoleCount: number | null
   errorMessage: string | null
-  onEdit: () => void
+  /** fehlt: das fremde Profil, ohne Bearbeiten, ohne Sitzung, ohne Rechtezahl (User 2026-10-10) */
+  onEdit?: () => void
 }
 
 /**
  * Der Kopf des Profils als ContentBox: oben Titel und Bearbeiten, in der Mitte Titelbild, Profilbild, Name und info,
- * unten die Kennzahlen.
+ * unten die Kennzahlen. Ohne onEdit ist es das fremde Profil: Titel mit dem Namen, keine Sitzung, keine Rechtezahl.
  */
 export function ProfileHero({ users, usersDetails, sessionNumber, accessRoleCount, errorMessage, onEdit }: ProfileHeroProps) {
+  const own = onEdit !== undefined
   // einmal beim Öffnen, für die Dienstjahre genügt das
   const [now] = useState(() => new Date())
   const createdAt = users ? new Date(users.createdAt) : null
@@ -50,27 +52,35 @@ export function ProfileHero({ users, usersDetails, sessionNumber, accessRoleCoun
             <span className="profile-stat-value">{createdAt.toLocaleDateString('de-DE')}</span>
           </span>
         </div>
-        <div className="profile-stat">
-          <Icon name="accessRoles" />
-          <span className="profile-stat-text">
-            <span className="profile-stat-label">Rechte</span>
-            <span className="profile-stat-value">{accessRoleCount ?? '…'} AccessRoles</span>
-          </span>
-        </div>
-        <div className="profile-stat">
-          <Icon name="session" />
-          <span className="profile-stat-text">
-            <span className="profile-stat-label">Sitzungsplatz</span>
-            <span className="profile-stat-value">#{sessionNumber} von 3</span>
-          </span>
-        </div>
+        {own && (
+          <div className="profile-stat">
+            <Icon name="accessRoles" />
+            <span className="profile-stat-text">
+              <span className="profile-stat-label">Rechte</span>
+              <span className="profile-stat-value">{accessRoleCount ?? '…'} AccessRoles</span>
+            </span>
+          </div>
+        )}
+        {own && (
+          <div className="profile-stat">
+            <Icon name="session" />
+            <span className="profile-stat-text">
+              <span className="profile-stat-label">Sitzungsplatz</span>
+              <span className="profile-stat-value">#{sessionNumber} von 3</span>
+            </span>
+          </div>
+        )}
       </div>
     )
   }
 
   return (
     <div className="profile-hero">
-      <ContentBox title="Dein Profil" actions={<EditButton label="Username und Namen bearbeiten" onClick={onEdit} />} footer={footer}>
+      <ContentBox
+        title={own ? 'Dein Profil' : users ? `Profil von ${usersDisplayName(users)}` : 'Profil'}
+        actions={own ? <EditButton label="Username und Namen bearbeiten" onClick={onEdit} /> : undefined}
+        footer={footer}
+      >
         <div className="profile-cover">
           {users && <ProfileCover seed={users.guid} />}
           {createdAt && membership && (
@@ -106,10 +116,12 @@ export function ProfileHero({ users, usersDetails, sessionNumber, accessRoleCoun
             <h1 className="profile-name">{users ? usersDisplayName(users) : ' '}</h1>
             <div className="profile-meta">
               {users?.username && <span>@{users.username}</span>}
-              <span className="profile-online">
-                <span className="profile-online-dot" />
-                online · Session #{sessionNumber}
-              </span>
+              {own && (
+                <span className="profile-online">
+                  <span className="profile-online-dot" />
+                  online · Session #{sessionNumber}
+                </span>
+              )}
             </div>
             {info !== '' && <p className="profile-info">{info}</p>}
           </div>

@@ -1,12 +1,15 @@
 server:
   port: 6969
-  # Die Begründung einer Ablehnung (ResponseStatusException) geht als message mit, sonst sähe der Client nur „Bad Request“
-  error:
-    include-message: always
 
 spring:
   application:
     name: gebieter
+
+  # Die Begründung einer Ablehnung (ResponseStatusException) geht als message mit, sonst sähe der Client nur „Bad Request“.
+  # Seit Spring Boot 4 heißt die Eigenschaft spring.web.error.*, das alte server.error.* wirkt nicht mehr (2026-10-13).
+  web:
+    error:
+      include-message: always
 
   # Lokale Werte aus der .env im Repo-Root (nicht in Git, Vorlage: env.beispiel).
   # Zwei Pfade, damit es aus dem Repo-Root und aus spring/ heraus funktioniert.
@@ -34,6 +37,13 @@ spring:
       max-file-size: 100GB
       max-request-size: 100GB
 
+  # Gestreamte Antworten (StreamingResponseBody) laufen asynchron: der Export und der Import der Sternzeiten, die ihren
+  # Fortschritt zeilenweise melden (2026-10-13). Ohne diese Zeile gilt der Standard des Containers von 30 Sekunden, ein
+  # Import über Millionen Zeilen bräche mitten im Lauf ab. -1 heißt keine Frist: fertig ist, wenn der Lauf fertig ist.
+  mvc:
+    async:
+      request-timeout: -1
+
 # Laufzeiten und Grenzen des Logins
 app1:
   login:
@@ -54,12 +64,63 @@ app1:
     # Secure-Flag der Cookies. Chrome erlaubt Secure-Cookies auch auf http://localhost
     secure: true
 
+  # Der System-User (system/security/SystemUsersSecurityContextService): Als er laufen Jobs ohne Token, zuerst der
+  # ABAS-Worker, der nach dem Holen in die Kerne schreibt. Eigene Zeile in users, Service-Account, ohne Zugangsdaten;
+  # was er darf, sagen seine AR in der Datenbank. Die guid ist fest (User 2026-10-13).
+  system-users:
+    guid: 99999999-9999-9999-9999-999999999999
+
   # Solr (solr/client). Die URL endet vor dem Kernnamen, je Kern hängt der Client seinen key an. User und Passwort
   # gelten für den Container (Basic Auth aus der security.json) und das Backend zugleich, siehe docs/backend/solr.md.
   solr:
     url: http://${solr_host}:${solr_port}/solr
     user: ${solr_user}
     pw: ${solr_pw}
+    # Auflösen (solr/dms): Treffer je Seite und Treffer insgesamt, darüber liefert eine Seite nichts mehr
+    resolve:
+      page-size: 50
+      max-results: 2000
+    # Suche (solr/dms): nur die besten Treffer, keine Seiten
+    search:
+      hits: 30
+    # Kern ARTIKEL (solr/artikel), die aufaggregierten Referenzen je Flag (User 2026-10-13): bis zu wie vielen
+    # Alternativschritten die Mappe suchen darf, und höchstens wie viele Treffer je Flag abgelegt werden; darüber
+    # gilt das Ergebnis als gekürzt
+    artikel:
+      references:
+        max-depth: 5
+        max-rows: 500
+
+  # ABAS-ERP (Paket abas). Alles aus der .env, der Server steht nur im LAN oder VPN. Leer heißt: kein Zugriff auf ABAS,
+  # das Backend startet trotzdem, jede Anfrage an ABAS wird 503.
+  abas:
+    host: ${abas_host:}
+    port: ${abas_port:4443}
+    mandant: ${abas_mandant:}
+    # der Pfad zwischen Port und /r/<mandant>, bei ABAS die Middleware
+    base-path: ${abas_base_path:mw}
+    # mit diesem Benutzer fragen wir bei ABAS an (Basic Auth)
+    user: ${abas_user:_abas_}
+    pw: ${abas_pw:}
+    # das Zertifikat des ABAS-Servers als PEM: gesetzt wird nur genau diesem vertraut, wie beim Host-Key des SFTP. Leer:
+    # der Truststore des JDK.
+    cert-path: ${abas_cert_path:}
+    # Verbindungsaufbau, im LAN Millisekunden
+    connect-timeout: 10s
+    # so lange darf eine einzelne Antwort ausbleiben, ein großes Objekt mit tausend Tabellenzeilen braucht Sekunden
+    request-timeout: 120s
+    # der Worker-Pool (AbasSternzeitFetchWorkerPool), der die Queue abarbeitet
+    fetch:
+      # so viele Sternzeiten holt der Pool gleichzeitig bei ABAS; eine Abfrage dauert rund eine Sekunde
+      parallel: 20
+      # der Takt des Watchers: alte Claims freigeben, den Pool wecken, wenn etwas anliegt
+      watch-interval: 5s
+      # ein Claim, der so lange steht, gehört einem abgestürzten Worker und wird freigegeben
+      claim-timeout: 5m
+      # ab so vielen Fehlversuchen bleibt ein Eintrag mit seinem Fehler liegen und wird nicht mehr gezogen
+      max-attempts: 10
+      # true: nach dem Start erst auf Knopfdruck holen, z. B. vor einem Massenimport
+      start-paused: false
 
   # Microsoft Graph (Paket graph), siehe docs/backend/graph.md. Alles aus der .env, die Schlüsseldateien liegen
   # außerhalb des Repos in app1/secrets/entra. Leer heißt: kein Zugriff auf Graph, das Backend startet trotzdem.

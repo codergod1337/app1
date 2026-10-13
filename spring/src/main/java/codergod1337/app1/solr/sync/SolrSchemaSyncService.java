@@ -7,8 +7,6 @@ import codergod1337.app1.solr.core.service.SolrCoreService;
 import codergod1337.app1.solr.field.model.SolrField;
 import codergod1337.app1.solr.field.model.SolrFieldType;
 import codergod1337.app1.solr.field.service.SolrFieldService;
-import codergod1337.app1.solr.hook.model.SolrHook;
-import codergod1337.app1.solr.hook.service.SolrHookService;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -44,7 +42,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * Der Abgleich der Felder: Postgres ist die Wahrheit, Solr wird nachgezogen. Je Kern liest der Abgleich das Schema
- * über die Schema-API, vergleicht es mit den Feldern des Kerns und den Hooks und schickt die Differenz in einer
+ * über die Schema-API, vergleicht es mit den Zeilen des Kerns in solr_field (Felder und Hooks) und schickt die Differenz in einer
  * Anfrage: add-field für fehlende Felder, replace-field für abweichende Schalter, für jedes Feld mit suggest den
  * Zwilling {@code <name>Suggested} und sein copyField. Solr schreibt dann die managed-schema.xml des Kerns neu und
  * lädt ihn einmal nach.
@@ -89,7 +87,6 @@ public class SolrSchemaSyncService {
 	private final SolrClientRegistry solrClientRegistry;
 	private final SolrCoreService solrCoreService;
 	private final SolrFieldService solrFieldService;
-	private final SolrHookService solrHookService;
 
 	/** Ein Thread, damit zwei Abgleiche desselben Kerns nie gleichzeitig laufen */
 	private final ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
@@ -102,11 +99,10 @@ public class SolrSchemaSyncService {
 	private final Map<String, SolrCoreSyncReport> reportsByCoreKey = new ConcurrentHashMap<>();
 
 	public SolrSchemaSyncService(SolrClientRegistry solrClientRegistry, SolrCoreService solrCoreService,
-			SolrFieldService solrFieldService, SolrHookService solrHookService) {
+			SolrFieldService solrFieldService) {
 		this.solrClientRegistry = solrClientRegistry;
 		this.solrCoreService = solrCoreService;
 		this.solrFieldService = solrFieldService;
-		this.solrHookService = solrHookService;
 	}
 
 	/** Beim Start alle Kerne, im Hintergrund: Der Start wartet nicht auf Solr. */
@@ -338,18 +334,13 @@ public class SolrSchemaSyncService {
 		}
 	}
 
-	/** Die Felder des Kerns aus Postgres und die Hooks, die jeder Kern hat */
+	/** Alles, was der Kern laut Postgres hat: seine Felder, die jedes Kerns, die Zeilen der Hooks */
 	private List<ExpectedField> expectedFields(String coreKey) {
 		List<ExpectedField> expected = new ArrayList<>();
 		for (SolrField solrField : solrFieldService.getSolrFieldsByCoreKey(coreKey)) {
 			expected.add(new ExpectedField(solrField.getName(), solrField.getType(), solrField.isIndexed(),
 					solrField.isStored(), solrField.isMultiValued(), solrField.isDocValues(), solrField.isRequired(),
 					solrField.isSuggest()));
-		}
-		for (SolrHook solrHook : solrHookService.getAllSolrHooks()) {
-			expected.add(new ExpectedField(solrHook.getKey(), SolrHook.FIELD_TYPE, SolrHook.FIELD_INDEXED,
-					SolrHook.FIELD_STORED, SolrHook.FIELD_MULTI_VALUED, SolrHook.FIELD_DOC_VALUES,
-					SolrHook.FIELD_REQUIRED, SolrHook.FIELD_SUGGEST));
 		}
 		return expected;
 	}

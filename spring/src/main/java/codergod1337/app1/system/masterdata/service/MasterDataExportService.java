@@ -2,7 +2,9 @@ package codergod1337.app1.system.masterdata.service;
 
 import codergod1337.app1.file.fileextension.service.FileExtensionCollectionService;
 import codergod1337.app1.file.fileextension.service.FileExtensionService;
+import codergod1337.app1.file.filesubclass.service.FileSubClassDestinationService;
 import codergod1337.app1.file.filesubclass.service.FileSubClassService;
+import codergod1337.app1.abas.service.AbasInfosysService;
 import codergod1337.app1.graph.mail.model.GraphMailTemplate;
 import codergod1337.app1.graph.mail.service.GraphMailTemplateService;
 import codergod1337.app1.solr.core.service.SolrCoreService;
@@ -78,12 +80,14 @@ public class MasterDataExportService {
 	private final FileExtensionCollectionService fileExtensionCollectionService;
 	private final FileExtensionService fileExtensionService;
 	private final FileSubClassService fileSubClassService;
+	private final FileSubClassDestinationService fileSubClassDestinationService;
 	private final SolrHookGroupService solrHookGroupService;
 	private final SolrHookService solrHookService;
 	private final SolrCoreService solrCoreService;
 	private final SolrFieldService solrFieldService;
 	private final EntityStateService entityStateService;
 	private final GraphMailTemplateService graphMailTemplateService;
+	private final AbasInfosysService abasInfosysService;
 	private final UsersService usersService;
 	private final UsersDetailsService usersDetailsService;
 	private final UsersSettingsService usersSettingsService;
@@ -95,19 +99,22 @@ public class MasterDataExportService {
 	public MasterDataExportService(AccessRoleService accessRoleService,
 			AccessRoleCollectionService accessRoleCollectionService,
 			FileExtensionCollectionService fileExtensionCollectionService, FileExtensionService fileExtensionService,
-			FileSubClassService fileSubClassService, SolrHookGroupService solrHookGroupService,
-			SolrHookService solrHookService, SolrCoreService solrCoreService,
+			FileSubClassService fileSubClassService, FileSubClassDestinationService fileSubClassDestinationService,
+			SolrHookGroupService solrHookGroupService, SolrHookService solrHookService, SolrCoreService solrCoreService,
 			SolrFieldService solrFieldService, EntityStateService entityStateService,
-			GraphMailTemplateService graphMailTemplateService, UsersService usersService,
-			UsersDetailsService usersDetailsService, UsersSettingsService usersSettingsService,
+			GraphMailTemplateService graphMailTemplateService, AbasInfosysService abasInfosysService,
+			UsersService usersService, UsersDetailsService usersDetailsService,
+			UsersSettingsService usersSettingsService,
 			AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
 			AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService,
 			CurrentUsersProvider currentUsersProvider, JsonMapper jsonMapper) {
+		this.abasInfosysService = abasInfosysService;
 		this.accessRoleService = accessRoleService;
 		this.accessRoleCollectionService = accessRoleCollectionService;
 		this.fileExtensionCollectionService = fileExtensionCollectionService;
 		this.fileExtensionService = fileExtensionService;
 		this.fileSubClassService = fileSubClassService;
+		this.fileSubClassDestinationService = fileSubClassDestinationService;
 		this.solrHookGroupService = solrHookGroupService;
 		this.solrHookService = solrHookService;
 		this.solrCoreService = solrCoreService;
@@ -192,6 +199,7 @@ public class MasterDataExportService {
 		case ACCESS_ROLE_COLLECTIONS -> accessRoleCollectionService.getAllAccessRoleCollections();
 		case FILE_EXTENSION_COLLECTIONS -> fileExtensionCollectionService.getAllFileExtensionCollections();
 		case FILE_EXTENSIONS -> fileExtensionService.getAllFileExtensions();
+		case FILE_SUB_CLASS_DESTINATIONS -> fileSubClassDestinationService.getAllFileSubClassDestinations();
 		case FILE_SUB_CLASSES -> fileSubClassService.getAllFileSubClasses();
 		case SOLR_HOOK_GROUPS -> solrHookGroupService.getAllSolrHookGroups();
 		case SOLR_HOOKS -> solrHookService.getAllSolrHooks();
@@ -199,6 +207,7 @@ public class MasterDataExportService {
 		case SOLR_FIELDS -> solrFieldService.getAllSolrFields();
 		case ENTITY_STATES -> entityStateService.getAllEntityStates();
 		case GRAPH_MAIL_TEMPLATES -> graphMailTemplateService.getAllGraphMailTemplates();
+		case ABAS_INFOSYS -> abasInfosysService.getAllAbasInfosys();
 		case USERS -> usersService.getAllUsers();
 		case USERS_DETAILS -> usersDetailsService.getAllUsersDetails();
 		case USERS_SETTINGS -> usersSettingsService.getAllUsersSettings();

@@ -14,6 +14,7 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
     () => ({
       accessRoles: data?.accessRoles ?? null,
       accessRoleCollections: data?.accessRoleCollections ?? null,
+      fileSubClassDestinations: data?.fileSubClassDestinations ?? null,
       fileSubClasses: data?.fileSubClasses ?? null,
       fileExtensions: data?.fileExtensions ?? null,
       fileExtensionCollections: data?.fileExtensionCollections ?? null,

@@ -71,6 +71,39 @@ export function upload<T>(path: string, formData: FormData, onProgress?: UploadP
   return withSessionRetry(path, () => sendUpload<T>(path, formData, onProgress))
 }
 
+/** Bekommt jede fertige Zeile einer zeilenweisen Antwort (NDJSON), sobald sie da ist, als JSON gelesen */
+export type ResponseLineListener = (line: unknown) => void
+
+/**
+ * Ein Upload, dessen Antwort zeilenweise kommt, für lange Läufe wie den Import einer großen Datei (User 2026-10-13):
+ * Die Datei geht als Multipart wie bei upload, der Server meldet seinen Fortschritt als eine JSON-Zeile je Zwischenstand.
+ * onLine bekommt jede Zeile, sobald sie vollständig angekommen ist, onProgress die gesendeten Bytes. Zurück kommen alle
+ * Zeilen, die letzte ist das Ergebnis. Sonst wie upload: Messwerte, requestStore, RequestError, eine Wiederholung nach
+ * erneuerter Sitzung.
+ */
+export function uploadWithResponseLines(
+  path: string,
+  formData: FormData,
+  onLine: ResponseLineListener,
+  onProgress?: UploadProgress,
+): Promise<RequestResult<unknown[]>> {
+  return withSessionRetry(path, () => sendUploadWithResponseLines(path, formData, onLine, onProgress))
+}
+
+/** Meldet während eines Downloads, wie viele Bytes schon da sind; totalBytes null, wenn der Server keine Content-Length schickt */
+export type DownloadProgress = (receivedBytes: number, totalBytes: number | null) => void
+
+/**
+ * Der Weg zu den Bytes einer Datei, die der Browser anzeigen soll (Viewer): GET mit Cookie, die Antwort als Blob mit
+ * dem Content-Type des Servers. Liest den Stream in Stücken, damit onProgress die empfangenen Bytes melden kann. Sonst
+ * wie request: Messwerte, requestStore, RequestError, eine Wiederholung nach erneuerter Sitzung. Ein Download zum
+ * Speichern bleibt ein normaler Link mit download-Attribut, nur der Viewer braucht die Bytes im Speicher: Der Server
+ * schickt Content-Disposition attachment, ein iframe direkt auf die URL würde speichern statt zeigen.
+ */
+export function download(path: string, onProgress?: DownloadProgress): Promise<RequestResult<Blob>> {
+  return withSessionRetry(path, () => sendDownload(path, onProgress))
+}
+
 /** Bei einer 401 auf einem geschützten Pfad die Sitzung erneuern und den Request genau einmal wiederholen */
 async function withSessionRetry<T>(path: string, send: () => Promise<RequestResult<T>>): Promise<RequestResult<T>> {
   try {
@@ -217,6 +250,183 @@ function sendUpload<T>(path: string, formData: FormData, onProgress?: UploadProg
     }
     xhr.send(formData)
   })
+}
+
+/**
+ * Ein einzelner Upload ohne Wiederholung, dessen Antwort zeilenweise gelesen wird: XMLHttpRequest meldet mit onprogress
+ * jedes neue Stück der Antwort, daraus werden die vollständigen Zeilen genommen, der angefangene Rest wartet aufs
+ * nächste Stück.
+ */
+function sendUploadWithResponseLines(
+  path: string,
+  formData: FormData,
+  onLine: ResponseLineListener,
+  onProgress?: UploadProgress,
+): Promise<RequestResult<unknown[]>> {
+  const keepBodies = isKeepBodies()
+  let metrics: RequestMetrics = {
+    id: nextId++,
+    method: 'POST',
+    path,
+    state: 'pending',
+    status: null,
+    startedAt: Date.now(),
+    durationMs: null,
+    bytesSent: formDataBytes(formData),
+    bytesReceived: null,
+    requestBody: keepBodies ? formDataSummary(formData) : undefined,
+  }
+  saveRequest(metrics)
+  const start = performance.now()
+  const lines: unknown[] = []
+  let consumed = 0
+
+  return new Promise<RequestResult<unknown[]>>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+
+    /** Die vollständigen Zeilen seit dem letzten Mal; am Ende auch ein Rest ohne Zeilenende */
+    function takeLines(final: boolean) {
+      const text = xhr.responseText
+      let newline = text.indexOf('\n', consumed)
+      while (newline >= 0) {
+        const line = text.slice(consumed, newline).trim()
+        consumed = newline + 1
+        if (line !== '') {
+          const parsed = parseResponse(line)
+          lines.push(parsed)
+          onLine(parsed)
+        }
+        newline = text.indexOf('\n', consumed)
+      }
+      if (final) {
+        const rest = text.slice(consumed).trim()
+        consumed = text.length
+        if (rest !== '') {
+          const parsed = parseResponse(rest)
+          lines.push(parsed)
+          onLine(parsed)
+        }
+      }
+    }
+
+    xhr.open('POST', path)
+    xhr.responseType = 'text'
+    if (onProgress) {
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          onProgress(event.loaded, event.total)
+        }
+      }
+    }
+    xhr.onprogress = () => {
+      // nur eine erfolgreiche Antwort ist zeilenweise, eine Fehlerantwort ist ein JSON am Stück
+      if (xhr.status >= 200 && xhr.status < 300) {
+        takeLines(false)
+      }
+    }
+    xhr.onload = () => {
+      const ok = xhr.status >= 200 && xhr.status < 300
+      if (ok) {
+        takeLines(true)
+      }
+      metrics = {
+        ...metrics,
+        state: ok ? 'done' : 'error',
+        status: xhr.status,
+        durationMs: performance.now() - start,
+        bytesReceived: new TextEncoder().encode(xhr.responseText).byteLength,
+        responseBody: keepBodies ? (ok ? lines : parseResponse(xhr.responseText)) : undefined,
+        errorMessage: ok ? undefined : readErrorMessage(parseResponse(xhr.responseText), xhr.status, xhr.statusText),
+      }
+      saveRequest(metrics)
+      if (ok) {
+        resolve({ data: lines, metrics })
+      } else {
+        reject(new RequestError(metrics.errorMessage ?? '', metrics))
+      }
+    }
+    xhr.onerror = () => {
+      metrics = {
+        ...metrics,
+        state: 'error',
+        durationMs: performance.now() - start,
+        errorMessage: 'keine Verbindung zum Server',
+      }
+      saveRequest(metrics)
+      reject(new RequestError(metrics.errorMessage ?? '', metrics))
+    }
+    xhr.send(formData)
+  })
+}
+
+/** Ein einzelner Download ohne Wiederholung: die Antwort stückweise gelesen, damit der Fortschritt zu haben ist */
+async function sendDownload(path: string, onProgress?: DownloadProgress): Promise<RequestResult<Blob>> {
+  const keepBodies = isKeepBodies()
+  let metrics: RequestMetrics = {
+    id: nextId++,
+    method: 'GET',
+    path,
+    state: 'pending',
+    status: null,
+    startedAt: Date.now(),
+    durationMs: null,
+    bytesSent: 0,
+    bytesReceived: null,
+  }
+  saveRequest(metrics)
+  const start = performance.now()
+
+  let response: Response
+  const chunks: BlobPart[] = []
+  let receivedBytes = 0
+  try {
+    response = await fetch(path, { method: 'GET', credentials: 'same-origin' })
+    const contentLength = response.headers.get('Content-Length')
+    const totalBytes = contentLength !== null && contentLength !== '' ? Number(contentLength) : null
+    const reader = response.body?.getReader()
+    if (reader !== undefined) {
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) {
+          break
+        }
+        chunks.push(value)
+        receivedBytes += value.byteLength
+        onProgress?.(receivedBytes, totalBytes)
+      }
+    }
+  } catch {
+    // Keine Antwort vom Server oder die Verbindung riss mitten im Stream
+    metrics = {
+      ...metrics,
+      state: 'error',
+      durationMs: performance.now() - start,
+      errorMessage: 'keine Verbindung zum Server',
+    }
+    saveRequest(metrics)
+    throw new RequestError(metrics.errorMessage ?? '', metrics)
+  }
+
+  const blob = new Blob(chunks, { type: response.headers.get('Content-Type') ?? '' })
+  // Eine Fehlerantwort ist JSON oder Text, nie die Datei: ihre Meldung lesen wie bei request
+  const errorMessage = response.ok
+    ? undefined
+    : readErrorMessage(parseResponse(await blob.text()), response.status, response.statusText)
+  metrics = {
+    ...metrics,
+    state: response.ok ? 'done' : 'error',
+    status: response.status,
+    durationMs: performance.now() - start,
+    bytesReceived: receivedBytes,
+    responseBody: keepBodies ? `[blob ${receivedBytes} bytes]` : undefined,
+    errorMessage,
+  }
+  saveRequest(metrics)
+
+  if (!response.ok) {
+    throw new RequestError(metrics.errorMessage ?? '', metrics)
+  }
+  return { data: blob, metrics }
 }
 
 /** JSON, sonst der Text, bei leerer Antwort undefined */

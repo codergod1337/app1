@@ -7,6 +7,7 @@ import { useLanguage } from '../../components/languageContext.ts'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
 import type { OriginState } from '../../components/Origin.ts'
+import { UsersGuidName } from '../../components/UsersGuidName.tsx'
 import { AccessRoleBadge } from '../accessrole/AccessRoleBadge.tsx'
 import { FileSubClassPicker } from '../filesubclass/FileSubClassPicker.tsx'
 import { FileSubClassSymbol } from '../filesubclass/FileSubClassSymbol.tsx'
@@ -15,15 +16,21 @@ import { SolrHookFields } from '../solrmanager/SolrHookFields.tsx'
 import { dmsFieldLabel, FILE_SUB_CLASS_FIELD_NAME, softDeleteDmsSolrDocument, type DmsSolrDocumentForClient } from './Dms.ts'
 import { DmsSolrDocumentActionButtons } from './DmsSolrDocumentActionButtons.tsx'
 import { DmsSolrDocumentIdentifiersHint, DmsSolrDocumentInfobox } from './DmsSolrDocumentFacts.tsx'
-import { DmsSolrDocumentGrantsHint } from './DmsSolrDocumentGrantsHint.tsx'
+import { DmsSharePopup } from './DmsSharePopup.tsx'
 
 interface DmsSolrDocumentDetailsBoxProps {
   loaded: DmsSolrDocumentForClient
   origin?: OriginState
-  /** Knopf „Schließen“ rechts im Kopf */
-  onClose: () => void
+  /** Knopf „Schließen“ rechts im Kopf; fehlt er, gibt es den Knopf nicht */
+  onClose?: () => void
   /** nach dem weichen Löschen: das Dokument neu laden oder die Seite verlassen */
-  onDeleted: () => void
+  onDeleted?: () => void
+  /**
+   * Die Station „Detailansicht“ eines Abholscheins (User 2026-10-10): dieselbe Box mit den Feldern aus dem Schein, ohne
+   * Anmeldung. Keine Wege ins DMS (ansehen, Details, bearbeiten, neue Fassung, freigeben, löschen), der Download läuft
+   * über den Schein, downloadUrl null heißt kein Download.
+   */
+  shared?: { downloadUrl: string | null }
 }
 
 /** Eine Liste, egal ob Solr einen Wert oder mehrere liefert */
@@ -47,7 +54,7 @@ function ignoreChoice() {
  * bewirkt: Vorschaubild, Volltext und Zugriffsrechte als Aufklapper, nur wenn der User die Felder lesen darf. Ein Feld,
  * das fehlt, ist für diesen User nicht sichtbar, kein Fehler.
  */
-export function DmsSolrDocumentDetailsBox({ loaded, origin, onClose, onDeleted }: DmsSolrDocumentDetailsBoxProps) {
+export function DmsSolrDocumentDetailsBox({ loaded, origin, onClose, onDeleted, shared }: DmsSolrDocumentDetailsBoxProps) {
   const { t } = useTranslation()
   const { language } = useLanguage()
   const { fileSubClasses, solrHooks, accessRoles, solrFields } = useMasterData()
@@ -55,6 +62,7 @@ export function DmsSolrDocumentDetailsBox({ loaded, origin, onClose, onDeleted }
   const [fullTextOpen, setFullTextOpen] = useState(false)
   const [aclOpen, setAclOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [sharing, setSharing] = useState(false)
 
   const document = loaded.document
   const id = String(document.id ?? '')
@@ -90,22 +98,28 @@ export function DmsSolrDocumentDetailsBox({ loaded, origin, onClose, onDeleted }
         <span className="fw-normal text-muted">({translate(fileSubClass.displayName, language) || fileSubClass.key})</span>
       )}
       <DmsSolrDocumentIdentifiersHint document={document} />
-      <DmsSolrDocumentGrantsHint id={id} />
     </span>
   )
 
   const actions = (
     <span className="d-inline-flex align-items-center gap-2">
-      <DmsSolrDocumentActionButtons
-        document={document}
-        origin={origin}
-        onDetailsPage
-        writeAclMatchForCurrentUser={loaded.writeAclMatchForCurrentUser}
-        onDelete={() => setDeleting(true)}
-      />
-      <button type="button" className="button-cancel" onClick={onClose}>
-        {t('common.close')}
-      </button>
+      {shared !== undefined ? (
+        <DmsSolrDocumentActionButtons document={document} onDetailsPage onViewerPage downloadUrl={shared.downloadUrl} />
+      ) : (
+        <DmsSolrDocumentActionButtons
+          document={document}
+          origin={origin}
+          onDetailsPage
+          writeAclMatchForCurrentUser={loaded.writeAclMatchForCurrentUser}
+          onDelete={() => setDeleting(true)}
+          onShare={() => setSharing(true)}
+        />
+      )}
+      {onClose !== undefined && (
+        <button type="button" className="button-cancel" onClick={onClose}>
+          {t('common.close')}
+        </button>
+      )}
     </span>
   )
 
@@ -180,7 +194,7 @@ export function DmsSolrDocumentDetailsBox({ loaded, origin, onClose, onDeleted }
                         <div className="text-muted">userGrantedAccess</div>
                         <span className="d-inline-flex flex-wrap gap-1">
                           {grantedUsers.map((guid) => (
-                            <code key={guid}>{guid}</code>
+                            <UsersGuidName key={guid} guid={guid} />
                           ))}
                         </span>
                       </div>
@@ -193,15 +207,21 @@ export function DmsSolrDocumentDetailsBox({ loaded, origin, onClose, onDeleted }
         </div>
       </ContentBox>
 
-      <DeletePopup
-        open={deleting}
-        title={t('dms.document.deleteTitle')}
-        onConfirm={() => softDeleteDmsSolrDocument(id)}
-        onDeleted={onDeleted}
-        onClose={() => setDeleting(false)}
-      >
-        <Trans i18nKey="dms.document.deleteQuestion" values={{ name: fileName }} components={{ strong: <strong /> }} />
-      </DeletePopup>
+      {shared === undefined && (
+        <>
+          <DeletePopup
+            open={deleting}
+            title={t('dms.document.deleteTitle')}
+            onConfirm={() => softDeleteDmsSolrDocument(id)}
+            onDeleted={onDeleted ?? (() => undefined)}
+            onClose={() => setDeleting(false)}
+          >
+            <Trans i18nKey="dms.document.deleteQuestion" values={{ name: fileName }} components={{ strong: <strong /> }} />
+          </DeletePopup>
+
+          <DmsSharePopup open={sharing} id={id} fileName={fileName} onClose={() => setSharing(false)} />
+        </>
+      )}
     </>
   )
 }

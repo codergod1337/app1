@@ -21,6 +21,7 @@ import codergod1337.app1.system.security.login.model.UsersSessionForClient;
 import codergod1337.app1.system.user.model.Users;
 import codergod1337.app1.system.user.service.UsersCredentialsService;
 import codergod1337.app1.system.user.service.UsersService;
+import codergod1337.app1.system.user.service.UsersDebuffsService;
 import codergod1337.app1.system.user.service.UsersSettingsService;
 import java.time.Duration;
 import java.time.Instant;
@@ -62,6 +63,7 @@ public class LoginService {
 	private final UsersLogin2faService usersLogin2faService;
 	private final GraphMailTemplateService graphMailTemplateService;
 	private final UsersRefreshTokenService usersRefreshTokenService;
+	private final UsersDebuffsService usersDebuffsService;
 	private final CurrentUsersProvider currentUsersProvider;
 	private final TokenRevocations tokenRevocations;
 	private final JwtEncoder jwtEncoder;
@@ -81,7 +83,7 @@ public class LoginService {
 			AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService,
 			AccessRoleCollectionService accessRoleCollectionService,
 			UsersLogin2faService usersLogin2faService, GraphMailTemplateService graphMailTemplateService,
-			UsersRefreshTokenService usersRefreshTokenService,
+			UsersRefreshTokenService usersRefreshTokenService, UsersDebuffsService usersDebuffsService,
 			CurrentUsersProvider currentUsersProvider, TokenRevocations tokenRevocations, JwtEncoder jwtEncoder,
 			@Value("${app1.jwt.validity}") Duration jwtValidity,
 			@Value("${app1.login.confirm-url}") String confirmUrl,
@@ -95,6 +97,7 @@ public class LoginService {
 		this.usersLogin2faService = usersLogin2faService;
 		this.graphMailTemplateService = graphMailTemplateService;
 		this.usersRefreshTokenService = usersRefreshTokenService;
+		this.usersDebuffsService = usersDebuffsService;
 		this.currentUsersProvider = currentUsersProvider;
 		this.tokenRevocations = tokenRevocations;
 		this.jwtEncoder = jwtEncoder;
@@ -226,8 +229,8 @@ public class LoginService {
 
 	/**
 	 * Signiert das JWT: sub = guid, roles = die direkt zugewiesenen AR und die AR aus der ARC, arc = der Key der ARC
-	 * (fehlt ohne ARC), area, session, iat und exp. Slave-ARCs zählen nicht mit. Ab hier prüft das Backend nur noch das
-	 * Token, ohne Datenbank.
+	 * (fehlt ohne ARC), area, session, debuffs (hat der User Debuffs), iat und exp. Slave-ARCs zählen nicht mit. Ab hier
+	 * prüft das Backend nur noch das Token, ohne Datenbank.
 	 */
 	private String createJwt(UUID usersGuid, Area area, int sessionNumber) {
 		// Eine ARC ist optional. Eine inzwischen gelöschte ARC zählt wie keine.
@@ -246,7 +249,8 @@ public class LoginService {
 				.expiresAt(now.plus(jwtValidity))
 				.claim(JwtConfig.CLAIM_ROLES, List.copyOf(accessRoleKeys))
 				.claim(JwtConfig.CLAIM_AREA, area.name())
-				.claim(JwtConfig.CLAIM_SESSION, sessionNumber);
+				.claim(JwtConfig.CLAIM_SESSION, sessionNumber)
+				.claim(JwtConfig.CLAIM_DEBUFFS, usersDebuffsService.hasUsersDebuffs(usersGuid));
 		accessRoleCollection.ifPresent(found -> jwtClaimsBuilder.claim(JwtConfig.CLAIM_ACCESS_ROLE_COLLECTION, found.getKey()));
 		return jwtEncoder.encode(JwtEncoderParameters.from(jwtClaimsBuilder.build())).getTokenValue();
 	}

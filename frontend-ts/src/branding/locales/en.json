@@ -31,11 +31,26 @@
     "symbolSearchPlaceholder": "search, e.g. shield, star, crown, desk",
     "keyRule": "only A–Z, 0–9 and _, starts and ends with a capital letter, never two _ in a row",
     "keyRuleWithPrefix": "starts with {{prefix}}, {{rule}}",
-    "solrFieldNameRule": "starts with a letter, then letters, digits and _, does not end with _ or Suggested, not id",
+    "solrFieldNameRule": "starts with a letter, then letters, digits and _, does not end with _ or Suggested",
     "valuesInputAria": "Enter a value, space, Tab or Enter adds it",
     "removeValue": "remove {{value}}",
     "search": "search",
     "noMatches": "no matches",
+    "loadingProgress": {
+      "received": "{{received}} of {{total}} ({{percent}} %)",
+      "remaining": "about {{duration}} left",
+      "seconds_one": "{{count}} s",
+      "seconds_other": "{{count}} s",
+      "minutesSeconds": "{{minutes}} min {{seconds}} s"
+    },
+    "jsonTree": {
+      "array_one": "[{{count}} element]",
+      "array_other": "[{{count}} elements]",
+      "object_one": "{{{count}} field}",
+      "object_other": "{{{count}} fields}",
+      "expand": "expand",
+      "collapse": "collapse"
+    },
     "dropzone": "drag a file here or click",
     "dropzoneMultiple": "drag files here or click",
     "takePhoto": "take a photo",
@@ -46,7 +61,10 @@
       "BEVEL": "3D bevel",
       "RADIAL": "from the centre outwards",
       "METAL": "metal"
-    }
+    },
+    "openInAbas": "open",
+    "openInAbasLabel": "open in ABAS: {{sternzeit}}",
+    "sternzeit": "Sternzeit {{sternzeit}}"
   },
   "layout": {
     "backTo": "back to {{label}}",
@@ -72,24 +90,52 @@
     "tiles": {
       "admin": "Administration",
       "solrManager": "SolrManager",
+      "abasManager": "AbasManager",
+      "mapping": "Mapping",
       "dms": "DMS",
       "grant": "Grants",
       "graph": "GraphManager",
-      "search": "Search"
+      "search": "Search",
+      "artikel": "Articles",
+      "infosys": "Infosystems",
+      "belegnummer": "Document number"
     },
     "entryAccessRoles": {
       "symbolLabel": "Which ARs open this module",
       "oneOf_one": "This AR opens the module:",
       "oneOf_other": "One of these ARs opens the module:",
       "missingHint": "Dimmed: you do not have that one.",
-      "insideHint": "What you may do inside is decided by further ARs in the module."
+      "insideHint": "What you may do inside is decided by further ARs in the module.",
+      "loginRequired": "For everyone logged in, no special AR."
     },
     "noModules": "There are no modules for you here yet.",
     "noModulesAnonymous": "There are no modules without login yet. Log in to see more."
   },
   "admin": {
     "tabs": {
-      "entityStates": "States"
+      "entityStates": "States",
+      "fileSubClassDestinations": "Destinations",
+      "fileSubClassMatrix": "FSC matrix"
+    },
+    "debuffs": {
+      "title": "Debuffs",
+      "intro": "Restrictions for this user. Resolve: on every resolve the field gets only the stored mandatory values, whatever the user asks for.",
+      "empty": "no debuffs",
+      "popupTitle": "New debuff",
+      "type": "Type",
+      "types": {
+        "RESOLVE": "Resolve: mandatory values per field"
+      },
+      "field": "Field or hook",
+      "fieldSearchPlaceholder": "search field or hook",
+      "everyCore": "in every core",
+      "hooks": "Hooks, in every core",
+      "noFields": "no field and no hook matches",
+      "change": "change",
+      "values": "Mandatory values",
+      "valuesPlaceholder": "value, e.g. 4711",
+      "deleteLabel": "remove debuff {{field}}",
+      "sessionsEnd": "After saving, all sessions of the user end so that their token knows the debuff."
     }
   },
   "entitystate": {
@@ -107,10 +153,56 @@
     "scopeHint": "empty: applies everywhere",
     "everywhere": "everywhere"
   },
+  "filesubclassdestination": {
+    "title": "Destinations",
+    "intro": "The places in the interface where file subclasses appear as a section and are offered for upload, e.g. the documents tab of the article file, the customer file, the supplier file. Which file subclass belongs to which place is set at the file subclass. The code of a place names its own key.",
+    "count_one": "{{count}} destination",
+    "count_other": "{{count}} destinations",
+    "empty": "no destinations",
+    "deleteTitle": "Delete destination",
+    "deleteQuestion": "Really delete the destination <strong>{{key}}</strong>? Only possible while no file subclass and no call carries it.",
+    "editTitle": "Edit destination: {{key}}",
+    "editTitleNone": "Edit destination",
+    "notFound": "no destination chosen or not found",
+    "keyHint": "The code of the place names this key, e.g. ARTIKELMAPPE_DOKUMENTE for the documents tab of the article file.",
+    "description": "Description",
+    "fileSubClassCount": "File subclasses"
+  },
+  "fscmatrix": {
+    "rowsLabel": "Extension, destination",
+    "columnsLabel": "File subclass",
+    "brushOn": "Brush: set, i.e. enable an extension or assign a destination",
+    "brushOff": "Brush: remove, i.e. disable an extension or take away a destination",
+    "withoutGroup": "without group",
+    "dangerousHint": "Caution: delicate format. Enabling works, but only deliberately.",
+    "destinations": "Destinations",
+    "extensionOn": "enabled",
+    "extensionOff": "not enabled",
+    "destinationOn": "assigned",
+    "destinationOff": "not assigned",
+    "pending": ", not saved yet",
+    "cellGroup": "toggle all extensions of the group for {{key}}{{pending}}",
+    "cellExtension": ".{{extension}} for {{key}}: {{state}}{{pending}}",
+    "cellDestination": "{{destination}} for {{key}}: {{state}}{{pending}}",
+    "extensionsSavedTitle": "Extensions saved",
+    "destinationsSavedTitle": "Destinations saved",
+    "savedText": "All safe in the database: {{cells}} on {{fileSubClasses}}.",
+    "extensionCount_one": "{{count}} extension",
+    "extensionCount_other": "{{count}} extensions",
+    "destinationCount_one": "{{count}} destination",
+    "destinationCount_other": "{{count}} destinations",
+    "fileSubClassCount_one": "{{count}} file subclass",
+    "fileSubClassCount_other": "{{count}} file subclasses"
+  },
   "filesubclass": {
     "picker": {
       "title": "File sub class",
       "clickToChange": "{{key}}, click to change"
+    },
+    "form": {
+      "displayContextKeys": "Destinations",
+      "displayContextKeysHint": "Where this file subclass appears as a section and is offered for upload. The admin creates the places under Destinations.",
+      "noDestinations": "No destination yet: create one in the admin under Destinations."
     }
   },
   "fileextension": {
@@ -125,17 +217,6 @@
       "probe": "Probe",
       "resolve": "Resolve",
       "myGrants": "My grants"
-    },
-    "myGrants": {
-      "intro": "What is granted to you in the DMS: documents carrying your guid, and fields you may additionally resolve by. What your roles open anyway is not listed here.",
-      "documentGrantsTitle": "My document grants",
-      "fieldGrantsTitle": "My field grants",
-      "hookGrantsTitle": "My hook grants (in every core)",
-      "noDocumentGrants": "There is no document grant for you in the DMS.",
-      "noFieldGrants": "There is no field grant for you in the DMS.",
-      "noHookGrants": "There is no hook grant for you.",
-      "documentsTitle_one": "{{count}} document granted to you",
-      "documentsTitle_other": "{{count}} documents granted to you"
     },
     "resolve": {
       "title": "Resolve",
@@ -162,10 +243,6 @@
       "id": "id",
       "versionChain": "version chain",
       "identifiers": "identifiers: id and version chain",
-      "grantsSymbolLabel": "Grants on this document",
-      "grantsOpen_one": "{{count}} user has this document by grant:",
-      "grantsOpen_other": "{{count}} users have this document by grant:",
-      "grantsCheckHint": "Control view: the guids from userGrantedAccess, below them their document grants in force in the DMS core.",
       "noFullText": "Tika read no text from the file.",
       "status": "Status",
       "version": "Version",
@@ -195,14 +272,89 @@
       "download": "download {{name}}",
       "edit": "edit {{name}}",
       "newVersion": "upload a new version of {{name}}",
-      "grant": "grant {{name}}",
+      "share": "share {{name}}",
       "delete": "delete {{name}}",
       "deleteTitle": "Delete document",
       "deleteQuestion": "Really delete <strong>{{name}}</strong>? The document gets the status DELETED and disappears from every list, the file is kept."
     },
-    "language": {
-      "pickerLabel": "Document language",
-      "none": "no language"
+    "share": {
+      "title": "Share {{name}}",
+      "kindLabel": "What does the link share?",
+      "kindBinary": "the download only",
+      "kindBinaryHint": "The link downloads the file directly, the recipient sees no metadata.",
+      "kindDocument": "the document with metadata",
+      "kindDocumentHint": "The link opens a detail view with the chosen fields, the download is optional.",
+      "wholeDocument_one": "all fields I may read ({{count}} field)",
+      "wholeDocument_other": "all fields I may read ({{count}} fields)",
+      "chooseFields": "only these fields",
+      "binaryIncluded": "allow download",
+      "recipient": "Recipient (free text, e.g. name or e-mail)",
+      "expiresAt": "valid until",
+      "maxUses": "redemptions allowed",
+      "maxUsesHint": "View and download both count.",
+      "create": "Create link",
+      "createdTitle": "The link, visible only now",
+      "createdHint": "Only its hash is stored, the link cannot be shown again. Copy it now.",
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "newTitle": "New share link",
+      "overviewTitle": "Shares: all share links in the DMS",
+      "overviewIntro": "Every link goes to someone without an account. Links are created on the document page via the share symbol.",
+      "overviewEmpty": "no share link yet",
+      "openDocument": "open document {{id}}",
+      "columns": {
+        "document": "Document",
+        "kind": "Kind",
+        "status": "Status",
+        "uses": "redeemed",
+        "expiresAt": "valid until",
+        "recipient": "Recipient",
+        "grantedBy": "created by"
+      },
+      "kindShort": {
+        "BINARY": "Download",
+        "DOCUMENT": "Document"
+      },
+      "status": {
+        "ACTIVE": "active",
+        "EXPIRED": "expired"
+      },
+      "expire": "expire now",
+      "noFieldChosen": "Choose at least one field.",
+      "expiresAtMissing": "Valid until is missing or not a point in time.",
+      "delete": "delete share link {{id}}",
+      "deleteTitle": "Delete share link",
+      "deleteQuestion": "Really delete the share link (<strong>{{kind}}</strong>, recipient <strong>{{recipient}}</strong>) for good? The link stops working at once, the history is gone.",
+      "user": {
+        "title_one": "Grant to users ({{count}})",
+        "title_other": "Grant to users ({{count}})",
+        "empty": "not granted to any user yet",
+        "grant": "grant",
+        "revoke": "revoke",
+        "revokeOf": "revoke the grant for {{guid}}",
+        "columns": {
+          "grantee": "to whom",
+          "grantedBy": "by whom",
+          "createdAt": "when"
+        },
+        "status": {
+          "ACTIVE": "active",
+          "REVOKED": "revoked"
+        },
+        "overviewTitle": "Grants to users",
+        "overviewIntro": "Who granted which document to whom and when. Revoked grants stay as history.",
+        "overviewEmpty": "no grant to a user yet",
+        "delete": "delete grant {{id}}",
+        "deleteTitle": "Delete grant",
+        "deleteQuestion": "Really delete the grant of document <strong>{{document}}…</strong> for good? An active grant ends at once, the history is gone.",
+        "emailLabel": "Find a user by e-mail and grant"
+      }
+    },
+    "shared": {
+      "title": "Shared document",
+      "notFound": "This link is invalid, expired or used up.",
+      "validity_one": "valid until {{expiresAt}}, {{count}} redemption left",
+      "validity_other": "valid until {{expiresAt}}, {{count}} redemptions left"
     },
     "versionChain": {
       "title_one": "{{count}} version",
@@ -259,13 +411,12 @@
         "fileSubClass": "Class",
         "file": "File",
         "index": "Index",
-        "language": "Language",
         "description": "Description"
       },
       "state": {
         "checking": "checking",
         "new": "new",
-        "merge": "adds hooks",
+        "merge": "adds hooks, sets index and description",
         "exists": "other class",
         "sameBytes": "already in the DMS",
         "deleted": "deleted",
@@ -349,84 +500,50 @@
       "chars_one": "{{count}} character",
       "chars_other": "{{count}} characters",
       "ms": "{{count}} ms"
-    }
-  },
-  "grant": {
-    "title": "Grants",
-    "tabs": {
-      "documents": "Document grants",
-      "fields": "Field grants",
-      "hooks": "Hook grants"
     },
-    "common": {
-      "grantee": "Recipient",
-      "core": "Core",
-      "grantedBy": "granted by",
-      "validUntil": "valid until",
-      "validUntilHint": "empty means unlimited",
-      "unlimited": "unlimited",
-      "status": "Status",
-      "revoke": "revoke",
-      "chooseUser": "choose user",
-      "chooseCore": "choose core",
-      "expire": "Clean up expired",
-      "expired": "{{hookGrants}} hook grants and {{fieldGrants}} field grants set to expired"
+    "myGrants": {
+      "title_one": "{{count}} document granted to me",
+      "title_other": "{{count}} documents granted to me",
+      "intro": "Documents someone granted to me on the document page: my guid is in userGrantedAccess. What my roles open anyway is not listed here.",
+      "empty": "No document is granted to you."
     },
-    "documents": {
-      "title": "Document grants",
-      "intro": "Choose a core, set conditions as when resolving, resolve: the hit list shows what you may write yourself and can therefore grant. Granting writes the recipient's guid into userGrantedAccess of every hit, per core through its own grant service. A snapshot, later documents are not included. The recipient gets the “always” fields with it, “by grant” fields need a field grant or full sight.",
-      "noGrantServiceForCore": "The core {{core}} has no grant service yet. Only the register can be viewed here.",
-      "expire": "Clean up expired in {{core}}",
-      "expired": "{{count}} document grants in core {{core}} set to expired",
-      "newTitle": "New document grant",
-      "conditions": "Conditions",
-      "resolve": "Resolve",
-      "noConditions": "No grant without a condition. This list is everything you see yourself.",
-      "noHits": "The conditions match no document you see yourself.",
-      "tooMany": "{{count}} hits, a grant needs fewer than {{limit}}: a further filter must narrow the hits.",
-      "grantableHint_one": "This {{count}} hit will be granted.",
-      "grantableHint_other": "All {{count}} hits of the conditions will be granted, including those on further pages.",
-      "grantHits": "Grant these hits",
-      "granted_one": "{{count}} document granted",
-      "granted_other": "{{count}} documents granted",
-      "documents": "Documents",
-      "empty": "no document grants yet",
-      "count_one": "{{count}} document grant",
-      "count_other": "{{count}} document grants",
-      "revokeTitle": "Revoke document grant",
-      "revokeQuestion": "Really revoke the document grant for <strong>{{user}}</strong> in core <strong>{{core}}</strong>? The guid disappears from the documents of this grant ({{count}} when granted)."
+    "fileSubClassHits": {
+      "title": "{{name}} for {{values}}",
+      "none": "No {{name}} on file.",
+      "failed": "Not loaded: {{error}}"
     },
-    "fields": {
-      "title": "Field grants",
-      "intro": "A field the recipient may resolve by in this core although they do not have <KERN>_SUCHE. An advanced field becomes readable with it. Per core, not per document. Everyone resolves by id, it is not on offer. Hooks are granted in the tab Hook grants, in every core at once.",
-      "newTitle": "New field grant",
-      "fields": "Fields",
-      "noFields": "There is no field left in this core that this user lacks.",
-      "field": "Field",
-      "grant": "Grant",
-      "granted_one": "{{count}} field granted",
-      "granted_other": "{{count}} fields granted",
-      "empty": "no field grants yet",
-      "count_one": "{{count}} field grant",
-      "count_other": "{{count}} field grants",
-      "revokeTitle": "Revoke field grant",
-      "revokeQuestion": "Really revoke the grant of field <strong>{{field}}</strong> in core <strong>{{core}}</strong> for <strong>{{user}}</strong>?"
-    },
-    "hooks": {
-      "title": "Hook grants",
-      "intro": "A hook the recipient may resolve by although they do not have HOOK_FULL. Applies in every core where they have the door <KERN>, because every core carries all hooks. The hook becomes readable with it. The button at the top right of the register cleans up expired hook and field grants; document grants expire per core in the tab Document grants.",
-      "newTitle": "New hook grant",
-      "hooks": "Hooks",
-      "noHooks": "There is no hook left that this user lacks.",
-      "hook": "Hook",
-      "grant": "Grant",
-      "granted_one": "{{count}} hook granted",
-      "granted_other": "{{count}} hooks granted",
-      "empty": "no hook grants yet",
-      "count_one": "{{count}} hook grant",
-      "count_other": "{{count}} hook grants",
-      "revokeTitle": "Revoke hook grant",
-      "revokeQuestion": "Really revoke the grant of hook <strong>{{hook}}</strong> for <strong>{{user}}</strong>?"
+    "fileSubClassDocuments": {
+      "columns": {
+        "links": "Links",
+        "hooks": "Hooks"
+      },
+      "versionHint": "Number of files in the version chain",
+      "linksHint": "How many articles share this file",
+      "hooksHint": "All hooks of this document",
+      "noFiles": "No files.",
+      "noSections": "No file subclass for this place in the catalog and no files.",
+      "filesCount_one": "{{count}} file",
+      "filesCount_other": "{{count}} files",
+      "hiddenCount_one": "{{count}} hidden",
+      "hiddenCount_other": "{{count}} hidden",
+      "collapse": "Collapse {{name}}",
+      "expand": "Expand {{name}}",
+      "orderNotSaved": "Order not saved",
+      "collapseNotSaved": "Collapse state not saved",
+      "modeNotSaved": "View not saved",
+      "modes": {
+        "ALL": "all file subclasses",
+        "WITH_FILES": "only file subclasses with files",
+        "FAVORITES": "favorites"
+      },
+      "nextMode": {
+        "ALL": "Click: all file subclasses of this place in catalog order",
+        "WITH_FILES": "Click: only the file subclasses holding files, in your order, drag the handle to sort",
+        "FAVORITES": "Click: favorites, all file subclasses in your order, drag to sort, the arrow collapses"
+      },
+      "resetFavorites": "Delete favorites: catalog order, everything expanded",
+      "favoritesReset": "Favorites reset",
+      "favoritesNotReset": "Favorites not reset"
     }
   },
   "resolve": {
@@ -457,7 +574,9 @@
     "words_one": "{{count}} of {{max}} search words",
     "words_other": "{{count}} of {{max}} search words",
     "cores": {
-      "DMS": "DMS"
+      "DMS": "DMS",
+      "ARTIKEL": "Articles",
+      "KONTAKTE": "Contacts"
     },
     "allCores": "all cores",
     "missingRole": "You are missing the AccessRole {{role}} for this.",
@@ -475,11 +594,11 @@
       "hint": "Pick a file sub class: click or Enter sets it as a filter, Escape cancels."
     },
     "results": {
-      "moreThanReachable": "More than {{reachable}} hits cannot be paged, narrow the search."
+      "onlyBest": "Only the best {{count}} hits are shown, narrow the search."
     },
     "offers": {
       "title": "Suggestions:",
-      "tabHint": "Tab sets the first suggestion"
+      "tabHint": "Tab sets the first suggestion, the search word then leaves the text"
     }
   },
   "graph": {
@@ -586,7 +705,14 @@
         "noGroup": "no group",
         "asFilter": "as filter",
         "onDocument": "on the document",
-        "readAccess": "Read: the ARs whose holders get the hook, in every core. Without a tick nobody reads it except SOLR_USERS_VIEW_ALL and SOLR_USERS_VIEW_HOOKS."
+        "valueBadgeLinkTarget": "Target of the value badges",
+        "valueBadgeLinkTargetHint": "Where a click on a value of this hook leads, everywhere in the app. Only for the interface, the cores and Solr do not know it."
+      },
+      "valueBadgeLinkTargets": {
+        "SEARCH": "Search with the value as filter",
+        "ARTIKELMAPPE": "Article file",
+        "KUNDENMAPPE": "Customer file",
+        "LIEFERANTENMAPPE": "Supplier file"
       },
       "picker": {
         "placeholder": "field name or display name",
@@ -641,9 +767,7 @@
         "title": "Core {{key}}",
         "notFound": "no core with the key {{key}} found",
         "footer": "{{fields}} fields, {{hooks}} hooks",
-        "fields": "Fields",
-        "hooks": "Hooks",
-        "noHooks": "no hooks"
+        "fields": "Fields"
       }
     },
     "look": {
@@ -671,10 +795,29 @@
       "fieldAccessNone": "nobody",
       "fieldAccessEdit": "Read: {{name}}",
       "fieldAccessIntro": "Whoever has one of these ARs in their token gets the field in every response and may filter by it. USER is the base set: everyone who sees the document. SOLR_USERS_VIEW_ALL gets every field without a tick. Every tick saves immediately.",
-      "backendOnly": "backend only",
-      "backendOnlyOf": "backend only for {{name}}: never to the client",
+      "searchWeight": "Search",
+      "searchWeightOf": "weight of {{name}} in the search: -1 not searched, 0 hit without points, click opens the slider",
+      "searchWeightEdit": "Search: {{name}}",
+      "searchWeightNone": "not indexed: Solr has nothing to search",
+      "searchWeightOff": "-1: not searched, the search words never reach the field",
+      "searchWeightZero": "0: searched, hit without points",
+      "hookRow": "Hook: in every core, technique fixed, read, search and order per core",
+      "hooksTitle": "Hooks",
+      "hooksIntro": "The hooks of this core, the same in every core. Display name, description, type and switches are fixed and come from the Hooks tab. Per core read, search and the order can be changed.",
+      "noHooks": "no hooks",
       "clientWriteRule": "Write rule",
       "clientWriteRuleOf": "write rule of {{name}}, click switches between backend, on create only and client",
+      "command": "Mapping",
+      "commandOf": "mapping line that fills {{name}}: the key from a mapping, empty means none",
+      "fieldPicker": {
+        "core": "Core",
+        "allCores": "all cores",
+        "placeholder": "field name or display name",
+        "searchAria": "Find field",
+        "shown": "{{shown}} of {{total}} fields",
+        "noMatches": "no matches",
+        "hasMapping": "already from {{key}}"
+      },
       "clientWriteRules": {
         "BACKEND_ONLY": "Backend",
         "CLIENT_SETS_ONCE": "on create only",
@@ -754,14 +897,16 @@
         "title": "Read: which ARs get the field",
         "paragraphs": [
           "Every field carries the ARs whose holders may read it. If a user has one of them in their token, the field is in their response (fl) and they may filter, sort, facet and resolve by it. Without an AR nobody reads it except SOLR_USERS_VIEW_ALL: a new field is invisible until an AR is ticked.",
-          "“Always” means: USER is ticked, the base set. Then everyone who sees the document at all gets it. Sensitive fields get a field AR instead, such as SOLR_FIELD_VIEW_CONFIDENTIAL or SOLR_FIELD_VIEW_SUPPLY. SOLR_USERS_VIEW_ALL and SOLR_USERS_VIEW_HOOKS are never set on a field, they are rights of a user.",
+          "“Always” means: USER is ticked, the base set. Then everyone who sees the document at all gets it. Sensitive fields such as sftpPath or the full text get a field AR instead, such as SOLR_FIELD_VIEW_CONFIDENTIAL; there are no fields hidden across the board. SOLR_USERS_VIEW_ALL is never set on a field, it is a right of a user.",
           "Only in our field definition, not in Solr: the sync ignores the list, the read services derive from it which fields they request. Whether a user sees the document at all is decided by the document boundary (readAcl, grant), not by this list."
         ]
       },
-      "backendOnly": {
-        "title": "backend only: never to the client",
+      "searchWeight": {
+        "title": "Search: the weight in the search",
         "paragraphs": [
-          "The field never goes to the client in any response, not even with SOLR_USERS_VIEW_ALL. The backend reads it for itself, e.g. sftpPath for the download or searchableWords for the search. With the tick the read list is empty."
+          "The search asks every search word across all fields from 0 up (the qf). The weight says how much a hit in this field counts: file name 4, index 3, description 2, full text 1, every hook 2, as in the template. 0 means searched but without points: the hit counts and is reported as a reason, but does not rank. -1 means not searched, the search words never reach the field or its twin.",
+          "The weight is locked only without indexed, then Solr has nothing to search. What counts as a hit is up to the type: text_edge and text_suche hit word prefixes or words, a field with suggest and every hook via its twin, a string without a twin only the whole value exactly (such as a pasted id).",
+          "Only in our field definition, not in Solr. A changed weighting applies with the next search."
         ]
       },
       "clientWriteRule": {
@@ -773,6 +918,13 @@
           "If the client sends a field it may not set, it is ignored, not rejected. The backend sets its fields after the client's. New fields are backend, the built-in ones always. The switch lives only in our field definition, not in Solr."
         ]
       },
+      "command": {
+        "title": "Mapping: which mapping line fills the field",
+        "paragraphs": [
+          "The key of a line from the mappings, e.g. FIRMA_NAME: when a response is taken apart by its mapping, the value of this key goes into this field. The same key may appear in several mappings, company and contact person both deliver KONTAKT_NAME.",
+          "A loose reference, only the key: the suggestion list shows all keys of the saved mappings, a key no mapping knows is shown in red. Empty means no mapping fills the field. Only in our field definition, not in Solr."
+        ]
+      },
       "type": {
         "title": "Type: the fieldType in the base schema",
         "paragraphs": [
@@ -781,6 +933,647 @@
           "text_edge: split at spaces and punctuation, all lower case, plus every word prefix from 3 characters when indexing: “rech” finds “Rechnung” in the field itself, without a twin. For everything a user types and wants to find again while typing: file name, index, description. text_suche: the full text, every word on its own, stemmed, compounds split, with synonyms: “Rechnungen” finds “Rechnung”, “Boot” finds the Kapitänschifffahrtsmütze. For both the term limit applies per token, the value itself may be arbitrarily large.",
           "Changing a type later means rebuilding the core, Solr does not rewrite old documents."
         ]
+      }
+    }
+  },
+  "abasmanager": {
+    "title": "AbasManager",
+    "tabs": {
+      "overview": "Overview"
+    },
+    "fetcher": {
+      "title": "Queue fetcher",
+      "state": {
+        "running": "RUNNING",
+        "paused": "PAUSED",
+        "notConfigured": "NOT CONFIGURED"
+      },
+      "hint": {
+        "running": "Free queue entries are fetched and processed.",
+        "paused": "The queue keeps filling, nothing is processed.",
+        "notConfigured": "Set abas_host and abas_mandant in the .env and restart the backend."
+      },
+      "workers": "{{busy}} of {{parallel}} workers busy",
+      "queue_one": "{{count}} entry in the queue",
+      "queue_other": "{{count}} entries in the queue",
+      "estimated": "estimated",
+      "sinceStart": "Since start: {{processed}} processed, {{failed}} failed.",
+      "pause": "Pause",
+      "resume": "Start",
+      "switchFailed": "Switch not flipped",
+      "footer": "Refreshes every 5 seconds."
+    },
+    "overview": {
+      "countsTitle": "Stock",
+      "countsFooter": "The big numbers come estimated from the Postgres catalog from half a million rows on.",
+      "reloadCounts": "Reload numbers",
+      "sternzeitCount": "Sternzeiten",
+      "estimated": "estimated",
+      "withoutObjectType": "without object type",
+      "queueCount": "in the queue",
+      "queueClaimed": "in progress",
+      "queueFailed": "with errors",
+      "ignoredCount": "ignored",
+      "enqueueTitle": "Enqueue Sternzeit",
+      "enqueueFooter": "Fetch enqueues the id for fetching, Delete for resolving in the core. Both check the ignore list.",
+      "sternzeitPlaceholder": "(87448,19,0)",
+      "sternzeitRule": "Full bracket form (number,database,group), at most 30 characters.",
+      "fetch": "Fetch",
+      "delete": "Delete",
+      "queuedFetch": "{{sternzeit}} is enqueued for fetching.",
+      "queuedDelete": "{{sternzeit}} is enqueued for deletion.",
+      "alreadyQueued": "{{sternzeit}} was already in the queue like this.",
+      "notQueued": "Not enqueued",
+      "ignore": "Ignore",
+      "ignoreTitle": "Ignore Sternzeit",
+      "ignoreIntro": "<strong>{{sternzeit}}</strong> goes on the ignore list: every enqueue is refused, a waiting queue entry is removed. The master record stays.",
+      "ignoreReason": "Reason, optional",
+      "ignored": "{{sternzeit}} is ignored.",
+      "ignoreRow": "Ignore {{sternzeit}}",
+      "deleteTitle": "Delete Sternzeit",
+      "deleteQuestion": "Enqueue <strong>{{sternzeit}}</strong> for deletion? The worker resolves it in the core and removes the master record.",
+      "listTitle": "Sternzeiten",
+      "searchPlaceholder": "exact Sternzeit, e.g. (87448,19,0)",
+      "showList": "back to the list",
+      "found": "The master record of {{sternzeit}}.",
+      "notFound": "There is no master record for {{sternzeit}}.",
+      "notFoundShort": "no master record",
+      "empty": "No Sternzeiten yet.",
+      "pageInfo_one": "{{count}} Sternzeit on this page, ascending by id.",
+      "pageInfo_other": "{{count}} Sternzeiten on this page, ascending by id.",
+      "toStart": "To the start",
+      "next": "Next",
+      "columns": {
+        "sternzeit": "Sternzeit",
+        "objectType": "Object type",
+        "objectTypeHint": "The type string as ABAS delivers it, e.g. obj:data:2:1 for articles. Known only after the first fetch.",
+        "firstPushedAt": "in the core since",
+        "firstPushedAtHint": "When ABAS pushed this id for the first time. Written only when the row is created.",
+        "lastSyncAt": "last synchronized",
+        "lastSyncAtHint": "When the id was last fetched successfully.",
+        "fetchCount": "Fetches"
+      },
+      "noObjectType": "not fetched yet",
+      "neverSynced": "never",
+      "fetchRow": "Enqueue {{sternzeit}} for fetching",
+      "viewResponse": "View the ABAS response for {{sternzeit}}",
+      "deleteRow": "Enqueue {{sternzeit}} for deletion",
+      "responseTitle": "ABAS response for {{sternzeit}}",
+      "responseLoading": "asking ABAS …",
+      "responseFailed": "No response: {{error}}"
+    },
+    "queue": {
+      "title": "Queue, the next 50",
+      "footer": "FIFO order, refreshes every 5 seconds.",
+      "empty": "The queue is empty.",
+      "waiting": "waiting",
+      "columns": {
+        "sternzeit": "Sternzeit",
+        "action": "Action",
+        "source": "Source",
+        "queuedAt": "enqueued",
+        "claimedAt": "in progress since",
+        "attempts": "Attempts",
+        "lastError": "last error"
+      },
+      "action": {
+        "fetch": "FETCH",
+        "delete": "DELETE"
+      },
+      "source": {
+        "abas": "ABAS",
+        "admin": "Admin",
+        "import": "Import"
+      }
+    },
+    "transfer": {
+      "title": "Export and import",
+      "footer": "The export writes one line per record with star time and object type. The import reads an inventory, JSON or text and queues only the chosen groups for fetching; blocked ones stay out. Both run as a stream, even for very large files.",
+      "exportText": "All star times with object type as a file that can be imported again.",
+      "exportButton": "Export",
+      "dropzone": "Drag an import file here or click: inventory, JSON or text",
+      "check": "Check",
+      "uploading": "Uploaded: {{percent}} %",
+      "reading": "Star times read: {{count}}",
+      "importProgress": "Read: {{found}}, queued: {{queued}}",
+      "checkSummary": "Star times in the file: {{count}}, duplicates included. Invalid values under the key sternzeit: {{invalid}}. Choose the groups to fetch.",
+      "noSternzeit": "The file contains no star time.",
+      "columns": {
+        "select": "Choice",
+        "group": "Object type",
+        "count": "Count",
+        "example": "Example"
+      },
+      "groupHint": "If the file names the object type, each group is one type. Without a type only the database remains, the middle number of the star time.",
+      "groupDatabase": "Database {{number}}, without object type",
+      "groupUnknown": "without object type and database",
+      "selectGroup": "Import {{group}}",
+      "import": "Import",
+      "importedTitle": "Import finished",
+      "importFailedTitle": "Import failed",
+      "resultText": "Read: {{found}}. Not chosen: {{filtered}}. Queued: {{queued}}. Already queued or duplicate: {{skipped}}. Blocked: {{ignored}}."
+    }
+  },
+  "infosys": {
+    "title": "Infosystems",
+    "tabs": {
+      "calls": "Calls",
+      "run": "Run"
+    },
+    "calls": {
+      "title": "Stored infosystem calls",
+      "intro": "Per call the URL ending (group and name) and the request body as a template. What changes per call is a placeholder {{name}} in it, usually a number; a subfetch in the mapping only fills the placeholders.",
+      "count_one": "{{count}} call",
+      "count_other": "{{count}} calls",
+      "empty": "No call stored yet.",
+      "deleteTitle": "Delete infosystem call",
+      "deleteQuestion": "Really delete the call <strong>{{key}}</strong>? A subfetch pointing to it will then report it as missing when run.",
+      "editTitle": "Edit call: {{key}}",
+      "editTitleNone": "Edit call",
+      "notFound": "no call chosen or not found",
+      "columns": {
+        "call": "Call",
+        "placeholders": "Inputs",
+        "displayContextKeys": "Display places"
+      },
+      "form": {
+        "group": "Group",
+        "name": "Name",
+        "urlPreview": "The request goes to",
+        "fields": "Fields of the infosystem",
+        "fieldsHint": "Choose group and name from the list, then the fields appear here: a click appends a field as a placeholder to the template, a button (▶) without value.",
+        "template": "Request body as template",
+        "templateHint": "JSON with the list actions. Every placeholder {{name}} is an input of the call.",
+        "placeholders": "Inputs:",
+        "noPlaceholders": "No placeholders, the call needs no input.",
+        "displayContextKeys": "Display places",
+        "displayContextKeysHint": "Where the call appears by itself, one key per place following the key rule. ARTIKELMAPPE means: a tab of the article file, the placeholders are then named like the fields of the article they are filled from (artikelNummer); known: {{known}}"
+      }
+    },
+    "run": {
+      "title": "Run a stored call",
+      "hint": "Choose a call, fill in the inputs, fetch. The response appears below as a tree, just as a subfetch would get it.",
+      "call": "Call",
+      "chooseCall": "Choose a call …",
+      "noCalls": "No call stored yet, create one in the “Calls” tab first.",
+      "inputPlaceholder": "Value for {{name}}"
+    }
+  },
+  "mapping": {
+    "title": "Mapping",
+    "tabs": {
+      "overview": "Mappings",
+      "jsonView": "JSON view",
+      "abasFetch": "Fetch from ABAS",
+      "execute": "Execute"
+    },
+    "overview": {
+      "title": "Mappings",
+      "intro": "One overall mapping per response type: the type with its identifying fields, the target, and per line the source in the JSON, an optional condition and the key. Created at the tree, in the JSON view or at “Fetch from ABAS”.",
+      "empty": "No mapping yet.",
+      "count_one": "{{count}} mapping",
+      "count_other": "{{count}} mappings",
+      "filteredCount": "{{shown}} of {{count}} mappings",
+      "filterPlaceholder": "filter by name, target, type, key",
+      "columns": {
+        "responseObjectType": "Type and identifying fields",
+        "target": "Target",
+        "lines": "Lines",
+        "ignored": "Ignored"
+      },
+      "noTarget": "no target, subfetch only",
+      "deleteTitle": "Delete mapping",
+      "deleteQuestion": "Really delete the mapping <strong>{{key}}</strong>?",
+      "notFound": "This mapping does not exist.",
+      "editTitle": "Edit {{key}}",
+      "editTitleNone": "Edit mapping"
+    },
+    "editor": {
+      "name": "Name",
+      "targetKey": "Target",
+      "targetKeyHint": "SOLR_<CORE> for the document this response fills; empty for a response used only as a subfetch",
+      "responseObjectType": "Response type",
+      "responseObjectTypePlaceholder": "e.g. obj:data:19:0",
+      "conditions": "Identifying fields",
+      "conditionsHint": "Together with the type they identify the response, e.g. grbez.value equals Ansprechpartner. In the draft, the funnel on a line turns it into one.",
+      "conditionPath": "Address",
+      "conditionEquals": "Value",
+      "addCondition": "Add field",
+      "removeCondition": "Remove field",
+      "lines": "Lines",
+      "linesEmpty": "No line yet: click fields in the response.",
+      "columns": {
+        "kind": "Kind",
+        "source": "Source",
+        "onlyIf": "Condition",
+        "key": "Key",
+        "sample": "Sample",
+        "id": "Id",
+        "values": "Value(s)",
+        "path": "JSON path",
+        "solrFields": "Solr fields"
+      },
+      "solrFieldsHint": "The fields this key fills: solr_field.command, the same reference as the Mapping column in the core tab. Linking and unlinking works here as there; offered are the fields of the target core without a mapping.",
+      "linkSolrField": "Link field …",
+      "unlinkSolrField": "Unlink",
+      "linkNeedsKey": "assign the key first",
+      "linked": "Field {{field}} is filled from {{key}}",
+      "unlinked": "Link of {{field}} removed",
+      "idHint": "PK is the unique id of the document, at most once. COMPOSITE extends the PK to the identity, e.g. the position number to the Sternzeit of the opportunity. ALT is unique too, the PK wins in doubt; searching by this value makes sense. Which value it is, the key says, e.g. FIRMA_NUMMER.",
+      "idNone": "–",
+      "idPrimary": "PK",
+      "idComposite": "COMPOSITE",
+      "idAlternative": "ALT",
+      "noValue": "no value in the response",
+      "listCount_one": "{{count}} element",
+      "listCount_other": "{{count}} elements",
+      "fetchWay": "Fetch way",
+      "kindValue": "Value",
+      "kindSubfetchSternzeit": "Subfetch Sternzeit",
+      "kindSubfetchInfosys": "Subfetch infosystem",
+      "sourceHint": "The address in the JSON. For a list, the list goes in the first row and the sub key per element in the second: [*] all, [artikel] where the field is filled, [typa=…] one value.",
+      "sourcePlaceholder": "$.content.data.head.fields.name.value",
+      "elementPlaceholder": "per element, e.g. fields.artikel.text",
+      "onlyIfHint": "Only if the address holds the value.",
+      "onlyIfPathPlaceholder": "only if address",
+      "onlyIfEqualsPlaceholder": "equals value",
+      "keyHint": "The same key twice is a cascade, the first value wins. Linked to a Solr field later.",
+      "addLine": "Add line",
+      "removeLine": "Remove line",
+      "makeCondition": "Make identifying field",
+      "ignored": "Ignored",
+      "noIgnored": "nothing ignored",
+      "removeIgnored": "show again",
+      "jumpToValue": "Jump to this place in the JSON",
+      "positionsNotSaved": "Order not saved",
+      "fetchSubfetch": "Fetch the subfetch now, the response appears below the main response",
+      "kindTable": "Table",
+      "tableNoColumns": "no column yet",
+      "tableRowCount_one": "{{count}} row",
+      "tableRowCount_other": "{{count}} rows",
+      "tableColumnName": "Column name",
+      "removeTableColumn": "Remove column",
+      "subfetch": {
+        "title": "Subfetches",
+        "hint": "Further responses to this response: first choose the kind, star time or infosystem, then each input from the JSON (the address where the value is, by click in the tree) or static. The response is decomposed by the mapping of its type, the values land in the same document.",
+        "empty": "No subfetch yet.",
+        "keyHint": "The key of the subfetch, only for display and in warnings; the values carry the keys of the sub-mapping.",
+        "target": "Target",
+        "targetHint": "For an infosystem the stored call from the AbasManager, with group, name and body template.",
+        "sternzeitTarget": "the object of the star time, all head fields",
+        "chooseInfosys": "Choose infosystem …",
+        "noInfosysStored": "No call stored: create one in the AbasManager under Infosystems.",
+        "inputs": "Inputs",
+        "inputsHint": "For the star time fetch the star time, for the infosystem the placeholders of its template. From JSON: the address in this response. Static: a fixed value.",
+        "noInputs": "The call needs no input.",
+        "sourceOfInput": "Where the value comes from",
+        "fromJson": "from JSON",
+        "static": "static",
+        "staticPlaceholder": "fixed value",
+        "inputPath": "Address for {{name}}",
+        "inputValue": "Value for {{name}}",
+        "pickInTree": "Pick in tree: the next click sets the address",
+        "pickingHint": "Now click the value in the tree, or cancel here",
+        "perRow": "per row of",
+        "perRowHead": "head, once",
+        "perRowHint": "Empty: the subfetch runs once for the head of the response. A table line: it runs per row of that table, the input addresses then apply per row (fields.name.value), and the sub-response is attached to the row under the subfetch's key."
+      }
+    },
+    "draft": {
+      "title": "Mapping draft",
+      "empty": "No draft yet: fetch a response first, then click fields in it.",
+      "hint": "A click on a field makes it a line, a second click removes it; the eye ignores a node. A clicked Sternzeit or a clicked value used in the next request makes that request a subfetch with its own draft.",
+      "mainJson": "JSON {{name}}",
+      "mainSternzeit": "Sternzeit {{sternzeit}}",
+      "mainInfosys": "Call {{key}}",
+      "save": "Save mapping",
+      "saved": "Mapping {{key}} saved",
+      "update": "Update mapping",
+      "updated": "Mapping {{key}} updated",
+      "existingTitle": "Mappings for {{type}}:",
+      "existingNone": "none yet, this one will be the first",
+      "existingMatches": "matches the response",
+      "startFresh": "new mapping",
+      "discard": "Discard drafts",
+      "started": "New mapping draft started",
+      "hideIgnored": "hide ignored",
+      "ignore": "Ignore",
+      "subfetchFetched": "Subfetch fetched, its response gets its own draft above the shown one",
+      "subfetchFetchedFirstRow": "Subfetch fetched for the first row of the table, its response gets its own draft above the shown one",
+      "inputPathPicked": "Address for {{name}} set",
+      "customFieldsUnmapped_one": "{{count}} y field without an entry (custom field of the company, always stored):",
+      "customFieldsUnmapped_other": "{{count}} y fields without an entry (custom fields of the company, always stored):",
+      "customFieldsRecorded_one": "{{count}} y field added as an entry",
+      "customFieldsRecorded_other": "{{count}} y fields added as entries"
+    },
+    "execute": {
+      "title": "Bring a Sternzeit into the core through its mapping",
+      "hint": "Preview fetches the response, runs the mapping and shows the document. Write does the same and writes it into the core.",
+      "running": "Asking ABAS, running the mapping …",
+      "preview": "Preview",
+      "write": "Write to Solr",
+      "written": "Document {{id}} written to the core",
+      "resultTitle": "Mapping {{mapping}} on {{type}}",
+      "resultFooter": "Target {{target}}, PRIMARY {{primary}}",
+      "noValue": "no value",
+      "noValues": "no values",
+      "documentTitle": "Document {{id}}, as it would be written",
+      "documentWrittenTitle": "Document {{id}}, written",
+      "documentFooter": "{{count}} fields",
+      "columns": {
+        "field": "Solr field",
+        "value": "Value"
+      },
+      "warnings": "Warnings: {{warnings}}"
+    },
+    "jsonView": {
+      "loadTitle": "Load JSON",
+      "loadHint": "Drop a file or paste text, any size.",
+      "dropzone": "drag a JSON file here or click",
+      "pastePlaceholder": "or paste JSON here",
+      "pastedSource": "pasted",
+      "show": "Show",
+      "parseError": "Not readable JSON: {{error}}",
+      "fileUnreadable": "The file could not be read.",
+      "loaded": "Loaded: {{name}}, {{size}}.",
+      "treeTitle": "Tree",
+      "searchPlaceholder": "search key or value",
+      "selectHint": "A click on a key shows its path.",
+      "copyPath": "Copy path",
+      "pathCopied": "Path copied",
+      "pathNotCopied": "Path not copied"
+    },
+    "abasFetch": {
+      "sternzeitTitle": "Object by Sternzeit",
+      "sternzeitLabel": "Sternzeit",
+      "sternzeitPlaceholder": "(87448,19,0)",
+      "headFieldsLabel": "Head fields",
+      "headFieldsPlaceholder": "empty means all (*), else e.g. nummer, name, such",
+      "tableFieldsLabel": "Table fields",
+      "tableFieldsPlaceholder": "empty means not sent, else e.g. elem, menge",
+      "previewLabel": "This is the request sent to ABAS:",
+      "previewHint": "The preview shows exactly the request the backend sends to ABAS.",
+      "baseUrlUnknown": "ABAS is not configured, the server address is missing.",
+      "fetch": "Fetch",
+      "downloadJson": "Download response as JSON",
+      "fetching": "Asking ABAS …",
+      "failed": "Failed: {{error}}",
+      "infosysTitle": "Infosystem via a stored call",
+      "groupPlaceholder": "e.g. st",
+      "namePlaceholder": "e.g. CUSTOMERPRODUCT",
+      "addPair": "Add key",
+      "addAction": "Add action",
+      "responseTitle": "Response to",
+      "subfetchTitle": "Subfetch response {{key}}",
+      "subfetchNoValue": "Subfetch {{key}}: the input {{name}} has no value in this response",
+      "subfetchFailed": "Subfetch failed",
+      "subfetchNoInfosys": "Subfetch {{key}}: the infosystem {{infosys}} is not stored",
+      "subfetchNoRow": "Subfetch {{key}}: the table {{table}} has no row in this response"
+    }
+  },
+  "usersPicker": {
+    "placeholder": "type an e-mail, from two characters",
+    "noMatch": "no user with this e-mail"
+  },
+  "artikel": {
+    "title": "Articles",
+    "status": "Article {{artikelNummer}}",
+    "originLabel": "Article {{artikelNummer}}",
+    "tabs": {
+      "overview": "Overview",
+      "documents": "Documents",
+      "bom": "Bill of materials",
+      "operations": "Operations",
+      "tools": "Tools",
+      "alternatives": "Alternatives",
+      "goesWith": "Goes with",
+      "requires": "Requires",
+      "customer": "Customer",
+      "supplier": "Supplier",
+      "details": "Details",
+      "inspections": "Inspections"
+    },
+    "entry": {
+      "title": "Open an article file",
+      "number": "Article number",
+      "placeholder": "e.g. 610762",
+      "open": "Open file",
+      "hint": "The other way into an article file is the search in the core Articles.",
+      "toSearch": "to the search"
+    },
+    "fetchFromAbas": {
+      "fetching": "Article {{artikelNummer}} is not in the core, asking ABAS …",
+      "unknown": "Article {{artikelNummer}} is known neither in the core nor at ABAS."
+    },
+    "overview": {
+      "title": "Master data",
+      "columns": {
+        "field": "Field",
+        "value": "Value"
+      },
+      "noFacts": "No master data in the mirror.",
+      "noPreview": "no preview image",
+      "sternzeit": "Star time {{sternzeit}}",
+      "syncedAt": "last mirrored {{date}}",
+      "syncStatus": "Sync {{status}}",
+      "family": {
+        "title": "Family ({{count}})",
+        "number": "Article number",
+        "name": "Name",
+        "role": "Role",
+        "master": "Master"
+      }
+    },
+    "details": {
+      "title": "Details",
+      "empty": "No further fields filled.",
+      "columns": {
+        "field": "Field",
+        "value": "Value"
+      },
+      "sections": {
+        "designation": "Designation",
+        "units": "Units",
+        "commercial": "Commercial",
+        "stock": "Stock",
+        "weight": "Weight and volume",
+        "classification": "Classification",
+        "flags": "Flags",
+        "pahling": "Pahling",
+        "audit": "Audit and sync",
+        "remaining": "Remaining fields"
+      }
+    },
+    "documents": {
+      "title": "Documents from the DMS",
+      "empty": "No file in the DMS for this article and its family.",
+      "count_one": "{{count}} document",
+      "count_other": "{{count}} documents",
+      "noAccess": "You lack the AR {{role}} for the documents."
+    },
+    "pairList": {
+      "count_one": "{{count}} row",
+      "count_other": "{{count}} rows",
+      "empty": "No entries in the mirror.",
+      "emptyCustomer": "No customer relations in the mirror (source: infosystem CUSTOMERPRODUCT).",
+      "emptySupplier": "No supplier relations in the mirror (source: 21:0 object).",
+      "manufacturer": "Manufacturer",
+      "emptyManufacturer": "No manufacturer recorded."
+    },
+    "references": {
+      "depth": "Depth across alternatives",
+      "recompute": "search again",
+      "loading": "Searching connections …",
+      "stateOf": "As of {{date}}, depth {{depth}}",
+      "truncated": "Truncated: there are more connections than the backend stores.",
+      "empty": "No connections found.",
+      "failed": "Failed: {{error}}",
+      "columns": {
+        "artikelNummer": "Article",
+        "name": "Name",
+        "distance": "Distance",
+        "path": "Path",
+        "direction": "Direction"
+      },
+      "distance_one": "{{count}} relation",
+      "distance_other": "{{count}} relations",
+      "listed": "listed at {{via}}",
+      "reverse": "lists {{via}} in its own list"
+    },
+    "search": {
+      "master": "Master",
+      "slaveOf": "Slave of {{masterNumber}}"
+    },
+    "tableColumns": {
+      "zn": "Pos",
+      "elem": "Star time",
+      "elemText": "Number",
+      "documents": "Documents",
+      "zid": "Row id",
+      "elname": "Name",
+      "menge": "Quantity",
+      "elle": "Unit",
+      "telementicon": "Type",
+      "mgrname": "Work center",
+      "zesek": "Unit time (s)",
+      "zrsek": "Setup time (s)"
+    },
+    "tableRowInAbas": "open {{value}} in ABAS",
+    "nachladen": {
+      "loading": "Asking ABAS …",
+      "failed": "Not loaded: {{error}}",
+      "empty": "ABAS returns nothing for this.",
+      "mapping": "Mapping {{key}}",
+      "rows_one": "{{count}} row",
+      "rows_other": "{{count}} rows",
+      "warnings": "Warnings: {{warnings}}"
+    },
+    "inspections": {
+      "soll": "Target: inspection plans from the inspection setting",
+      "sollHint": "Current plan state. Older, still open inspection orders may inspect different characteristics.",
+      "noProcedure": "No inspection procedure is stored at the article.",
+      "noPlans": "The inspection setting names no inspection plans.",
+      "ist": "Actual: inspections carried out",
+      "noOrders": "No inspections carried out."
+    }
+  },
+  "belegnummer": {
+    "title": "Document number",
+    "lookupTitle": "Look up a document number",
+    "number": "Document or reference number",
+    "placeholder": "e.g. 600012",
+    "lookup": "look up",
+    "looking": "Asking ABAS …",
+    "hint": "Type in a number without knowing what it is: ABAS tells you via the stored call BELEG2ID.",
+    "notFound": "ABAS does not know the document number {{belegnummer}}.",
+    "noObjectType": "ABAS names no object type",
+    "noMapping": "no mapping for this type",
+    "inAbasHint": "open document number {{belegnummer}} in ABAS",
+    "toArtikel": "open article file {{artikelNummer}}",
+    "columns": {
+      "field": "Field",
+      "value": "Value"
+    },
+    "rows": {
+      "number": "Document number",
+      "objectType": "Object type",
+      "mapping": "Mapping",
+      "sternzeit": "Sternzeit",
+      "artikel": "Article"
+    }
+  },
+  "kontakte": {
+    "search": {
+      "company": "Company",
+      "person": "Contact person",
+      "abasHint": "Open {{kind}} {{name}} in ABAS",
+      "syncStatus": "Sync: {{status}}"
+    },
+    "mappe": {
+      "title": {
+        "KUNDE": "Customer file",
+        "LIEFERANT": "Supplier file"
+      },
+      "status": {
+        "KUNDE": "Customer {{nummer}}",
+        "LIEFERANT": "Supplier {{nummer}}"
+      },
+      "notFound": {
+        "KUNDE": "There is no company with customer number {{nummer}} in the KONTAKTE core.",
+        "LIEFERANT": "There is no company with supplier number {{nummer}} in the KONTAKTE core."
+      },
+      "tabs": {
+        "overview": "Overview",
+        "contactPersons": "Contact persons",
+        "documents": "Documents"
+      },
+      "columns": {
+        "field": "Field",
+        "value": "Value"
+      },
+      "sections": {
+        "address": "Address",
+        "communication": "Communication",
+        "business": "Business data",
+        "characteristics": "Terms and characteristics",
+        "notes": "Search term and texts",
+        "audit": "Number and sync",
+        "remaining": "Other fields"
+      },
+      "businessTitle": {
+        "KUNDE": "Business data as customer {{nummer}}",
+        "LIEFERANT": "Business data as supplier {{nummer}}"
+      },
+      "overview": {
+        "openAbasPartner": {
+          "KUNDE": "Open ABAS customer {{nummer}}",
+          "LIEFERANT": "Open ABAS supplier {{nummer}}"
+        },
+        "openAbasCompany": "Open company {{name}} in ABAS",
+        "sternzeit": "Sternzeit {{sternzeit}}",
+        "syncedAt": "synchronized {{date}}",
+        "noHooks": "The company carries no hooks."
+      },
+      "contactPersons": {
+        "columns": {
+          "name": "Name",
+          "function": "Function",
+          "phone": "Phone",
+          "mobile": "Mobile",
+          "email": "Email"
+        },
+        "empty": "No contact persons in the core.",
+        "count_one": "{{count}} contact person",
+        "count_other": "{{count}} contact persons",
+        "countFiltered": "{{shown}} of {{total}} contact persons",
+        "filterPlaceholder": "Filter contact persons from {{minimum}} characters",
+        "noMatch": "No contact person matches “{{filter}}”.",
+        "openAbas": "Open contact person {{name}} in ABAS"
+      },
+      "documents": {
+        "noAccess": "You lack the AccessRole {{role}} for the documents.",
+        "count_one": "{{count}} document",
+        "count_other": "{{count}} documents"
       }
     }
   }

@@ -5,15 +5,10 @@ import codergod1337.app1.solr.core.model.SolrCore;
 import codergod1337.app1.solr.core.service.SolrCoreService;
 import codergod1337.app1.solr.field.model.SolrField;
 import codergod1337.app1.solr.field.service.SolrFieldService;
-import codergod1337.app1.solr.grant.service.SolrAdvancedFieldGrantAccessPerCoreService;
-import codergod1337.app1.solr.grant.service.SolrHookGrantAccessService;
-import codergod1337.app1.solr.hook.model.SolrHook;
-import codergod1337.app1.solr.hook.service.SolrHookService;
 import codergod1337.app1.system.security.CurrentUsersProvider;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.springframework.http.HttpStatus;
@@ -25,11 +20,10 @@ import org.springframework.web.server.ResponseStatusException;
  * guid und den Kopien im Speicher, kein Zugriff auf Postgres, damit die Suche normaler User durch die Rechteprüfung
  * nicht langsamer wird.
  *
- * Feldachse (neu gefasst 2026-10-09): Jedes Feld und jeder Hook trägt die ARs, die es lesen dürfen
+ * Feldachse (neu gefasst 2026-10-09): Jede Zeile in solr_field, Feld wie Hook, trägt die ARs, die sie lesen dürfen
  * (readAccessRoleKeys): USER für die Grundmenge, die jeder bekommt, sonst SOLR_FIELD_VIEW_*. Ein User bekommt ein Feld,
- * wenn eine seiner Rollen dransteht. SOLR_USERS_VIEW_ALL bekommt jedes Feld und jeden Hook in jedem Kern,
- * SOLR_USERS_VIEW_HOOKS jeden Hook, {@code <KERN>_SUCHE} ebenfalls alles, denn wer suchen darf, kommt ohnehin an
- * alles. backendOnly-Felder bekommt kein Client, auch nicht mit ALL. Dieselbe Liste
+ * wenn eine seiner Rollen dransteht. SOLR_USERS_VIEW_ALL bekommt jedes Feld in jedem Kern, {@code <KERN>_SUCHE}
+ * ebenfalls alles, denn wer suchen darf, kommt ohnehin an alles. Dieselbe Liste
  * entscheidet, wonach er filtern, sortieren, facettieren und auflösen darf: Lesen heißt Auflösen, sofern das Feld
  * indexiert ist, und id immer. Die alten Feld- und Hook-Freigaben je User zählen noch mit, bis sie abgebaut sind.
  *
@@ -64,27 +58,17 @@ public class SolrCurrentUserCoreAccessService {
 	 */
 	public static final String ALL_FIELDS_ROLE_KEY = "SOLR_USERS_VIEW_ALL";
 
-	/** Jeder Hook in jedem Kern, weil Hooks in jedem Kern dieselben sind. Früher HOOK_FULL. Ebenfalls ein User-Recht. */
-	public static final String ALL_HOOKS_ROLE_KEY = "SOLR_USERS_VIEW_HOOKS";
-
 	/** Ein fq, das kein Dokument trifft: die Schreibprüfung, wo kein User schreibt */
 	private static final String FILTER_QUERY_MATCHING_NO_DOCUMENT = "-*:*";
 
 	private final SolrCoreService solrCoreService;
 	private final SolrFieldService solrFieldService;
-	private final SolrHookService solrHookService;
-	private final SolrAdvancedFieldGrantAccessPerCoreService advancedFieldGrantService;
-	private final SolrHookGrantAccessService hookGrantService;
 	private final CurrentUsersProvider currentUsersProvider;
 
 	public SolrCurrentUserCoreAccessService(SolrCoreService solrCoreService, SolrFieldService solrFieldService,
-			SolrHookService solrHookService, SolrAdvancedFieldGrantAccessPerCoreService advancedFieldGrantService,
-			SolrHookGrantAccessService hookGrantService, CurrentUsersProvider currentUsersProvider) {
+			CurrentUsersProvider currentUsersProvider) {
 		this.solrCoreService = solrCoreService;
 		this.solrFieldService = solrFieldService;
-		this.solrHookService = solrHookService;
-		this.advancedFieldGrantService = advancedFieldGrantService;
-		this.hookGrantService = hookGrantService;
 		this.currentUsersProvider = currentUsersProvider;
 	}
 
@@ -97,24 +81,16 @@ public class SolrCurrentUserCoreAccessService {
 		}
 		boolean freeTextSearchAllowed = accessRoleKeys.contains(coreKey + SEARCH_ROLE_SUFFIX);
 		boolean everyFieldAndHookReadable = freeTextSearchAllowed || accessRoleKeys.contains(ALL_FIELDS_ROLE_KEY);
-		boolean everyHookReadable = everyFieldAndHookReadable || accessRoleKeys.contains(ALL_HOOKS_ROLE_KEY);
 		UUID usersGuid = currentUsersProvider.getCurrentUsersGuid();
-		// die alten Freigaben je User zählen noch mit, bis sie abgebaut sind
-		Set<String> grantedFieldNames = everyFieldAndHookReadable ? Set.of()
-				: advancedFieldGrantService.activeGrantedAdvancedFieldNamesOfUsersInCore(usersGuid, coreKey);
-		Set<String> grantedHookKeys = everyHookReadable ? Set.of()
-				: hookGrantService.activeGrantedHookKeysOfUsers(usersGuid);
+		// Feld- und Hook-Freigaben je User gibt es nicht mehr (User 2026-10-10): Sicht nur über Rolle oder AR am Feld
 
+		// alles, was der Kern hat: Felder und Hook-Zeilen, eine Liste
 		List<SolrField> solrFields = solrFieldService.getSolrFieldsByCoreKey(coreKey);
 		List<String> readableFieldAndHookNames = new ArrayList<>();
 		List<String> exactResolveAllowedFieldAndHookNames = new ArrayList<>();
 		for (SolrField solrField : solrFields) {
-			if (solrField.isBackendOnly()) {
-				continue;
-			}
 			// id ist immer lesbar und auflösbar, egal was an seiner Zeile steht: ohne id ist kein Dokument brauchbar
 			boolean readable = SolrCore.ID_FIELD_NAME.equals(solrField.getName()) || everyFieldAndHookReadable
-					|| grantedFieldNames.contains(solrField.getName())
 					|| containsAny(solrField.getReadAccessRoleKeys(), accessRoleKeys);
 			if (!readable) {
 				continue;
@@ -122,14 +98,6 @@ public class SolrCurrentUserCoreAccessService {
 			readableFieldAndHookNames.add(solrField.getName());
 			if (solrField.isIndexed()) {
 				exactResolveAllowedFieldAndHookNames.add(solrField.getName());
-			}
-		}
-		for (SolrHook solrHook : solrHookService.getAllSolrHooks()) {
-			boolean readable = everyHookReadable || grantedHookKeys.contains(solrHook.getKey())
-					|| containsAny(solrHook.getReadAccessRoleKeys(), accessRoleKeys);
-			if (readable) {
-				readableFieldAndHookNames.add(solrHook.getKey());
-				exactResolveAllowedFieldAndHookNames.add(solrHook.getKey());
 			}
 		}
 

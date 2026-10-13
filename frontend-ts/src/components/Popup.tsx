@@ -8,6 +8,8 @@ interface PopupProps {
   title: ReactNode
   /** Inhalt des contentbox-footer */
   footer?: ReactNode
+  /** schmal (24rem statt 64rem): für ein einzelnes Bedienelement, etwa einen Regler */
+  narrow?: boolean
   onClose: () => void
   children: ReactNode
 }
@@ -18,7 +20,7 @@ interface PopupProps {
  *
  * Hängt per Portal an document.body, damit es nie in einem fremden form landet (Enter im Suchfeld schickte es sonst ab).
  */
-export function Popup({ open, title, footer, onClose, children }: PopupProps) {
+export function Popup({ open, title, footer, narrow = false, onClose, children }: PopupProps) {
   const { t } = useTranslation()
   const dialog = useRef<HTMLDialogElement>(null)
 
@@ -43,7 +45,7 @@ export function Popup({ open, title, footer, onClose, children }: PopupProps) {
   return createPortal(
     <dialog
       ref={dialog}
-      className="popup"
+      className={narrow ? 'popup popup-narrow' : 'popup'}
       onClose={onClose}
       // Klick auf den Hintergrund: das Ziel ist dann das dialog-Element selbst, nicht sein Inhalt
       onClick={(event) => {

@@ -1,27 +1,24 @@
 import { useTranslation } from 'react-i18next'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { useMasterData } from '../../components/masterDataContext.ts'
-import { translate } from '../../components/multilingual.ts'
-import { solrCoreColorStyle, solrCoreOfKey } from '../solrmanager/SolrCore.ts'
 import { SolrHookChip } from '../solrmanager/SolrHookChip.tsx'
-import type { SearchCoreFilterOffer, SearchFilterOffer } from './Search.ts'
+import type { SearchOffer } from './Search.ts'
 
 interface SearchSuggestionsProps {
-  /** die Angebote aller angewählten Kerne, ohne die schon gesetzten Filter, ohne Doppelte */
-  offers: readonly SearchCoreFilterOffer[]
+  /** die Angebote aus den Gründen der Treffer aller angewählten Kerne, ohne schon gesetzte Filter, ohne Doppelte */
+  offers: readonly SearchOffer[]
   language: LanguageCode
-  onPick: (offer: SearchFilterOffer) => void
+  onPick: (offer: SearchOffer) => void
 }
 
 /**
- * Die Filterangebote der Vervollständigung über der Eingabe, nach der Vorlage: je Angebot ein Chip, Hooks als
- * Hook-Chip, andere Felder als gestrichelte Pille mit Vorschaubild und Zusatz, wenn der Kern welche mitgibt. Klick
- * loggt das Angebot als Filter ein, Tab im Suchfeld das erste. Die kompakten Treffer der Vervollständigung zeigt die
- * Seite nicht noch einmal, die Suche darunter läuft ohnehin mit.
+ * Die Angebote über der Eingabe (User 2026-10-09): je Hook-Wert, den ein Suchwort in einem Treffer getroffen hat, ein
+ * Hook-Chip. Klick loggt ihn als Filter ein und nimmt das Suchwort aus dem Suchtext, Tab im Suchfeld den ersten. Die
+ * Angebote stecken schon in der Antwort der Suche (die Gründe), es gibt keinen eigenen Request dafür.
  */
 export function SearchSuggestions({ offers, language, onPick }: SearchSuggestionsProps) {
   const { t } = useTranslation()
-  const { solrHooks, fileSubClasses, solrCores } = useMasterData()
+  const { solrHooks } = useMasterData()
 
   if (offers.length === 0) {
     return null
@@ -30,32 +27,19 @@ export function SearchSuggestions({ offers, language, onPick }: SearchSuggestion
   return (
     <div className="search-offers">
       <span className="small text-muted">{t('search.offers.title')}</span>
-      {offers.map(({ coreKey, offer }) => {
-        const key = `${coreKey}:${offer.fieldName}=${offer.value}`
+      {offers.map((offer) => {
         const hook = solrHooks?.find((candidate) => candidate.key === offer.fieldName)
-        if (hook) {
-          return <SolrHookChip key={key} solrHook={hook} value={offer.value} language={language} onClick={() => onPick(offer)} />
+        if (!hook) {
+          return null
         }
-        const fileSubClass = offer.label === null ? undefined : fileSubClasses?.find((candidate) => candidate.key === offer.label)
-        const extra = fileSubClass ? translate(fileSubClass.displayName, language) || fileSubClass.key : offer.label
-        // ein Feld des Kerns: die Pille trägt die Farbe des Kerns, aus dem das Angebot kommt
-        const solrCore = solrCoreOfKey(solrCores, coreKey)
         return (
-          <button
-            key={key}
-            type="button"
-            className={solrCore ? 'search-filter-chip search-filter-chip-core search-offer' : 'search-filter-chip search-offer'}
-            style={solrCore ? solrCoreColorStyle(solrCore) : undefined}
-            aria-label={t('search.filters.addValue', { field: offer.fieldName, value: offer.value })}
+          <SolrHookChip
+            key={`${offer.coreKey}:${offer.fieldName}=${offer.value}`}
+            solrHook={hook}
+            value={offer.value}
+            language={language}
             onClick={() => onPick(offer)}
-          >
-            {offer.imagePreviewBase64Png !== null && (
-              <img className="search-offer-preview" src={`data:image/png;base64,${offer.imagePreviewBase64Png}`} alt="" />
-            )}
-            <span className="search-filter-chip-field">{offer.fieldName}</span>
-            <span>{offer.value}</span>
-            {extra !== null && extra !== '' && <span className="search-offer-extra">({extra})</span>}
-          </button>
+          />
         )
       })}
       <span className="small text-muted">{t('search.offers.tabHint')}</span>

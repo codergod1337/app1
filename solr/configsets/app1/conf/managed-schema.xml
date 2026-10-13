@@ -74,6 +74,21 @@
         </analyzer>
     </fieldType>
 
+    <!-- email_suggest: Suggest-Zwilling des Typs EMAIL (User 2026-10-13), wie code_suggest, aber jeder Anfang bis zur
+         vollen Länge der Adresse: 254 ist die längste erlaubte E-Mail-Adresse (RFC 5321). Die ganze Adresse klein
+         geschrieben ist damit immer ein Token, auch für das Auflösen ohne Groß- und Kleinschreibung. -->
+    <fieldType name="email_suggest" class="solr.TextField" positionIncrementGap="100">
+        <analyzer type="index">
+            <tokenizer class="solr.KeywordTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+            <filter class="solr.EdgeNGramFilterFactory" minGramSize="3" maxGramSize="254" preserveOriginal="true"/>
+        </analyzer>
+        <analyzer type="query">
+            <tokenizer class="solr.KeywordTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+        </analyzer>
+    </fieldType>
+
     <!-- id: der uniqueKey muss beim Anlegen des Kerns da sein. stored und docValues zieht das Backend aus Postgres nach. -->
     <field name="id" type="string" indexed="true" stored="true" required="true" multiValued="false"/>
 

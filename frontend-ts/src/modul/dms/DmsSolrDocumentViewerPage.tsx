@@ -13,6 +13,7 @@ import { Subheader } from '../../components/Subheader.tsx'
 import { solrHookValuesOf } from '../solrmanager/SolrHook.ts'
 import { SolrHookFields } from '../solrmanager/SolrHookFields.tsx'
 import { dmsFieldLabel, dmsFileDownloadUrl, getDmsSolrDocument, type DmsSolrDocumentForClient } from './Dms.ts'
+import { DmsPdfViewer } from './DmsPdfViewer.tsx'
 import { DmsSolrDocumentActionButtons } from './DmsSolrDocumentActionButtons.tsx'
 import { dmsViewerKindOfFileExtension } from './dmsViewerByFileExtension.ts'
 
@@ -133,6 +134,8 @@ export function DmsSolrDocumentViewerPage() {
     )
   } else if (viewerKind === 'image') {
     area = <DmsImageViewer id={id} fileName={fileName} />
+  } else if (viewerKind === 'pdf') {
+    area = <DmsPdfViewer id={id} fileName={fileName} />
   } else {
     area = <p className="text-warning mb-0">{t('dms.viewer.noViewer')}</p>
   }

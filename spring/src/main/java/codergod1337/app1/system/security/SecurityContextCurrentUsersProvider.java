@@ -71,6 +71,12 @@ public class SecurityContextCurrentUsersProvider implements CurrentUsersProvider
 		return requireJwt().<Number>getClaim(JwtConfig.CLAIM_SESSION).intValue();
 	}
 
+	/** Fehlt der Claim, etwa in einem Token von vor dem Debuff-Bau, gilt false. */
+	@Override
+	public boolean hasCurrentUsersDebuffs() {
+		return Boolean.TRUE.equals(requireJwt().getClaimAsBoolean(JwtConfig.CLAIM_DEBUFFS));
+	}
+
 	@Override
 	public Instant getCurrentUsersTokenExpiresAt() {
 		return requireJwt().getExpiresAt();

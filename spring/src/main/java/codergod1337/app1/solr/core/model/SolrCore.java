@@ -60,8 +60,9 @@ public class SolrCore {
 
 	/**
 	 * Das Feld id: der Primärschlüssel (uniqueKey) jedes Kerns. Eine Zeile in solr_field ohne Kern, also in jedem Kern,
-	 * auf Platz 1, aus dem Code (User 2026-10-09). Das Basis-Configset hat es schon beim Anlegen des Kerns, der Abgleich
-	 * zieht nur die Schalter nach. Was hineinkommt, sagt der Code des Kerns, z. B. beim DMS der Hash der Bytes.
+	 * auf Platz 1, angelegt im Kern-Tab oder per Import wie jedes Feld (User 2026-10-09). Das Basis-Configset hat es
+	 * schon beim Anlegen des Kerns, der Abgleich zieht nur die Schalter nach. Was hineinkommt, sagt der Code des Kerns,
+	 * z. B. beim DMS der Hash der Bytes.
 	 */
 	public static final String ID_FIELD_NAME = "id";
 
@@ -77,7 +78,7 @@ public class SolrCore {
 	 */
 	public static final String USER_GRANTED_ACCESS_FIELD_NAME = "userGrantedAccess";
 
-	/** Die Felder, die jeder Kern hat und die nie ein Client setzt: alle drei ohne Kern in solr_field, aus dem Code */
+	/** Die Felder, die jeder Kern hat und die nie ein Client setzt: alle drei als Zeilen ohne Kern in solr_field */
 	public static final Set<String> BUILT_IN_FIELD_NAMES = Set.of(ID_FIELD_NAME, CURSOR_DATE_FIELD_NAME,
 			USER_GRANTED_ACCESS_FIELD_NAME);
 

@@ -76,6 +76,15 @@ public class FileSubClass {
 	@Column(columnDefinition = "text[]")
 	private List<String> extensions;
 
+	/**
+	 * Die Anzeigeorte (User 2026-10-10): Keys der Stellen, die diese Dateiart als Abschnitt zeigen und zum Hochladen
+	 * anbieten, z. B. ARTIKELMAPPE, KUNDENDATEN. Normale Key-Regel, gepflegt im Admin. So steht im Katalog, welche
+	 * Dateiart in welche Mappe gehört, und kein Code zählt Dateiarten auf. Leer heißt: nirgends als Abschnitt.
+	 */
+	@JdbcTypeCode(SqlTypes.ARRAY)
+	@Column(columnDefinition = "text[]")
+	private List<String> displayContextKeys;
+
 	/** Für JPA und Jackson. */
 	protected FileSubClass() {
 	}
@@ -83,7 +92,7 @@ public class FileSubClass {
 	/** Admin und Import: jedes Feld. */
 	public FileSubClass(String key, String displayName, String description, int listingPosition,
 			AccessRoleSymbol symbol, String color, List<String> readAccessRoleKeys, List<String> writeAccessRoleKeys,
-			List<String> extensions) {
+			List<String> displayContextKeys, List<String> extensions) {
 		this.key = key;
 		this.displayName = displayName;
 		this.description = description;
@@ -92,6 +101,7 @@ public class FileSubClass {
 		this.color = color;
 		this.readAccessRoleKeys = readAccessRoleKeys;
 		this.writeAccessRoleKeys = writeAccessRoleKeys;
+		this.displayContextKeys = displayContextKeys;
 		this.extensions = extensions;
 	}
 
@@ -153,6 +163,15 @@ public class FileSubClass {
 
 	public void setWriteAccessRoleKeys(List<String> writeAccessRoleKeys) {
 		this.writeAccessRoleKeys = writeAccessRoleKeys;
+	}
+
+	/** Nie null: eine alte Zeile ohne Wert oder ein Import ohne das Feld gilt als nirgends gezeigt. */
+	public List<String> getDisplayContextKeys() {
+		return displayContextKeys != null ? displayContextKeys : List.of();
+	}
+
+	public void setDisplayContextKeys(List<String> displayContextKeys) {
+		this.displayContextKeys = displayContextKeys;
 	}
 
 	public List<String> getExtensions() {

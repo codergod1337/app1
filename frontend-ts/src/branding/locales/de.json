@@ -31,11 +31,26 @@
     "symbolSearchPlaceholder": "suchen, z. B. shield, star, crown, desk",
     "keyRule": "nur A–Z, 0–9 und _, beginnt und endet mit einem Großbuchstaben, nie zwei _ hintereinander",
     "keyRuleWithPrefix": "beginnt mit {{prefix}}, {{rule}}",
-    "solrFieldNameRule": "beginnt mit einem Buchstaben, dann Buchstaben, Ziffern und _, endet nicht auf _ oder Suggested, nicht id",
+    "solrFieldNameRule": "beginnt mit einem Buchstaben, dann Buchstaben, Ziffern und _, endet nicht auf _ oder Suggested",
     "valuesInputAria": "Wert eingeben, Leertaste, Tab oder Enter loggt ein",
     "removeValue": "{{value}} entfernen",
     "search": "suchen",
     "noMatches": "keine Treffer",
+    "loadingProgress": {
+      "received": "{{received}} von {{total}} ({{percent}} %)",
+      "remaining": "noch ca. {{duration}}",
+      "seconds_one": "{{count}} s",
+      "seconds_other": "{{count}} s",
+      "minutesSeconds": "{{minutes}} min {{seconds}} s"
+    },
+    "jsonTree": {
+      "array_one": "[{{count}} Element]",
+      "array_other": "[{{count}} Elemente]",
+      "object_one": "{{{count}} Feld}",
+      "object_other": "{{{count}} Felder}",
+      "expand": "aufklappen",
+      "collapse": "zuklappen"
+    },
     "dropzone": "Datei hierher ziehen oder klicken",
     "dropzoneMultiple": "Dateien hierher ziehen oder klicken",
     "takePhoto": "Foto aufnehmen",
@@ -46,7 +61,10 @@
       "BEVEL": "3D gewölbt",
       "RADIAL": "von der Mitte nach außen",
       "METAL": "Metall"
-    }
+    },
+    "openInAbas": "öffnen",
+    "openInAbasLabel": "in ABAS öffnen: {{sternzeit}}",
+    "sternzeit": "Sternzeit {{sternzeit}}"
   },
   "layout": {
     "backTo": "zurück zu {{label}}",
@@ -72,24 +90,52 @@
     "tiles": {
       "admin": "Administration",
       "solrManager": "SolrManager",
+      "abasManager": "AbasManager",
+      "mapping": "Mapping",
       "dms": "DMS",
       "grant": "Freigaben",
       "graph": "GraphManager",
-      "search": "Suche"
+      "search": "Suche",
+      "artikel": "Artikel",
+      "infosys": "Infosysteme",
+      "belegnummer": "Belegnummer"
     },
     "entryAccessRoles": {
       "symbolLabel": "Welche AR dieses Modul öffnen",
       "oneOf_one": "Diese AR öffnet das Modul:",
       "oneOf_other": "Eine dieser AR öffnet das Modul:",
       "missingHint": "Gedimmt: Die hast du nicht.",
-      "insideHint": "Was du darin darfst, bestimmen weitere AR im Modul."
+      "insideHint": "Was du darin darfst, bestimmen weitere AR im Modul.",
+      "loginRequired": "Für jeden Angemeldeten, ohne besondere AR."
     },
     "noModules": "Für dich gibt es hier noch keine Module.",
     "noModulesAnonymous": "Hier gibt es noch keine Module ohne Anmeldung. Melde dich an, um mehr zu sehen."
   },
   "admin": {
     "tabs": {
-      "entityStates": "Status"
+      "entityStates": "Status",
+      "fileSubClassDestinations": "Anzeigeorte",
+      "fileSubClassMatrix": "FSC-Matrix"
+    },
+    "debuffs": {
+      "title": "Debuffs",
+      "intro": "Einschränkungen für diesen User. Auflösen: Bei jeder Auflösung bekommt das Feld nur die hinterlegten Pflichtwerte, egal wonach er fragt.",
+      "empty": "keine Debuffs",
+      "popupTitle": "Neuer Debuff",
+      "type": "Typ",
+      "types": {
+        "RESOLVE": "Auflösen: Pflichtwerte je Feld"
+      },
+      "field": "Feld oder Hook",
+      "fieldSearchPlaceholder": "Feld oder Hook suchen",
+      "everyCore": "in jedem Kern",
+      "hooks": "Hooks, in jedem Kern",
+      "noFields": "kein Feld und kein Hook passt",
+      "change": "ändern",
+      "values": "Pflichtwerte",
+      "valuesPlaceholder": "Wert, z. B. 4711",
+      "deleteLabel": "Debuff {{field}} entfernen",
+      "sessionsEnd": "Nach dem Speichern enden alle Sitzungen des Users, damit sein Token den Debuff kennt."
     }
   },
   "entitystate": {
@@ -107,10 +153,56 @@
     "scopeHint": "leer: gilt überall",
     "everywhere": "überall"
   },
+  "filesubclassdestination": {
+    "title": "Anzeigeorte",
+    "intro": "Die Stellen in der Oberfläche, an denen Dateiarten als Abschnitt stehen und zum Hochladen angeboten werden, z. B. der Dokumente-Tab der Artikelmappe, die Kundenmappe, die Lieferantenmappe. Welche Dateiart an welchen Ort gehört, steht an der Dateiart. Der Code eines Ortes nennt seinen Key selbst.",
+    "count_one": "{{count}} Anzeigeort",
+    "count_other": "{{count}} Anzeigeorte",
+    "empty": "keine Anzeigeorte",
+    "deleteTitle": "Anzeigeort löschen",
+    "deleteQuestion": "Soll der Anzeigeort <strong>{{key}}</strong> wirklich gelöscht werden? Das geht nur, solange keine Dateiart und kein Aufruf ihn trägt.",
+    "editTitle": "Anzeigeort bearbeiten: {{key}}",
+    "editTitleNone": "Anzeigeort bearbeiten",
+    "notFound": "kein Anzeigeort gewählt oder nicht gefunden",
+    "keyHint": "Der Code des Ortes nennt diesen Key, z. B. ARTIKELMAPPE_DOKUMENTE für den Dokumente-Tab der Artikelmappe.",
+    "description": "Beschreibung",
+    "fileSubClassCount": "Dateiarten"
+  },
+  "fscmatrix": {
+    "rowsLabel": "Endung, Anzeigeort",
+    "columnsLabel": "Dateiart",
+    "brushOn": "Pinsel: setzen, also Endung freischalten oder Anzeigeort zuweisen",
+    "brushOff": "Pinsel: entfernen, also Endung abschalten oder Anzeigeort wegnehmen",
+    "withoutGroup": "ohne Gruppe",
+    "dangerousHint": "Achtung: heikles Format. Freischalten geht, aber nur bewusst.",
+    "destinations": "Anzeigeorte",
+    "extensionOn": "frei",
+    "extensionOff": "nicht frei",
+    "destinationOn": "zugewiesen",
+    "destinationOff": "nicht zugewiesen",
+    "pending": ", noch nicht gespeichert",
+    "cellGroup": "alle Endungen der Gruppe für {{key}} umschalten{{pending}}",
+    "cellExtension": ".{{extension}} für {{key}}: {{state}}{{pending}}",
+    "cellDestination": "{{destination}} für {{key}}: {{state}}{{pending}}",
+    "extensionsSavedTitle": "Endungen gespeichert",
+    "destinationsSavedTitle": "Anzeigeorte gespeichert",
+    "savedText": "Alles sicher in der Datenbank: {{cells}} an {{fileSubClasses}}.",
+    "extensionCount_one": "{{count}} Endung",
+    "extensionCount_other": "{{count}} Endungen",
+    "destinationCount_one": "{{count}} Anzeigeort",
+    "destinationCount_other": "{{count}} Anzeigeorte",
+    "fileSubClassCount_one": "{{count}} Dateiart",
+    "fileSubClassCount_other": "{{count}} Dateiarten"
+  },
   "filesubclass": {
     "picker": {
       "title": "Dateiart",
       "clickToChange": "{{key}}, klicken zum Ändern"
+    },
+    "form": {
+      "displayContextKeys": "Anzeigeorte",
+      "displayContextKeysHint": "Wo diese Dateiart als Abschnitt steht und zum Hochladen angeboten wird. Die Orte legt der Admin unter Anzeigeorte an.",
+      "noDestinations": "Noch kein Anzeigeort angelegt: im Admin unter Anzeigeorte anlegen."
     }
   },
   "fileextension": {
@@ -125,17 +217,6 @@
       "probe": "Probe",
       "resolve": "Auflösen",
       "myGrants": "Meine Freigaben"
-    },
-    "myGrants": {
-      "intro": "Was dir im DMS freigegeben ist: Dokumente, die deine guid tragen, und Felder, nach denen du zusätzlich auflösen darfst. Was deine Rollen ohnehin öffnen, steht hier nicht.",
-      "documentGrantsTitle": "Meine Dateifreigaben",
-      "fieldGrantsTitle": "Meine Feldfreigaben",
-      "hookGrantsTitle": "Meine Hook-Freigaben (in jedem Kern)",
-      "noDocumentGrants": "Für dich gibt es keine Dateifreigabe im DMS.",
-      "noFieldGrants": "Für dich gibt es keine Feldfreigabe im DMS.",
-      "noHookGrants": "Für dich gibt es keine Hook-Freigabe.",
-      "documentsTitle_one": "{{count}} Dokument für dich freigegeben",
-      "documentsTitle_other": "{{count}} Dokumente für dich freigegeben"
     },
     "resolve": {
       "title": "Auflösen",
@@ -162,10 +243,6 @@
       "id": "id",
       "versionChain": "Versionskette",
       "identifiers": "Kennungen: id und Versionskette",
-      "grantsSymbolLabel": "Freigaben an diesem Dokument",
-      "grantsOpen_one": "{{count}} User hat dieses Dokument per Freigabe:",
-      "grantsOpen_other": "{{count}} User haben dieses Dokument per Freigabe:",
-      "grantsCheckHint": "Kontrollblick: die guids aus userGrantedAccess, darunter ihre wirksamen Dateifreigaben im Kern DMS.",
       "noFullText": "Tika hat keinen Text aus der Datei gelesen.",
       "status": "Status",
       "version": "Version",
@@ -195,14 +272,89 @@
       "download": "{{name}} herunterladen",
       "edit": "{{name}} bearbeiten",
       "newVersion": "neue Fassung zu {{name}} hochladen",
-      "grant": "{{name}} freigeben",
+      "share": "{{name}} freigeben",
       "delete": "{{name}} löschen",
       "deleteTitle": "Dokument löschen",
       "deleteQuestion": "Soll <strong>{{name}}</strong> wirklich gelöscht werden? Das Dokument bekommt den Status DELETED und verschwindet aus jeder Liste, die Datei bleibt erhalten."
     },
-    "language": {
-      "pickerLabel": "Sprache des Dokuments",
-      "none": "keine Sprache"
+    "share": {
+      "title": "{{name}} freigeben",
+      "kindLabel": "Was gibt der Link frei?",
+      "kindBinary": "nur den Download",
+      "kindBinaryHint": "Der Link lädt die Datei direkt herunter, Metadaten sieht der Empfänger nicht.",
+      "kindDocument": "das Dokument mit Metadaten",
+      "kindDocumentHint": "Der Link öffnet eine Detailansicht mit den gewählten Feldern, der Download ist wählbar.",
+      "wholeDocument_one": "alle Felder, die ich lesen darf ({{count}} Feld)",
+      "wholeDocument_other": "alle Felder, die ich lesen darf ({{count}} Felder)",
+      "chooseFields": "nur diese Felder",
+      "binaryIncluded": "Download erlauben",
+      "recipient": "Empfänger (frei, z. B. Name oder E-Mail)",
+      "expiresAt": "gültig bis",
+      "maxUses": "Einlösungen frei",
+      "maxUsesHint": "Ansicht und Download zählen beide.",
+      "create": "Link erstellen",
+      "createdTitle": "Der Link, nur jetzt sichtbar",
+      "createdHint": "Gespeichert ist nur sein Hash, der Link lässt sich nicht noch einmal anzeigen. Jetzt kopieren.",
+      "copy": "Link kopieren",
+      "copied": "Link kopiert",
+      "newTitle": "Neuer Abholschein",
+      "overviewTitle": "Freigaben: alle Abholscheine im DMS",
+      "overviewIntro": "Jeder Schein ist ein Link an jemanden ohne Konto. Anlegen geht auf der Dokumentseite über das Freigabesymbol.",
+      "overviewEmpty": "noch kein Abholschein",
+      "openDocument": "Dokument {{id}} öffnen",
+      "columns": {
+        "document": "Dokument",
+        "kind": "Art",
+        "status": "Status",
+        "uses": "eingelöst",
+        "expiresAt": "gültig bis",
+        "recipient": "Empfänger",
+        "grantedBy": "erstellt von"
+      },
+      "kindShort": {
+        "BINARY": "Download",
+        "DOCUMENT": "Dokument"
+      },
+      "status": {
+        "ACTIVE": "aktiv",
+        "EXPIRED": "abgelaufen"
+      },
+      "expire": "ablaufen lassen",
+      "noFieldChosen": "Mindestens ein Feld wählen.",
+      "expiresAtMissing": "Gültig bis fehlt oder ist kein Zeitpunkt.",
+      "delete": "Abholschein {{id}} löschen",
+      "deleteTitle": "Abholschein löschen",
+      "deleteQuestion": "Soll der Abholschein (<strong>{{kind}}</strong>, Empfänger <strong>{{recipient}}</strong>) endgültig gelöscht werden? Der Link gilt sofort nicht mehr, die History ist weg.",
+      "user": {
+        "title_one": "Freigabe an User ({{count}})",
+        "title_other": "Freigabe an User ({{count}})",
+        "empty": "noch keinem User freigegeben",
+        "grant": "freigeben",
+        "revoke": "zurücknehmen",
+        "revokeOf": "Freigabe für {{guid}} zurücknehmen",
+        "columns": {
+          "grantee": "an wen",
+          "grantedBy": "von wem",
+          "createdAt": "wann"
+        },
+        "status": {
+          "ACTIVE": "aktiv",
+          "REVOKED": "zurückgenommen"
+        },
+        "overviewTitle": "Freigaben an User",
+        "overviewIntro": "Wer wann wem welches Dokument freigegeben hat. Zurückgenommene bleiben als History stehen.",
+        "overviewEmpty": "noch keine Freigabe an einen User",
+        "delete": "Freigabe {{id}} löschen",
+        "deleteTitle": "Freigabe löschen",
+        "deleteQuestion": "Soll die Freigabe des Dokuments <strong>{{document}}…</strong> endgültig gelöscht werden? Eine aktive Freigabe endet sofort, die History ist weg.",
+        "emailLabel": "User per E-Mail finden und freigeben"
+      }
+    },
+    "shared": {
+      "title": "Freigegebenes Dokument",
+      "notFound": "Dieser Link ist ungültig, abgelaufen oder verbraucht.",
+      "validity_one": "gültig bis {{expiresAt}}, noch {{count}} Einlösung",
+      "validity_other": "gültig bis {{expiresAt}}, noch {{count}} Einlösungen"
     },
     "versionChain": {
       "title_one": "{{count}} Fassung",
@@ -259,13 +411,12 @@
         "fileSubClass": "Art",
         "file": "Datei",
         "index": "Index",
-        "language": "Sprache",
         "description": "Beschreibung"
       },
       "state": {
         "checking": "prüft",
         "new": "neu",
-        "merge": "ergänzt Hooks",
+        "merge": "ergänzt Hooks, setzt Index und Beschreibung",
         "exists": "andere Dateiart",
         "sameBytes": "schon im DMS",
         "deleted": "gelöscht",
@@ -349,84 +500,50 @@
       "chars_one": "{{count}} Zeichen",
       "chars_other": "{{count}} Zeichen",
       "ms": "{{count}} ms"
-    }
-  },
-  "grant": {
-    "title": "Freigaben",
-    "tabs": {
-      "documents": "Dateifreigaben",
-      "fields": "Feldfreigaben",
-      "hooks": "Hook-Freigaben"
     },
-    "common": {
-      "grantee": "Empfänger",
-      "core": "Kern",
-      "grantedBy": "freigegeben von",
-      "validUntil": "gültig bis",
-      "validUntilHint": "leer heißt unbegrenzt",
-      "unlimited": "unbegrenzt",
-      "status": "Status",
-      "revoke": "entziehen",
-      "chooseUser": "User wählen",
-      "chooseCore": "Kern wählen",
-      "expire": "Abgelaufene aufräumen",
-      "expired": "{{hookGrants}} Hook-Freigaben und {{fieldGrants}} Feldfreigaben auf abgelaufen gesetzt"
+    "myGrants": {
+      "title_one": "{{count}} Dokument für mich freigegeben",
+      "title_other": "{{count}} Dokumente für mich freigegeben",
+      "intro": "Dokumente, die mir jemand auf der Dokumentseite freigegeben hat: Meine guid steht in userGrantedAccess. Was meine Rollen ohnehin öffnen, steht hier nicht.",
+      "empty": "Für dich ist kein Dokument freigegeben."
     },
-    "documents": {
-      "title": "Dateifreigaben",
-      "intro": "Kern wählen, Bedingungen setzen wie beim Auflösen, auflösen: Die Trefferliste zeigt, was du selbst schreiben darfst und damit freigeben kannst. Freigeben schreibt die guid des Empfängers in userGrantedAccess jedes Treffers, je Kern über dessen eigenen Freigabe-Service. Ein Schnappschuss, spätere Dokumente sind nicht dabei. Der Empfänger bekommt damit die Felder „immer“, Felder „durch Freigabe“ brauchen eine Feldfreigabe oder Vollsicht.",
-      "noGrantServiceForCore": "Der Kern {{core}} hat noch keinen Freigabe-Service. Hier lässt sich nur das Register ansehen.",
-      "expire": "Abgelaufene in {{core}} aufräumen",
-      "expired": "{{count}} Dateifreigaben im Kern {{core}} auf abgelaufen gesetzt",
-      "newTitle": "Neue Dateifreigabe",
-      "conditions": "Bedingungen",
-      "resolve": "Auflösen",
-      "noConditions": "Ohne Bedingung keine Freigabe. Diese Liste ist alles, was du selbst siehst.",
-      "noHits": "Die Bedingungen treffen kein Dokument, das du selbst siehst.",
-      "tooMany": "{{count}} Treffer, eine Freigabe braucht weniger als {{limit}}: Ein weiterer Filter muss die Treffer enger fassen.",
-      "grantableHint_one": "Freigegeben wird dieser {{count}} Treffer.",
-      "grantableHint_other": "Freigegeben werden alle {{count}} Treffer der Bedingungen, auch die auf weiteren Seiten.",
-      "grantHits": "Diese Treffer freigeben",
-      "granted_one": "{{count}} Dokument freigegeben",
-      "granted_other": "{{count}} Dokumente freigegeben",
-      "documents": "Dokumente",
-      "empty": "noch keine Dateifreigaben",
-      "count_one": "{{count}} Dateifreigabe",
-      "count_other": "{{count}} Dateifreigaben",
-      "revokeTitle": "Dateifreigabe entziehen",
-      "revokeQuestion": "Soll die Dateifreigabe für <strong>{{user}}</strong> im Kern <strong>{{core}}</strong> wirklich entzogen werden? Die guid verschwindet aus den Dokumenten dieser Freigabe ({{count}} beim Freigeben)."
+    "fileSubClassHits": {
+      "title": "{{name}} zu {{values}}",
+      "none": "Keine {{name}} hinterlegt.",
+      "failed": "Nicht geladen: {{error}}"
     },
-    "fields": {
-      "title": "Feldfreigaben",
-      "intro": "Ein Feld, nach dem der Empfänger in diesem Kern auflösen darf, obwohl er <KERN>_SUCHE nicht hat. Ein erweitertes Feld wird damit auch lesbar. Pro Kern, nicht pro Dokument. Nach id löst jeder auf, sie steht nicht zur Wahl. Hooks gibt der Tab Hook-Freigaben frei, in jedem Kern auf einmal.",
-      "newTitle": "Neue Feldfreigabe",
-      "fields": "Felder",
-      "noFields": "Für diesen User gibt es in diesem Kern kein Feld mehr, das ihm fehlt.",
-      "field": "Feld",
-      "grant": "Freigeben",
-      "granted_one": "{{count}} Feld freigegeben",
-      "granted_other": "{{count}} Felder freigegeben",
-      "empty": "noch keine Feldfreigaben",
-      "count_one": "{{count}} Feldfreigabe",
-      "count_other": "{{count}} Feldfreigaben",
-      "revokeTitle": "Feldfreigabe entziehen",
-      "revokeQuestion": "Soll die Freigabe des Feldes <strong>{{field}}</strong> im Kern <strong>{{core}}</strong> für <strong>{{user}}</strong> wirklich entzogen werden?"
-    },
-    "hooks": {
-      "title": "Hook-Freigaben",
-      "intro": "Ein Hook, nach dem der Empfänger auflösen darf, obwohl er HOOK_FULL nicht hat. Gilt in jedem Kern, in dem er die Tür <KERN> hat, denn jeder Kern trägt sämtliche Hooks. Der Hook wird damit auch lesbar. Der Knopf oben rechts im Register räumt abgelaufene Hook- und Feldfreigaben auf; Dateifreigaben laufen je Kern im Tab Dateifreigaben ab.",
-      "newTitle": "Neue Hook-Freigabe",
-      "hooks": "Hooks",
-      "noHooks": "Für diesen User gibt es keinen Hook mehr, der ihm fehlt.",
-      "hook": "Hook",
-      "grant": "Freigeben",
-      "granted_one": "{{count}} Hook freigegeben",
-      "granted_other": "{{count}} Hooks freigegeben",
-      "empty": "noch keine Hook-Freigaben",
-      "count_one": "{{count}} Hook-Freigabe",
-      "count_other": "{{count}} Hook-Freigaben",
-      "revokeTitle": "Hook-Freigabe entziehen",
-      "revokeQuestion": "Soll die Freigabe des Hooks <strong>{{hook}}</strong> für <strong>{{user}}</strong> wirklich entzogen werden?"
+    "fileSubClassDocuments": {
+      "columns": {
+        "links": "Links",
+        "hooks": "Hooks"
+      },
+      "versionHint": "Anzahl der Dateien in der Versionskette",
+      "linksHint": "An wie vielen Artikeln dieselbe Datei hängt",
+      "hooksHint": "Alle Hooks dieses Dokuments",
+      "noFiles": "Keine Dateien.",
+      "noSections": "Keine Dateiart für diesen Ort im Katalog und keine Dateien.",
+      "filesCount_one": "{{count}} Datei",
+      "filesCount_other": "{{count}} Dateien",
+      "hiddenCount_one": "{{count}} ausgeblendet",
+      "hiddenCount_other": "{{count}} ausgeblendet",
+      "collapse": "{{name}} zuklappen",
+      "expand": "{{name}} aufklappen",
+      "orderNotSaved": "Reihenfolge nicht gespeichert",
+      "collapseNotSaved": "Zuklappen nicht gemerkt",
+      "modeNotSaved": "Ansicht nicht gespeichert",
+      "modes": {
+        "ALL": "alle Dateiarten",
+        "WITH_FILES": "nur Dateiarten mit Dateien",
+        "FAVORITES": "Favoriten"
+      },
+      "nextMode": {
+        "ALL": "Klick: alle Dateiarten des Orts in Katalogreihenfolge",
+        "WITH_FILES": "Klick: nur die Dateiarten zeigen, in denen Dateien liegen, in deiner Reihenfolge, am Griff ziehen ordnet sie",
+        "FAVORITES": "Klick: Favoriten, alle Dateiarten in deiner Reihenfolge, ziehen ordnet, der Pfeil klappt zu"
+      },
+      "resetFavorites": "Favoriten löschen: Katalogreihenfolge, alles aufgeklappt",
+      "favoritesReset": "Favoriten zurückgesetzt",
+      "favoritesNotReset": "Favoriten nicht zurückgesetzt"
     }
   },
   "resolve": {
@@ -457,7 +574,9 @@
     "words_one": "{{count}} von {{max}} Suchwörtern",
     "words_other": "{{count}} von {{max}} Suchwörtern",
     "cores": {
-      "DMS": "DMS"
+      "DMS": "DMS",
+      "ARTIKEL": "Artikel",
+      "KONTAKTE": "Kontakte"
     },
     "allCores": "alle Kerne",
     "missingRole": "Dafür fehlt dir die AccessRole {{role}}.",
@@ -475,11 +594,11 @@
       "hint": "Dateiart wählen: Klick oder Enter setzt sie als Filter, Escape bricht ab."
     },
     "results": {
-      "moreThanReachable": "Mehr als {{reachable}} Treffer sind nicht blätterbar, die Suche enger fassen."
+      "onlyBest": "Nur die besten {{count}} Treffer werden gezeigt, die Suche enger fassen."
     },
     "offers": {
       "title": "Vorschläge:",
-      "tabHint": "Tab setzt den ersten Vorschlag"
+      "tabHint": "Tab setzt den ersten Vorschlag, das Suchwort geht dann aus dem Text"
     }
   },
   "graph": {
@@ -586,7 +705,14 @@
         "noGroup": "ohne Gruppe",
         "asFilter": "als Filter",
         "onDocument": "am Dokument",
-        "readAccess": "Lesen: die ARs, deren Inhaber den Hook bekommen, in jedem Kern. Ohne Haken liest ihn niemand außer SOLR_USERS_VIEW_ALL und SOLR_USERS_VIEW_HOOKS."
+        "valueBadgeLinkTarget": "Ziel der Wert-Badges",
+        "valueBadgeLinkTargetHint": "Wohin ein Klick auf einen Wert dieses Hooks führt, überall in der App. Nur für die Oberfläche, die Kerne und Solr kennen es nicht."
+      },
+      "valueBadgeLinkTargets": {
+        "SEARCH": "Suche mit dem Wert als Filter",
+        "ARTIKELMAPPE": "Artikelmappe",
+        "KUNDENMAPPE": "Kundenmappe",
+        "LIEFERANTENMAPPE": "Lieferantenmappe"
       },
       "picker": {
         "placeholder": "Feldname oder Anzeigename",
@@ -641,9 +767,7 @@
         "title": "Kern {{key}}",
         "notFound": "keinen Kern mit dem Key {{key}} gefunden",
         "footer": "{{fields}} Felder, {{hooks}} Hooks",
-        "fields": "Felder",
-        "hooks": "Hooks",
-        "noHooks": "keine Hooks"
+        "fields": "Felder"
       }
     },
     "look": {
@@ -671,10 +795,29 @@
       "fieldAccessNone": "niemand",
       "fieldAccessEdit": "Lesen: {{name}}",
       "fieldAccessIntro": "Wer eine dieser ARs im Token hat, bekommt das Feld in jeder Antwort und darf danach filtern. USER ist die Grundmenge: jeder, der das Dokument sieht. SOLR_USERS_VIEW_ALL bekommt jedes Feld ohne Haken. Jeder Haken speichert sofort.",
-      "backendOnly": "nur Backend",
-      "backendOnlyOf": "nur Backend für {{name}}: nie zum Client",
+      "searchWeight": "Suche",
+      "searchWeightOf": "Gewicht von {{name}} in der Suche: -1 nicht durchsucht, 0 Treffer ohne Punkte, Klick öffnet den Regler",
+      "searchWeightEdit": "Suche: {{name}}",
+      "searchWeightNone": "nicht indexed: Solr hat nichts zum Durchsuchen",
+      "searchWeightOff": "-1: nicht durchsucht, die Suchwörter erreichen das Feld nicht",
+      "searchWeightZero": "0: durchsucht, Treffer ohne Punkte",
+      "hookRow": "Hook: in jedem Kern, Technik fest, Lesen, Suche und Reihenfolge je Kern",
+      "hooksTitle": "Hooks",
+      "hooksIntro": "Die Hooks dieses Kerns, in jedem Kern dieselben. Anzeigename, Beschreibung, Typ und Schalter stehen fest und kommen aus dem Tab Hooks. Je Kern änderbar sind Lesen, Suche und die Reihenfolge.",
+      "noHooks": "keine Hooks",
       "clientWriteRule": "Schreibregel",
       "clientWriteRuleOf": "Schreibregel von {{name}}, Klick wechselt zwischen Backend, nur beim Anlegen und Client",
+      "command": "Mapping",
+      "commandOf": "Mapping-Eintrag, der {{name}} füllt: der Key aus einem Mapping, leer heißt keiner",
+      "fieldPicker": {
+        "core": "Kern",
+        "allCores": "alle Kerne",
+        "placeholder": "Feldname oder Anzeigename",
+        "searchAria": "Feld suchen",
+        "shown": "{{shown}} von {{total}} Feldern",
+        "noMatches": "keine Treffer",
+        "hasMapping": "schon aus {{key}}"
+      },
       "clientWriteRules": {
         "BACKEND_ONLY": "Backend",
         "CLIENT_SETS_ONCE": "nur beim Anlegen",
@@ -754,14 +897,16 @@
         "title": "Lesen: welche ARs das Feld bekommen",
         "paragraphs": [
           "Jedes Feld trägt die ARs, deren Inhaber es lesen dürfen. Hat ein User eine davon im Token, steht das Feld in seiner Antwort (fl), und er darf danach filtern, sortieren, facettieren und auflösen. Ohne AR liest niemand außer SOLR_USERS_VIEW_ALL: Ein neues Feld ist unsichtbar, bis eine AR angekreuzt ist.",
-          "„Immer“ heißt: USER steht dran, die Grundmenge. Dann bekommt es jeder, der das Dokument überhaupt sieht. Sensible Felder bekommen stattdessen eine Feld-AR wie SOLR_FIELD_VIEW_CONFIDENTIAL oder SOLR_FIELD_VIEW_SUPPLY. SOLR_USERS_VIEW_ALL und SOLR_USERS_VIEW_HOOKS stehen nie an einem Feld, das sind Rechte eines Users.",
+          "„Immer“ heißt: USER steht dran, die Grundmenge. Dann bekommt es jeder, der das Dokument überhaupt sieht. Sensible Felder wie sftpPath oder der Volltext bekommen stattdessen eine Feld-AR wie SOLR_FIELD_VIEW_CONFIDENTIAL, pauschal verborgene Felder gibt es nicht. SOLR_USERS_VIEW_ALL steht nie an einem Feld, das ist ein Recht eines Users.",
           "Nur in unserer Felddefinition, nicht in Solr: Der Abgleich ignoriert die Liste, die Lesedienste bauen daraus, welche Felder sie anfordern. Ob ein User das Dokument überhaupt sieht, entscheidet die Dokumentgrenze (readAcl, Freigabe), nicht diese Liste."
         ]
       },
-      "backendOnly": {
-        "title": "nur Backend: nie zum Client",
+      "searchWeight": {
+        "title": "Suche: das Gewicht in der Suche",
         "paragraphs": [
-          "Das Feld geht in keiner Antwort zum Client, auch nicht mit SOLR_USERS_VIEW_ALL. Das Backend liest es für sich, z. B. sftpPath für den Download oder searchableWords für die Suche. Mit dem Haken ist die Leseliste leer."
+          "Die Suche fragt jedes Suchwort über alle Felder ab 0 (die qf). Das Gewicht sagt, wie viel ein Treffer in diesem Feld zählt: Dateiname 4, Index 3, Beschreibung 2, Volltext 1, jeder Hook 2, wie in der Vorlage. 0 heißt durchsucht, aber ohne Punkte: Der Treffer zählt und wird als Grund gemeldet, ordnet aber nicht. -1 heißt nicht durchsucht, die Suchwörter erreichen das Feld und seinen Zwilling nicht.",
+          "Gesperrt ist das Gewicht nur ohne indexed, dann hat Solr nichts zum Durchsuchen. Was ein Treffer ist, bestimmt der Typ: text_edge und text_suche treffen Wortanfänge bzw. Wörter, ein Feld mit suggest und jeder Hook über seinen Zwilling, ein string ohne Zwilling nur den ganzen Wert exakt (etwa eine eingefügte id).",
+          "Nur in unserer Felddefinition, nicht in Solr. Ändert sich die Gewichtung, wirkt sie bei der nächsten Suche."
         ]
       },
       "clientWriteRule": {
@@ -773,6 +918,13 @@
           "Schickt der Client ein Feld, das er nicht setzen darf, wird es ignoriert, nicht abgelehnt. Das Backend setzt seine Felder nach denen des Clients. Neue Felder sind Backend, die eingebauten immer. Der Schalter steht nur in unserer Felddefinition, nicht in Solr."
         ]
       },
+      "command": {
+        "title": "Mapping: welcher Mapping-Eintrag das Feld füllt",
+        "paragraphs": [
+          "Der Key eines Eintrags aus den Mappings, z. B. FIRMA_NAME: Wenn eine Antwort über ihr Mapping zerlegt wird, geht der Wert dieses Keys in dieses Feld. Derselbe Key darf in mehreren Mappings stehen, Firma und Ansprechpartner liefern beide KONTAKT_NAME.",
+          "Ein loser Verweis, nur der Key: Die Vorschlagsliste zeigt alle Keys aus den gespeicherten Mappings, ein Key, den kein Mapping kennt, steht rot. Leer heißt, kein Mapping füllt das Feld. Nur in unserer Felddefinition, nicht in Solr."
+        ]
+      },
       "type": {
         "title": "Typ: der fieldType im Basis-Schema",
         "paragraphs": [
@@ -781,6 +933,647 @@
           "text_edge: zerlegt an Leerzeichen und Satzzeichen, alles klein, beim Indexieren dazu jeder Wortanfang ab 3 Zeichen: „rech“ findet „Rechnung“ im Feld selbst, ohne Zwilling. Für alles, was ein User tippt und beim Tippen wiederfinden will: Dateiname, Index, Beschreibung. text_suche: der Volltext, jedes Wort einzeln, Stammform, Komposita zerlegt, mit Synonymen: „Rechnungen“ findet „Rechnung“, „Boot“ findet die Kapitänschifffahrtsmütze. Bei beiden gilt das Term-Limit je Token, der Wert selbst darf beliebig groß sein.",
           "Einen Typ nachträglich zu ändern heißt den Kern neu aufbauen, Solr schreibt alte Dokumente nicht um."
         ]
+      }
+    }
+  },
+  "abasmanager": {
+    "title": "AbasManager",
+    "tabs": {
+      "overview": "Übersicht"
+    },
+    "fetcher": {
+      "title": "Queue-Fetcher",
+      "state": {
+        "running": "LÄUFT",
+        "paused": "PAUSIERT",
+        "notConfigured": "NICHT EINGERICHTET"
+      },
+      "hint": {
+        "running": "Freie Einträge der Queue werden geholt und bearbeitet.",
+        "paused": "Die Queue füllt sich weiter, verarbeitet wird nichts.",
+        "notConfigured": "abas_host und abas_mandant in der .env eintragen und das Backend neu starten."
+      },
+      "workers": "{{busy}} von {{parallel}} Workern beschäftigt",
+      "queue_one": "{{count}} Eintrag in der Queue",
+      "queue_other": "{{count}} Einträge in der Queue",
+      "estimated": "geschätzt",
+      "sinceStart": "Seit dem Start: {{processed}} verarbeitet, {{failed}} fehlgeschlagen.",
+      "pause": "Pausieren",
+      "resume": "Starten",
+      "switchFailed": "Schalter nicht umgelegt",
+      "footer": "Aktualisiert sich alle 5 Sekunden."
+    },
+    "overview": {
+      "countsTitle": "Bestand",
+      "countsFooter": "Die großen Zahlen kommen ab einer halben Million Zeilen geschätzt aus dem Postgres-Katalog.",
+      "reloadCounts": "Zahlen neu laden",
+      "sternzeitCount": "Sternzeiten",
+      "estimated": "geschätzt",
+      "withoutObjectType": "ohne Objekttyp",
+      "queueCount": "in der Queue",
+      "queueClaimed": "in Arbeit",
+      "queueFailed": "mit Fehlern",
+      "ignoredCount": "gesperrt",
+      "enqueueTitle": "Sternzeit einreihen",
+      "enqueueFooter": "Holen reiht die Kennung zum Holen ein, Löschen zum Auflösen im Kern. Beides prüft die Sperrliste.",
+      "sternzeitPlaceholder": "(87448,19,0)",
+      "sternzeitRule": "Volle Klammerform (Nummer,Datenbank,Gruppe), höchstens 30 Zeichen.",
+      "fetch": "Holen",
+      "delete": "Löschen",
+      "queuedFetch": "{{sternzeit}} ist zum Holen eingereiht.",
+      "queuedDelete": "{{sternzeit}} ist zum Löschen eingereiht.",
+      "alreadyQueued": "{{sternzeit}} stand schon so in der Queue.",
+      "notQueued": "Nicht eingereiht",
+      "ignore": "Sperren",
+      "ignoreTitle": "Sternzeit sperren",
+      "ignoreIntro": "<strong>{{sternzeit}}</strong> kommt auf die Sperrliste: Jedes Einreihen wird abgewiesen, ein wartender Eintrag in der Queue wird entfernt. Der Stammsatz bleibt.",
+      "ignoreReason": "Grund, freiwillig",
+      "ignored": "{{sternzeit}} ist gesperrt.",
+      "ignoreRow": "{{sternzeit}} sperren",
+      "deleteTitle": "Sternzeit löschen",
+      "deleteQuestion": "<strong>{{sternzeit}}</strong> zum Löschen einreihen? Der Worker löst sie im Kern auf und entfernt den Stammsatz.",
+      "listTitle": "Sternzeiten",
+      "searchPlaceholder": "exakte Sternzeit, z. B. (87448,19,0)",
+      "showList": "zur Liste",
+      "found": "Der Stammsatz zu {{sternzeit}}.",
+      "notFound": "Zu {{sternzeit}} gibt es keinen Stammsatz.",
+      "notFoundShort": "kein Stammsatz",
+      "empty": "Noch keine Sternzeiten.",
+      "pageInfo_one": "{{count}} Sternzeit auf dieser Seite, aufsteigend nach Kennung.",
+      "pageInfo_other": "{{count}} Sternzeiten auf dieser Seite, aufsteigend nach Kennung.",
+      "toStart": "Zum Anfang",
+      "next": "Weiter",
+      "columns": {
+        "sternzeit": "Sternzeit",
+        "objectType": "Objekttyp",
+        "objectTypeHint": "Der Typ-String, wie ABAS ihn liefert, z. B. obj:data:2:1 für Artikel. Steht erst nach dem ersten Holen.",
+        "firstPushedAt": "im Kern seit",
+        "firstPushedAtHint": "Wann ABAS diese Kennung zum ersten Mal gepusht hat. Wird nur beim Anlegen geschrieben.",
+        "lastSyncAt": "zuletzt synchronisiert",
+        "lastSyncAtHint": "Wann die Kennung zuletzt erfolgreich geholt wurde.",
+        "fetchCount": "Fetches"
+      },
+      "noObjectType": "noch nicht geholt",
+      "neverSynced": "noch nie",
+      "fetchRow": "{{sternzeit}} zum Holen einreihen",
+      "viewResponse": "Antwort von ABAS zu {{sternzeit}} ansehen",
+      "deleteRow": "{{sternzeit}} zum Löschen einreihen",
+      "responseTitle": "Antwort von ABAS zu {{sternzeit}}",
+      "responseLoading": "fragt ABAS …",
+      "responseFailed": "Keine Antwort: {{error}}"
+    },
+    "queue": {
+      "title": "Queue, die nächsten 50",
+      "footer": "FIFO-Ordnung, aktualisiert sich alle 5 Sekunden.",
+      "empty": "Die Queue ist leer.",
+      "waiting": "wartet",
+      "columns": {
+        "sternzeit": "Sternzeit",
+        "action": "Aktion",
+        "source": "Quelle",
+        "queuedAt": "eingereiht",
+        "claimedAt": "in Arbeit seit",
+        "attempts": "Versuche",
+        "lastError": "letzter Fehler"
+      },
+      "action": {
+        "fetch": "HOLEN",
+        "delete": "LÖSCHEN"
+      },
+      "source": {
+        "abas": "ABAS",
+        "admin": "Admin",
+        "import": "Import"
+      }
+    },
+    "transfer": {
+      "title": "Export und Import",
+      "footer": "Der Export schreibt je Stammsatz eine Zeile mit Sternzeit und Objekttyp. Der Import liest Inventar, JSON oder Text und reiht nur die gewählten Gruppen zum Holen in die Queue, gesperrte bleiben draußen. Beide laufen als Strom, auch bei sehr großen Dateien.",
+      "exportText": "Alle Sternzeiten mit Objekttyp als Datei, die sich wieder importieren lässt.",
+      "exportButton": "Exportieren",
+      "dropzone": "Import-Datei hierher ziehen oder klicken: Inventar, JSON oder Text",
+      "check": "Prüfen",
+      "uploading": "Hochgeladen: {{percent}} %",
+      "reading": "Sternzeiten gelesen: {{count}}",
+      "importProgress": "Gelesen: {{found}}, eingereiht: {{queued}}",
+      "checkSummary": "Sternzeiten in der Datei: {{count}}, Doppelte mitgezählt. Ungültige Werte unter dem Key sternzeit: {{invalid}}. Wähle die Gruppen, die geholt werden sollen.",
+      "noSternzeit": "In der Datei steht keine Sternzeit.",
+      "columns": {
+        "select": "Wahl",
+        "group": "Objekttyp",
+        "count": "Anzahl",
+        "example": "Beispiel"
+      },
+      "groupHint": "Nennt die Datei den Objekttyp, ist jede Gruppe ein Typ. Ohne Typ bleibt nur die Datenbank, die mittlere Zahl der Sternzeit.",
+      "groupDatabase": "Datenbank {{number}}, ohne Objekttyp",
+      "groupUnknown": "ohne Objekttyp und Datenbank",
+      "selectGroup": "{{group}} importieren",
+      "import": "Importieren",
+      "importedTitle": "Import fertig",
+      "importFailedTitle": "Import fehlgeschlagen",
+      "resultText": "Gelesen: {{found}}. Nicht gewählt: {{filtered}}. Eingereiht: {{queued}}. Schon in der Queue oder doppelt: {{skipped}}. Gesperrt: {{ignored}}."
+    }
+  },
+  "infosys": {
+    "title": "Infosysteme",
+    "tabs": {
+      "calls": "Aufrufe",
+      "run": "Ausführen"
+    },
+    "calls": {
+      "title": "Hinterlegte Infosystem-Aufrufe",
+      "intro": "Je Aufruf die Endung der URL (Gruppe und Name) und der Request-Body als Vorlage. Was je Aufruf wechselt, steht als Platzhalter {{name}} darin, meist eine Nummer; ein Subfetch im Mapping füllt nur die Platzhalter.",
+      "count_one": "{{count}} Aufruf",
+      "count_other": "{{count}} Aufrufe",
+      "empty": "Noch kein Aufruf hinterlegt.",
+      "deleteTitle": "Infosystem-Aufruf löschen",
+      "deleteQuestion": "Soll der Aufruf <strong>{{key}}</strong> wirklich gelöscht werden? Ein Subfetch, der darauf zeigt, meldet dann beim Lauf, dass er fehlt.",
+      "editTitle": "Aufruf bearbeiten: {{key}}",
+      "editTitleNone": "Aufruf bearbeiten",
+      "notFound": "kein Aufruf gewählt oder nicht gefunden",
+      "columns": {
+        "call": "Aufruf",
+        "placeholders": "Eingaben",
+        "displayContextKeys": "Anzeigeorte"
+      },
+      "form": {
+        "group": "Gruppe",
+        "name": "Name",
+        "urlPreview": "Die Anfrage geht an",
+        "fields": "Felder des Infosystems",
+        "fieldsHint": "Gruppe und Name aus der Liste wählen, dann stehen hier die Felder: Ein Klick hängt ein Feld als Platzhalter an die Vorlage, einen Knopf (▶) ohne Wert.",
+        "template": "Request-Body als Vorlage",
+        "templateHint": "JSON mit der Liste actions. Jeder Platzhalter {{name}} ist eine Eingabe des Aufrufs.",
+        "placeholders": "Eingaben:",
+        "noPlaceholders": "Keine Platzhalter, der Aufruf braucht keine Eingabe.",
+        "displayContextKeys": "Anzeigeorte",
+        "displayContextKeysHint": "Wo der Aufruf von selbst erscheint, je Ort ein Key nach der Key-Regel. ARTIKELMAPPE heißt: ein Tab der Artikelmappe, die Platzhalter heißen dann wie die Felder des Artikels, aus denen sie gefüllt werden (artikelNummer); bekannt: {{known}}"
+      }
+    },
+    "run": {
+      "title": "Einen hinterlegten Aufruf ausführen",
+      "hint": "Aufruf wählen, die Eingaben füllen, Holen. Die Antwort steht darunter als Baum, so wie ein Subfetch sie bekäme.",
+      "call": "Aufruf",
+      "chooseCall": "Aufruf wählen …",
+      "noCalls": "Noch kein Aufruf hinterlegt, erst im Tab „Aufrufe“ anlegen.",
+      "inputPlaceholder": "Wert für {{name}}"
+    }
+  },
+  "mapping": {
+    "title": "Mapping",
+    "tabs": {
+      "overview": "Mappings",
+      "jsonView": "JSON-Ansicht",
+      "abasFetch": "ABAS holen",
+      "execute": "Ausführen"
+    },
+    "overview": {
+      "title": "Mappings",
+      "intro": "Je Response-Typ ein Gesamt-Mapping: der Typ mit kennzeichnenden Feldern, das Ziel, und je Eintrag die Quelle im JSON, optional eine Bedingung und der Key. Angelegt wird am Baum, in der JSON-Ansicht oder bei „ABAS holen“.",
+      "empty": "Noch kein Mapping.",
+      "count_one": "{{count}} Mapping",
+      "count_other": "{{count}} Mappings",
+      "filteredCount": "{{shown}} von {{count}} Mappings",
+      "filterPlaceholder": "filtern nach Name, Ziel, Typ, Key",
+      "columns": {
+        "responseObjectType": "Typ und kennzeichnende Felder",
+        "target": "Ziel",
+        "lines": "Einträge",
+        "ignored": "Ignoriert"
+      },
+      "noTarget": "kein Ziel, nur Subfetch",
+      "deleteTitle": "Mapping löschen",
+      "deleteQuestion": "Soll das Mapping <strong>{{key}}</strong> wirklich gelöscht werden?",
+      "notFound": "Dieses Mapping gibt es nicht.",
+      "editTitle": "{{key}} bearbeiten",
+      "editTitleNone": "Mapping bearbeiten"
+    },
+    "editor": {
+      "name": "Name",
+      "targetKey": "Ziel",
+      "targetKeyHint": "SOLR_<KERN> für das Dokument, das die Antwort füllt; leer bei einer Antwort, die nur als Subfetch dient",
+      "responseObjectType": "Typ der Antwort",
+      "responseObjectTypePlaceholder": "z. B. obj:data:19:0",
+      "conditions": "Kennzeichnende Felder",
+      "conditionsHint": "Zusammen mit dem Typ die Kennung der Antwort, z. B. grbez.value gleich Ansprechpartner. Im Entwurf macht der Trichter an einem Eintrag ihn dazu.",
+      "conditionPath": "Adresse",
+      "conditionEquals": "Wert",
+      "addCondition": "Feld hinzufügen",
+      "removeCondition": "Feld entfernen",
+      "lines": "Einträge",
+      "linesEmpty": "Noch kein Eintrag: Felder in der Antwort anklicken.",
+      "columns": {
+        "kind": "Art",
+        "source": "Quelle",
+        "onlyIf": "Bedingung",
+        "key": "Key",
+        "sample": "Beispiel",
+        "id": "Id",
+        "values": "Wert(e)",
+        "path": "JSON-Pfad",
+        "solrFields": "Solr-Felder"
+      },
+      "solrFieldsHint": "Die Felder, die dieser Key füllt: solr_field.command, derselbe Verweis wie die Spalte Mapping im Kern-Tab. Verknüpfen und lösen geht hier wie dort; angeboten werden die Felder des Zielkerns ohne Mapping.",
+      "linkSolrField": "Feld verknüpfen …",
+      "unlinkSolrField": "Verknüpfung lösen",
+      "linkNeedsKey": "erst den Key vergeben",
+      "linked": "Feld {{field}} wird aus {{key}} gefüllt",
+      "unlinked": "Verknüpfung von {{field}} gelöst",
+      "idHint": "PK ist die eindeutige id des Dokuments, höchstens einmal. COMPOSITE erweitert den PK zur Kennung, z. B. die Positionsnummer zur Sternzeit der Chance. ALT ist auch eindeutig, im Zweifel gilt der PK; ein Suchen über diesen Wert lohnt sich. Welcher Wert das ist, sagt der Key, z. B. FIRMA_NUMMER.",
+      "idNone": "–",
+      "idPrimary": "PK",
+      "idComposite": "COMPOSITE",
+      "idAlternative": "ALT",
+      "noValue": "kein Wert in der Antwort",
+      "listCount_one": "{{count}} Element",
+      "listCount_other": "{{count}} Elemente",
+      "fetchWay": "Fetchweg",
+      "kindValue": "Wert",
+      "kindSubfetchSternzeit": "Subfetch Sternzeit",
+      "kindSubfetchInfosys": "Subfetch Infosystem",
+      "sourceHint": "Die Adresse im JSON. Bei einer Liste steht die Liste in der ersten Zeile und der Unter-Key je Element in der zweiten: [*] alle, [artikel] wo das Feld gefüllt ist, [typa=…] ein Wert.",
+      "sourcePlaceholder": "$.content.data.head.fields.name.value",
+      "elementPlaceholder": "je Element, z. B. fields.artikel.text",
+      "onlyIfHint": "Nur wenn an der Adresse der Wert steht.",
+      "onlyIfPathPlaceholder": "nur wenn Adresse",
+      "onlyIfEqualsPlaceholder": "gleich Wert",
+      "keyHint": "Derselbe Key zweimal ist eine Kaskade, der erste Wert gewinnt. Später am Solr-Feld verknüpft.",
+      "addLine": "Eintrag hinzufügen",
+      "removeLine": "Eintrag entfernen",
+      "makeCondition": "Als kennzeichnendes Feld",
+      "ignored": "Ignoriert",
+      "noIgnored": "nichts ignoriert",
+      "removeIgnored": "wieder zeigen",
+      "jumpToValue": "Im JSON an diese Stelle springen",
+      "positionsNotSaved": "Reihenfolge nicht gespeichert",
+      "fetchSubfetch": "Subfetch jetzt holen, die Antwort steht unter der Hauptantwort",
+      "kindTable": "Tabelle",
+      "tableNoColumns": "noch keine Spalte",
+      "tableRowCount_one": "{{count}} Zeile",
+      "tableRowCount_other": "{{count}} Zeilen",
+      "tableColumnName": "Spaltenname",
+      "removeTableColumn": "Spalte entfernen",
+      "subfetch": {
+        "title": "Subfetches",
+        "hint": "Weitere Antworten zu dieser Antwort: erst die Art wählen, Sternzeit oder Infosystem, dann jede Eingabe aus dem JSON (die Adresse, wo der Wert steht, per Klick im Baum) oder statisch. Die Antwort zerlegt das Mapping ihres Typs, die Werte landen im selben Dokument.",
+        "empty": "Noch kein Subfetch.",
+        "keyHint": "Der Key des Subfetchs, nur zur Anzeige und in den Warnungen; die Werte tragen die Keys des Untermappings.",
+        "target": "Ziel",
+        "targetHint": "Bei einem Infosystem der hinterlegte Aufruf aus dem AbasManager, mit Gruppe, Name und Body-Vorlage.",
+        "sternzeitTarget": "das Objekt zur Sternzeit, alle Kopffelder",
+        "chooseInfosys": "Infosystem wählen …",
+        "noInfosysStored": "Kein Aufruf hinterlegt: im AbasManager unter Infosysteme anlegen.",
+        "inputs": "Eingaben",
+        "inputsHint": "Beim Sternzeit-Fetch die Sternzeit, beim Infosystem die Platzhalter seiner Vorlage. Aus JSON: die Adresse in dieser Antwort. Statisch: ein fester Wert.",
+        "noInputs": "Der Aufruf braucht keine Eingabe.",
+        "sourceOfInput": "Woher der Wert kommt",
+        "fromJson": "aus JSON",
+        "static": "statisch",
+        "staticPlaceholder": "fester Wert",
+        "inputPath": "Adresse für {{name}}",
+        "inputValue": "Wert für {{name}}",
+        "pickInTree": "Im Baum wählen: der nächste Klick setzt die Adresse",
+        "pickingHint": "Jetzt im Baum auf den Wert klicken, oder hier abbrechen",
+        "perRow": "je Zeile von",
+        "perRowHead": "Kopf, einmal",
+        "perRowHint": "Leer: der Subfetch läuft einmal für den Kopf der Antwort. Ein Tabellen-Eintrag: er läuft je Zeile dieser Tabelle, die Eingabe-Adressen gelten dann je Zeile (fields.name.value), und die Unterantwort hängt in der Zeile unter dem Key des Subfetchs."
+      }
+    },
+    "draft": {
+      "title": "Mapping-Entwurf",
+      "empty": "Noch kein Entwurf: erst eine Antwort holen, dann Felder darin anklicken.",
+      "hint": "Klick auf ein Feld macht es zum Eintrag, zweiter Klick nimmt es raus; das Auge ignoriert einen Knoten. Eine angeklickte Sternzeit oder ein angeklickter Wert in der nächsten Anfrage macht sie zum Subfetch mit eigenem Entwurf.",
+      "mainJson": "JSON {{name}}",
+      "mainSternzeit": "Sternzeit {{sternzeit}}",
+      "mainInfosys": "Aufruf {{key}}",
+      "save": "Mapping speichern",
+      "saved": "Mapping {{key}} gespeichert",
+      "update": "Mapping ändern",
+      "updated": "Mapping {{key}} geändert",
+      "existingTitle": "Mappings zu {{type}}:",
+      "existingNone": "noch keins, das hier wird das erste",
+      "existingMatches": "passt zur Antwort",
+      "startFresh": "neues Mapping",
+      "discard": "Entwürfe verwerfen",
+      "started": "Neuer Mapping-Entwurf begonnen",
+      "hideIgnored": "Ignorierte ausblenden",
+      "ignore": "Ignorieren",
+      "subfetchFetched": "Subfetch geholt, die Antwort bekommt ihren eigenen Entwurf über dem gezeigten",
+      "subfetchFetchedFirstRow": "Subfetch für die erste Zeile der Tabelle geholt, die Antwort bekommt ihren eigenen Entwurf über dem gezeigten",
+      "inputPathPicked": "Adresse für {{name}} gesetzt",
+      "customFieldsUnmapped_one": "{{count}} y-Feld ohne Eintrag (Custom-Feld der Firma, wird immer gespeichert):",
+      "customFieldsUnmapped_other": "{{count}} y-Felder ohne Eintrag (Custom-Felder der Firma, werden immer gespeichert):",
+      "customFieldsRecorded_one": "{{count}} y-Feld als Eintrag aufgenommen",
+      "customFieldsRecorded_other": "{{count}} y-Felder als Einträge aufgenommen"
+    },
+    "execute": {
+      "title": "Eine Sternzeit über ihr Mapping in den Kern bringen",
+      "hint": "Vorschau holt die Antwort, lässt das Mapping laufen und zeigt das Dokument. Schreiben tut dasselbe und schreibt es in den Kern.",
+      "running": "ABAS wird gefragt, das Mapping läuft …",
+      "preview": "Vorschau",
+      "write": "In Solr schreiben",
+      "written": "Dokument {{id}} in den Kern geschrieben",
+      "resultTitle": "Mapping {{mapping}} auf {{type}}",
+      "resultFooter": "Ziel {{target}}, PRIMARY {{primary}}",
+      "noValue": "kein Wert",
+      "noValues": "keine Werte",
+      "documentTitle": "Dokument {{id}}, wie es geschrieben würde",
+      "documentWrittenTitle": "Dokument {{id}}, geschrieben",
+      "documentFooter": "{{count}} Felder",
+      "columns": {
+        "field": "Solr-Feld",
+        "value": "Wert"
+      },
+      "warnings": "Warnungen: {{warnings}}"
+    },
+    "jsonView": {
+      "loadTitle": "JSON laden",
+      "loadHint": "Eine Datei ablegen oder Text einfügen, egal wie groß.",
+      "dropzone": "JSON-Datei hierher ziehen oder klicken",
+      "pastePlaceholder": "oder JSON hier einfügen",
+      "pastedSource": "eingefügt",
+      "show": "Anzeigen",
+      "parseError": "Kein lesbares JSON: {{error}}",
+      "fileUnreadable": "Die Datei ließ sich nicht lesen.",
+      "loaded": "Geladen: {{name}}, {{size}}.",
+      "treeTitle": "Baum",
+      "searchPlaceholder": "Schlüssel oder Wert suchen",
+      "selectHint": "Ein Klick auf einen Schlüssel zeigt seinen Pfad.",
+      "copyPath": "Pfad kopieren",
+      "pathCopied": "Pfad kopiert",
+      "pathNotCopied": "Pfad nicht kopiert"
+    },
+    "abasFetch": {
+      "sternzeitTitle": "Objekt per Sternzeit",
+      "sternzeitLabel": "Sternzeit",
+      "sternzeitPlaceholder": "(87448,19,0)",
+      "headFieldsLabel": "Kopffelder",
+      "headFieldsPlaceholder": "leer heißt alle (*), sonst z. B. nummer, name, such",
+      "tableFieldsLabel": "Tabellenfelder",
+      "tableFieldsPlaceholder": "leer heißt ohne Angabe, sonst z. B. elem, menge",
+      "previewLabel": "So geht die Anfrage an ABAS:",
+      "previewHint": "Die Vorschau zeigt genau die Anfrage, die das Backend an ABAS schickt.",
+      "baseUrlUnknown": "ABAS ist nicht eingerichtet, die Adresse des Servers fehlt.",
+      "fetch": "Holen",
+      "downloadJson": "Antwort als JSON herunterladen",
+      "fetching": "ABAS wird gefragt …",
+      "failed": "Fehlgeschlagen: {{error}}",
+      "infosysTitle": "Infosystem über einen hinterlegten Aufruf",
+      "groupPlaceholder": "z. B. st",
+      "namePlaceholder": "z. B. CUSTOMERPRODUCT",
+      "addPair": "Schlüssel hinzufügen",
+      "addAction": "Aktion hinzufügen",
+      "responseTitle": "Antwort auf",
+      "subfetchTitle": "Subfetch-Antwort {{key}}",
+      "subfetchNoValue": "Subfetch {{key}}: die Eingabe {{name}} hat in dieser Antwort keinen Wert",
+      "subfetchFailed": "Subfetch fehlgeschlagen",
+      "subfetchNoInfosys": "Subfetch {{key}}: das Infosystem {{infosys}} ist nicht hinterlegt",
+      "subfetchNoRow": "Subfetch {{key}}: die Tabelle {{table}} hat in dieser Antwort keine Zeile"
+    }
+  },
+  "usersPicker": {
+    "placeholder": "E-Mail eintippen, ab zwei Zeichen",
+    "noMatch": "kein User mit dieser E-Mail"
+  },
+  "artikel": {
+    "title": "Artikel",
+    "status": "Artikel {{artikelNummer}}",
+    "originLabel": "Artikel {{artikelNummer}}",
+    "tabs": {
+      "overview": "Übersicht",
+      "documents": "Dokumente",
+      "bom": "Stückliste",
+      "operations": "Arbeitsgänge",
+      "tools": "Werkzeuge",
+      "alternatives": "Alternativen",
+      "goesWith": "Geht mit",
+      "requires": "Benötigt",
+      "customer": "Kunde",
+      "supplier": "Lieferant",
+      "details": "Details",
+      "inspections": "Prüfungen"
+    },
+    "entry": {
+      "title": "Artikelmappe öffnen",
+      "number": "Artikelnummer",
+      "placeholder": "z. B. 610762",
+      "open": "Mappe öffnen",
+      "hint": "Der andere Weg in eine Mappe ist die Suche im Kern Artikel.",
+      "toSearch": "zur Suche"
+    },
+    "fetchFromAbas": {
+      "fetching": "Artikel {{artikelNummer}} ist nicht im Kern, ABAS wird gefragt …",
+      "unknown": "Artikel {{artikelNummer}} ist weder im Kern noch bei ABAS bekannt."
+    },
+    "overview": {
+      "title": "Stammdaten",
+      "columns": {
+        "field": "Feld",
+        "value": "Wert"
+      },
+      "noFacts": "Keine Stammdaten im Spiegel.",
+      "noPreview": "kein Vorschaubild",
+      "sternzeit": "Sternzeit {{sternzeit}}",
+      "syncedAt": "zuletzt gespiegelt {{date}}",
+      "syncStatus": "Sync {{status}}",
+      "family": {
+        "title": "Familie ({{count}})",
+        "number": "Artikelnummer",
+        "name": "Name",
+        "role": "Rolle",
+        "master": "Master"
+      }
+    },
+    "details": {
+      "title": "Details",
+      "empty": "Keine weiteren Felder gefüllt.",
+      "columns": {
+        "field": "Feld",
+        "value": "Wert"
+      },
+      "sections": {
+        "designation": "Bezeichnung",
+        "units": "Einheiten",
+        "commercial": "Kaufmännisch",
+        "stock": "Lager",
+        "weight": "Gewicht und Volumen",
+        "classification": "Klassifikation",
+        "flags": "Kennzeichen",
+        "pahling": "Pahling",
+        "audit": "Audit und Sync",
+        "remaining": "Übrige Felder"
+      }
+    },
+    "documents": {
+      "title": "Dokumente aus dem DMS",
+      "empty": "Zu diesem Artikel und seiner Familie liegt keine Datei im DMS.",
+      "count_one": "{{count}} Dokument",
+      "count_other": "{{count}} Dokumente",
+      "noAccess": "Für die Dokumente fehlt dir die AR {{role}}."
+    },
+    "pairList": {
+      "count_one": "{{count}} Zeile",
+      "count_other": "{{count}} Zeilen",
+      "empty": "Keine Einträge im Spiegel.",
+      "emptyCustomer": "Keine Kundenbeziehungen im Spiegel (Quelle: Infosystem CUSTOMERPRODUCT).",
+      "emptySupplier": "Keine Lieferantenbeziehungen im Spiegel (Quelle: 21:0-Objekt).",
+      "manufacturer": "Hersteller",
+      "emptyManufacturer": "Kein Hersteller hinterlegt."
+    },
+    "references": {
+      "depth": "Tiefe über Alternativen",
+      "recompute": "neu suchen",
+      "loading": "Verbindungen werden gesucht …",
+      "stateOf": "Stand vom {{date}}, Tiefe {{depth}}",
+      "truncated": "Gekürzt: Es gibt mehr Verbindungen, als das Backend ablegt.",
+      "empty": "Keine Verbindungen gefunden.",
+      "failed": "Fehlgeschlagen: {{error}}",
+      "columns": {
+        "artikelNummer": "Artikel",
+        "name": "Name",
+        "distance": "Entfernung",
+        "path": "Weg",
+        "direction": "Richtung"
+      },
+      "distance_one": "{{count}} Beziehung",
+      "distance_other": "{{count}} Beziehungen",
+      "listed": "hinterlegt bei {{via}}",
+      "reverse": "führt {{via}} in seiner Liste"
+    },
+    "search": {
+      "master": "Master",
+      "slaveOf": "Slave von {{masterNumber}}"
+    },
+    "tableColumns": {
+      "zn": "Pos",
+      "elem": "Sternzeit",
+      "elemText": "Nummer",
+      "documents": "Dokumente",
+      "zid": "Zeilen-ID",
+      "elname": "Name",
+      "menge": "Menge",
+      "elle": "Einheit",
+      "telementicon": "Typ",
+      "mgrname": "Arbeitsplatz",
+      "zesek": "Stückzeit (s)",
+      "zrsek": "Rüstzeit (s)"
+    },
+    "tableRowInAbas": "{{value}} in ABAS öffnen",
+    "nachladen": {
+      "loading": "Frage ABAS …",
+      "failed": "Nicht geladen: {{error}}",
+      "empty": "ABAS liefert dazu nichts.",
+      "mapping": "Mapping {{key}}",
+      "rows_one": "{{count}} Zeile",
+      "rows_other": "{{count}} Zeilen",
+      "warnings": "Warnungen: {{warnings}}"
+    },
+    "inspections": {
+      "soll": "Soll: Prüfpläne aus der Prüfeinstellung",
+      "sollHint": "Aktueller Plan-Stand. Ältere, noch offene Prüfaufträge können abweichende Merkmale prüfen.",
+      "noProcedure": "Am Artikel ist kein Prüfverfahren hinterlegt.",
+      "noPlans": "Die Prüfeinstellung nennt keine Prüfpläne.",
+      "ist": "Ist: durchgeführte Prüfungen",
+      "noOrders": "Keine durchgeführten Prüfungen."
+    }
+  },
+  "belegnummer": {
+    "title": "Belegnummer",
+    "lookupTitle": "Belegnummer nachschlagen",
+    "number": "Beleg- oder Bezugsnummer",
+    "placeholder": "z. B. 600012",
+    "lookup": "nachschlagen",
+    "looking": "Frage ABAS …",
+    "hint": "Eine Nummer eintippen, ohne zu wissen, was sie ist: ABAS sagt es über den hinterlegten Aufruf BELEG2ID.",
+    "notFound": "ABAS kennt die Belegnummer {{belegnummer}} nicht.",
+    "noObjectType": "ABAS nennt keinen Objekttyp",
+    "noMapping": "kein Mapping zu diesem Typ",
+    "inAbasHint": "Belegnummer {{belegnummer}} in ABAS öffnen",
+    "toArtikel": "Artikelmappe {{artikelNummer}} öffnen",
+    "columns": {
+      "field": "Feld",
+      "value": "Wert"
+    },
+    "rows": {
+      "number": "Belegnummer",
+      "objectType": "Objekttyp",
+      "mapping": "Mapping",
+      "sternzeit": "Sternzeit",
+      "artikel": "Artikel"
+    }
+  },
+  "kontakte": {
+    "search": {
+      "company": "Firma",
+      "person": "Ansprechpartner",
+      "abasHint": "{{kind}} {{name}} in ABAS öffnen",
+      "syncStatus": "Sync: {{status}}"
+    },
+    "mappe": {
+      "title": {
+        "KUNDE": "Kundenmappe",
+        "LIEFERANT": "Lieferantenmappe"
+      },
+      "status": {
+        "KUNDE": "Kunde {{nummer}}",
+        "LIEFERANT": "Lieferant {{nummer}}"
+      },
+      "notFound": {
+        "KUNDE": "Zur Kundennummer {{nummer}} gibt es keine Firma im Kern KONTAKTE.",
+        "LIEFERANT": "Zur Lieferantennummer {{nummer}} gibt es keine Firma im Kern KONTAKTE."
+      },
+      "tabs": {
+        "overview": "Übersicht",
+        "contactPersons": "Ansprechpartner",
+        "documents": "Dokumente"
+      },
+      "columns": {
+        "field": "Feld",
+        "value": "Wert"
+      },
+      "sections": {
+        "address": "Anschrift",
+        "communication": "Kommunikation",
+        "business": "Geschäftsdaten",
+        "characteristics": "Bedingungen und Merkmale",
+        "notes": "Suchbegriff und Texte",
+        "audit": "Nummer und Sync",
+        "remaining": "Übrige Felder"
+      },
+      "businessTitle": {
+        "KUNDE": "Geschäftsdaten als Kunde {{nummer}}",
+        "LIEFERANT": "Geschäftsdaten als Lieferant {{nummer}}"
+      },
+      "overview": {
+        "openAbasPartner": {
+          "KUNDE": "ABAS-Kunde {{nummer}} öffnen",
+          "LIEFERANT": "ABAS-Lieferant {{nummer}} öffnen"
+        },
+        "openAbasCompany": "Firma {{name}} in ABAS öffnen",
+        "sternzeit": "Sternzeit {{sternzeit}}",
+        "syncedAt": "synchronisiert {{date}}",
+        "noHooks": "Die Firma trägt keine Hooks."
+      },
+      "contactPersons": {
+        "columns": {
+          "name": "Name",
+          "function": "Funktion",
+          "phone": "Telefon",
+          "mobile": "Mobil",
+          "email": "E-Mail"
+        },
+        "empty": "Keine Ansprechpartner im Kern.",
+        "count_one": "{{count}} Ansprechpartner",
+        "count_other": "{{count}} Ansprechpartner",
+        "countFiltered": "{{shown}} von {{total}} Ansprechpartnern",
+        "filterPlaceholder": "Ansprechpartner filtern ab {{minimum}} Zeichen",
+        "noMatch": "Kein Ansprechpartner passt zu „{{filter}}“.",
+        "openAbas": "Ansprechpartner {{name}} in ABAS öffnen"
+      },
+      "documents": {
+        "noAccess": "Für die Dokumente fehlt dir die AccessRole {{role}}.",
+        "count_one": "{{count}} Dokument",
+        "count_other": "{{count}} Dokumente"
       }
     }
   }

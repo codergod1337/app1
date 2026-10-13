@@ -45,6 +45,9 @@ public class JwtConfig {
 	/** Der Sitzungsplatz 1 bis 3 */
 	public static final String CLAIM_SESSION = "session";
 
+	/** true, wenn der User beim Login mindestens einen Debuff hatte (UsersDebuffs): Dann liest die Auflösung sie nach */
+	public static final String CLAIM_DEBUFFS = "debuffs";
+
 	private final RSAKey rsaKey = createRsaKey();
 
 	/** Signiert mit dem privaten Schlüssel. */

@@ -5,7 +5,9 @@ import { Icon } from '../../components/Icon.tsx'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
 import { useLanguage } from '../../components/languageContext.ts'
-import { dmsFieldLabel, DOCUMENT_LANGUAGE_FIELD_NAME, readableBytes, STATUS_FIELD_NAME } from './Dms.ts'
+import { UsersGuidName } from '../../components/UsersGuidName.tsx'
+import { readableBytes } from '../../components/readableBytes.ts'
+import { dmsFieldLabel, DOCUMENT_LANGUAGE_FIELD_NAME, STATUS_FIELD_NAME } from './Dms.ts'
 import { DmsDocumentLanguageFlag } from './DmsDocumentLanguageFlag.tsx'
 
 /** Ein Dokument, wie es der Server liefert: nur die Felder, die der User lesen darf */
@@ -113,11 +115,20 @@ export function DmsSolrDocumentInfobox({ document }: { document: DmsSolrDocument
       <InfoboxLine label={labelOf('documentCreatedAt', t('dms.document.createdAt'))} value={dateTime(document.documentCreatedAt)} />
       <InfoboxLine
         label={labelOf('documentUploadedAt', t('dms.document.uploadedAt'))}
-        value={`${dateTime(document.documentUploadedAt) ?? '—'} · ${uploader ?? '—'}`}
+        value={
+          <>
+            {dateTime(document.documentUploadedAt) ?? '—'} · {uploader !== null ? <UsersGuidName guid={uploader} /> : '—'}
+          </>
+        }
       />
       <InfoboxLine
         label={labelOf('lastChangedAt', t('dms.document.lastChangedAt'))}
-        value={`${dateTime(document.lastChangedAt) ?? '—'} · ${lastChangedBy ?? '—'}`}
+        value={
+          <>
+            {dateTime(document.lastChangedAt) ?? '—'} ·{' '}
+            {lastChangedBy !== null ? <UsersGuidName guid={lastChangedBy} /> : '—'}
+          </>
+        }
       />
     </div>
   )

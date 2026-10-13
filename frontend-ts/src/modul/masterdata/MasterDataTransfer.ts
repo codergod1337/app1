@@ -6,9 +6,11 @@ export type MasterDataSection =
   | 'ACCESS_ROLE_COLLECTIONS'
   | 'FILE_EXTENSION_COLLECTIONS'
   | 'FILE_EXTENSIONS'
+  | 'FILE_SUB_CLASS_DESTINATIONS'
   | 'FILE_SUB_CLASSES'
   | 'ENTITY_STATES'
   | 'GRAPH_MAIL_TEMPLATES'
+  | 'ABAS_INFOSYS'
   | 'SOLR_HOOK_GROUPS'
   | 'SOLR_HOOKS'
   | 'SOLR_CORES'
@@ -25,13 +27,15 @@ export const MASTER_DATA_SECTIONS: { section: MasterDataSection; label: string }
   { section: 'ACCESS_ROLE_COLLECTIONS', label: 'AccessRoleCollections (ARC)' },
   { section: 'FILE_EXTENSION_COLLECTIONS', label: 'Endungsgruppen' },
   { section: 'FILE_EXTENSIONS', label: 'Endungen' },
-  { section: 'FILE_SUB_CLASSES', label: 'Dateiarten (FSC) mit Rechten und Endungen' },
+  { section: 'FILE_SUB_CLASS_DESTINATIONS', label: 'Anzeigeorte der Dateiarten (Destinations)' },
+  { section: 'FILE_SUB_CLASSES', label: 'Dateiarten (FSC) mit Rechten, Endungen und Anzeigeorten' },
   { section: 'SOLR_HOOK_GROUPS', label: 'Solr-Hook-Gruppen' },
   { section: 'SOLR_HOOKS', label: 'Solr-Hooks' },
   { section: 'SOLR_CORES', label: 'Solr-Kerne' },
   { section: 'SOLR_FIELDS', label: 'Solr-Felder der Kerne' },
   { section: 'ENTITY_STATES', label: 'Status (EntityState)' },
   { section: 'GRAPH_MAIL_TEMPLATES', label: 'Mailvorlagen (GraphManager)' },
+  { section: 'ABAS_INFOSYS', label: 'ABAS-Infosysteme (Aufrufe mit Body-Vorlage)' },
   { section: 'USERS', label: 'User' },
   { section: 'USERS_DETAILS', label: 'User-Details' },
   { section: 'USERS_SETTINGS', label: 'User-Einstellungen' },

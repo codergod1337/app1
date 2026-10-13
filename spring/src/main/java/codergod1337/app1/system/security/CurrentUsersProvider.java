@@ -34,6 +34,9 @@ public interface CurrentUsersProvider {
 	/** Der Sitzungsplatz 1 bis 3 */
 	int getCurrentUsersSessionNumber();
 
+	/** Hatte der User beim Login Debuffs (UsersDebuffs)? Dann liest die Auflösung sie nach, sonst nicht. Aus dem Token. */
+	boolean hasCurrentUsersDebuffs();
+
 	/** Wann das Token abläuft. Das Frontend kann es nicht lesen und plant damit den nächsten Refresh. */
 	Instant getCurrentUsersTokenExpiresAt();
 

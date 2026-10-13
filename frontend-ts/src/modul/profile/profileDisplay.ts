@@ -15,6 +15,11 @@ export function seededRandom(seed: string): () => number {
   }
 }
 
+/** Die Profilseite eines anderen Users, erreichbar über jeden angezeigten Namen (UsersGuidName) */
+export function usersProfilePath(guid: string): string {
+  return `/profile/user/${guid}`
+}
+
 /** Vor- und Nachname, sonst der username, sonst die E-Mail */
 export function usersDisplayName(users: Users): string {
   const fullName = [users.vorname, users.nachname].filter(Boolean).join(' ')

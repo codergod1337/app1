@@ -2,6 +2,7 @@ package codergod1337.app1.system.masterdata.controller;
 
 import codergod1337.app1.file.fileextension.service.FileExtensionCollectionService;
 import codergod1337.app1.file.fileextension.service.FileExtensionService;
+import codergod1337.app1.file.filesubclass.service.FileSubClassDestinationService;
 import codergod1337.app1.file.filesubclass.service.FileSubClassService;
 import codergod1337.app1.solr.core.service.SolrCoreService;
 import codergod1337.app1.solr.field.service.SolrFieldService;
@@ -27,6 +28,7 @@ public class MasterDataPublicController {
 	private final AccessRoleService accessRoleService;
 	private final AccessRoleCollectionService accessRoleCollectionService;
 	private final FileSubClassService fileSubClassService;
+	private final FileSubClassDestinationService fileSubClassDestinationService;
 	private final FileExtensionService fileExtensionService;
 	private final FileExtensionCollectionService fileExtensionCollectionService;
 	private final SolrHookGroupService solrHookGroupService;
@@ -37,12 +39,14 @@ public class MasterDataPublicController {
 
 	public MasterDataPublicController(AccessRoleService accessRoleService,
 			AccessRoleCollectionService accessRoleCollectionService, FileSubClassService fileSubClassService,
-			FileExtensionService fileExtensionService, FileExtensionCollectionService fileExtensionCollectionService,
-			SolrHookGroupService solrHookGroupService, SolrHookService solrHookService, SolrCoreService solrCoreService,
-			SolrFieldService solrFieldService, EntityStateService entityStateService) {
+			FileSubClassDestinationService fileSubClassDestinationService, FileExtensionService fileExtensionService,
+			FileExtensionCollectionService fileExtensionCollectionService, SolrHookGroupService solrHookGroupService,
+			SolrHookService solrHookService, SolrCoreService solrCoreService, SolrFieldService solrFieldService,
+			EntityStateService entityStateService) {
 		this.accessRoleService = accessRoleService;
 		this.accessRoleCollectionService = accessRoleCollectionService;
 		this.fileSubClassService = fileSubClassService;
+		this.fileSubClassDestinationService = fileSubClassDestinationService;
 		this.fileExtensionService = fileExtensionService;
 		this.fileExtensionCollectionService = fileExtensionCollectionService;
 		this.solrHookGroupService = solrHookGroupService;
@@ -61,6 +65,7 @@ public class MasterDataPublicController {
 		Map<String, Object> masterData = new LinkedHashMap<>();
 		masterData.put("accessRoles", accessRoleService.getAllAccessRoles());
 		masterData.put("accessRoleCollections", accessRoleCollectionService.getAllAccessRoleCollections());
+		masterData.put("fileSubClassDestinations", fileSubClassDestinationService.getAllFileSubClassDestinations());
 		masterData.put("fileSubClasses", fileSubClassService.getAllFileSubClasses());
 		masterData.put("fileExtensions", fileExtensionService.getAllFileExtensions());
 		masterData.put("fileExtensionCollections", fileExtensionCollectionService.getAllFileExtensionCollections());

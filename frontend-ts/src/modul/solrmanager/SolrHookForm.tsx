@@ -5,19 +5,17 @@ import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
 import { MultilingualInput } from '../../components/MultilingualInput.tsx'
 import { SolrFieldNameInput } from '../../components/SolrFieldNameInput.tsx'
-import { BadgeToggleList } from '../accessrole/BadgeToggleList.tsx'
-import { fieldReadAccessRoleCandidates } from './SolrField.ts'
-import type { SolrHook } from './SolrHook.ts'
+import { SOLR_HOOK_VALUE_BADGE_LINK_TARGETS, type SolrHook } from './SolrHook.ts'
 import { SolrHookChip } from './SolrHookChip.tsx'
 import { SolrHookValues } from './SolrHookValues.tsx'
 
-/** Startwerte eines neuen Hooks: niemand liest ihn, bis eine AR angekreuzt ist */
+/** Startwerte eines neuen Hooks. Wer ihn je Kern liest, steht an seiner Zeile im Kern-Tab, niemand bis dort eine AR angekreuzt ist */
 const NEW_SOLR_HOOK: SolrHook = {
   key: '',
   displayName: '',
   description: null,
   hookGroupKey: null,
-  readAccessRoleKeys: [],
+  valueBadgeLinkTarget: 'SEARCH',
   listingPosition: 0,
 }
 
@@ -45,8 +43,8 @@ export function SolrHookForm({ formId, initialSolrHook, language, disabled, onSu
   const { t } = useTranslation()
   const editing = initialSolrHook !== undefined
   const [solrHook, setSolrHook] = useState<SolrHook>(initialSolrHook ?? NEW_SOLR_HOOK)
-  // die Gruppen aus den Stammdaten zur Auswahl, gepflegt im Tab „Hook-Gruppen“; die ARs für die Leseliste
-  const { solrHookGroups, accessRoles } = useMasterData()
+  // die Gruppen aus den Stammdaten zur Auswahl, gepflegt im Tab „Hook-Gruppen“
+  const { solrHookGroups } = useMasterData()
 
   function change<K extends keyof SolrHook>(field: K, value: SolrHook[K]) {
     setSolrHook((current) => ({ ...current, [field]: value }))
@@ -117,6 +115,25 @@ export function SolrHookForm({ formId, initialSolrHook, language, disabled, onSu
             ))}
           </select>
         </div>
+        <div className="col-md-6">
+          <label className="form-label" htmlFor={`${formId}-badge-link-target`}>
+            {t('solrmanager.hooks.form.valueBadgeLinkTarget')}
+          </label>
+          <select
+            id={`${formId}-badge-link-target`}
+            className="form-select"
+            disabled={disabled}
+            value={solrHook.valueBadgeLinkTarget}
+            onChange={(event) => change('valueBadgeLinkTarget', SOLR_HOOK_VALUE_BADGE_LINK_TARGETS.find((target) => target === event.target.value) ?? 'SEARCH')}
+          >
+            {SOLR_HOOK_VALUE_BADGE_LINK_TARGETS.map((target) => (
+              <option key={target} value={target}>
+                {t(`solrmanager.hooks.valueBadgeLinkTargets.${target}`)}
+              </option>
+            ))}
+          </select>
+          <div className="form-text">{t('solrmanager.hooks.form.valueBadgeLinkTargetHint')}</div>
+        </div>
         <div className="col-md-3">
           <label className="form-label" htmlFor={`${formId}-position`}>
             {t('common.position')}
@@ -129,17 +146,6 @@ export function SolrHookForm({ formId, initialSolrHook, language, disabled, onSu
             onChange={(event) => change('listingPosition', Number(event.target.value))}
           />
         </div>
-        <div className="col-12">
-          <span className="form-label d-block">{t('solrmanager.hooks.form.readAccess')}</span>
-          <BadgeToggleList
-            badges={fieldReadAccessRoleCandidates(accessRoles ?? [], solrHook.readAccessRoleKeys)}
-            selectedKeys={solrHook.readAccessRoleKeys}
-            onChange={(readAccessRoleKeys) => change('readAccessRoleKeys', readAccessRoleKeys)}
-            shape="rect"
-            disabled={disabled}
-          />
-        </div>
-
         {/* Live-Vorschau beider Darstellungen: als gesetzter Filter und als Hook am Dokument. Der Look ist fest, nur der Name ändert sich */}
         <div className="col-md-9">
           <span className="form-label d-block">{t('common.preview')}</span>

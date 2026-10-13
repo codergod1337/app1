@@ -35,8 +35,9 @@ function paragraphs(
     | 'suggest'
     | 'type'
     | 'fieldAccess'
-    | 'backendOnly'
-    | 'clientWriteRule',
+    | 'searchWeight'
+    | 'clientWriteRule'
+    | 'command',
 ): string[] {
   const value: unknown = t(`solrmanager.hints.${key}.paragraphs`, { returnObjects: true })
   return Array.isArray(value) ? value.map(String) : []
@@ -100,14 +101,19 @@ export function solrFieldAccessHint(t: TFunction): ReactNode {
   return explanation(t('solrmanager.hints.fieldAccess.title'), ...paragraphs(t, 'fieldAccess'))
 }
 
-/** Die Erklärung des Schalters nur Backend: nie zum Client */
-export function solrFieldBackendOnlyHint(t: TFunction): ReactNode {
-  return explanation(t('solrmanager.hints.backendOnly.title'), ...paragraphs(t, 'backendOnly'))
+/** Die Erklärung der Spalte Suche: das Gewicht in der qf der Suche */
+export function solrFieldSearchWeightHint(t: TFunction): ReactNode {
+  return explanation(t('solrmanager.hints.searchWeight.title'), ...paragraphs(t, 'searchWeight'))
 }
 
 /** Die Erklärung des Umschaltknopfs der Schreibregel: Backend, nur beim Anlegen, Client */
 export function solrFieldClientWriteRuleHint(t: TFunction): ReactNode {
   return explanation(t('solrmanager.hints.clientWriteRule.title'), ...paragraphs(t, 'clientWriteRule'))
+}
+
+/** Die Erklärung der Spalte Mapping: der Key des Mapping-Eintrags, dessen Werte ins Feld gehen */
+export function solrFieldCommandHint(t: TFunction): ReactNode {
+  return explanation(t('solrmanager.hints.command.title'), ...paragraphs(t, 'command'))
 }
 
 /**

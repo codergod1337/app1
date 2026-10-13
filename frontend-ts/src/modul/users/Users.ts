@@ -40,6 +40,11 @@ export function getUsersByGuid(guid: string) {
   return request<Users>('GET', `${USERS_PATH}/${guid}`)
 }
 
+/** Die Vervollständigung: ab zwei Zeichen E-Mail-Schnipsel, höchstens zehn User. POST, freier Text gehört nie in eine URL. */
+export function suggestUsers(text: string) {
+  return request<Users[]>('POST', `${USERS_PATH}/suggest`, { text })
+}
+
 /** Der User ändert username, vorname und nachname. email, serviceAccount und status bleiben. */
 export function updateUsersNames(guid: string, changedUsersNamesData: UsersNamesData) {
   return request<Users>('PUT', USERS_PATH, { guid, ...changedUsersNamesData })

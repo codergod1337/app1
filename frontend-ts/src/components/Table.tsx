@@ -36,7 +36,11 @@ interface TableProps<T> {
   detailTitle: (row: T) => ReactNode
   /** Text, wenn es keine Zeilen gibt */
   emptyText: string
-  /** Macht die Zeilen per Drag and Drop verschiebbar (Griff ganz links). Bekommt die Zeilen in neuer Reihenfolge. */
+  /**
+   * Macht die Zeilen per Drag and Drop verschiebbar (Griff ganz links). Bekommt die Zeilen in neuer Reihenfolge.
+   * Im festen Layout (eine Spalte mit width) braucht auch die erste Spalte eine width, die Griff und Inhalt fasst:
+   * ohne sie ist sie nur 1 % breit und der Inhalt läuft in die nächste Spalte.
+   */
   onReorder?: (rows: T[]) => void
   /**
    * Nur mit onReorder: Zeilen, die an ihrem Platz bleiben, z. B. id ganz oben oder die leere Zeile für einen neuen

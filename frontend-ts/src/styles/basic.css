@@ -260,6 +260,30 @@
     cursor: zoom-out;
   }
 
+  /* Das PDF im eingebauten Viewer des Browsers (PdfFrame): füllt die Fläche des Aufrufers ganz, ohne Rahmen */
+  .pdf-frame {
+    display: block;
+    flex: 1 1 auto;
+    align-self: stretch;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border: 0;
+  }
+
+  /* Die eine Wartemeldung aller Viewer (LoadingProgress): Spinner, daneben Name und Fortschritt untereinander */
+  .loading-progress {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .loading-progress-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
   /* Ohne eigenen Abstand, damit der subheader über die volle Breite reicht */
   .main {
     flex: 1 1 auto;
@@ -640,6 +664,11 @@
     pointer-events: none;
   }
 
+  /* Ein interaktives Hoverlay (Hoverlay mit interactive) nimmt die Maus an: Links und Knöpfe darin sind klickbar */
+  .hoverlay.hoverlay-interactive {
+    pointer-events: auto;
+  }
+
   /* Eine Erklärung (hoverlay-explanation) darf breiter sein als ein kurzer Hinweis, sonst stünde jede Tabelle darin hochkant */
   .hoverlay:has(.hoverlay-explanation) {
     max-width: 36rem;
@@ -854,6 +883,11 @@
     padding: 0;
     border: none;
     background: transparent;
+  }
+
+  /* schmal: ein einzelnes Bedienelement, etwa der Regler des NumberPicker */
+  .popup-narrow {
+    width: min(24rem, 92vw);
   }
 
   .popup::backdrop {
@@ -2324,6 +2358,25 @@
     font-size: 0.875rem;
   }
 
+  /*
+   * Kern-Tab des SolrManagers: die Feldtabelle als Matrix-Darstellung über die ganze Breite, ohne ContentBox. Die
+   * Seite scrollt wie jede andere, die Kopfzeile der Tabelle bleibt unter dem stehenden Subheader. Die Leiste oben
+   * trägt Plus, Flaggen und den Knopf zum Popup des Abgleichs.
+   */
+  .solr-field-matrix {
+    color: var(--matrix-text);
+  }
+
+  .solr-field-matrix .data-table thead th {
+    position: sticky;
+    top: var(--subheader-height);
+    z-index: 2;
+  }
+
+  .matrix-message .language-flags {
+    margin-bottom: 0;
+  }
+
   /* Ohne gezeichnete Rollbalken: bedient wird mit Mausrad, Finger oder rechter Maustaste */
   .matrix-scroll {
     flex: 1 1 auto;
@@ -2565,6 +2618,16 @@
   .matrix tbody .matrix-group-row th,
   .matrix tbody .matrix-group-row td {
     border-top: 2px solid var(--matrix-line);
+    background-color: var(--matrix-group-bg);
+    font-weight: 700;
+  }
+
+  /* Trennzeile, z. B. zwischen den Endungen und den Anzeigeorten der FSC-Matrix: ein dicker Strich über die ganze
+     Breite, der Zeilenkopf nennt, was darunter kommt. Keine Zellen, nichts zu malen. */
+  .matrix tbody .matrix-separator-row th,
+  .matrix tbody .matrix-separator-row td {
+    border-top: 5px solid var(--matrix-line);
+    border-bottom: 2px solid var(--matrix-line);
     background-color: var(--matrix-group-bg);
     font-weight: 700;
   }

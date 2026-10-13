@@ -27,48 +27,46 @@ import {
   isSameSearchFilter,
   SEARCH_ACTIVE_CORES_SETTING_KEY,
   SEARCH_DEBOUNCE_MS,
-  SEARCH_MAX_PAGES,
   SEARCH_MAX_WORDS,
   SEARCH_MIN_CHARACTERS,
   SEARCH_PATH,
   SEARCH_TEXT_PARAM,
   searchFiltersOfParams,
+  searchOfferOfReason,
   searchParamsOf,
   searchRequestOf,
   searchWordsOf,
   useSearchPrefill,
-  type SearchCoreFilterOffer,
+  withoutSearchWord,
   type SearchFilter,
-  type SearchFilterOffer,
+  type SearchOffer,
   type SearchResultPage,
 } from './Search.ts'
 import { SEARCH_CORES, searchCoresOf, type SearchCore } from './searchCores.ts'
 import { SearchFileSubClassTiles } from './SearchFileSubClassTiles.tsx'
 import { SearchFilterChips } from './SearchFilterChips.tsx'
-import {
-  cachedSearchOffers,
-  cachedSearchResult,
-  rememberSearchOffers,
-  rememberSearchResult,
-} from './searchResultCache.ts'
+import { cachedSearchResult, rememberSearchResult } from './searchResultCache.ts'
 import { SearchSuggestions } from './SearchSuggestions.tsx'
 
 /**
  * Die Suchmaske nach der SuchePage der Vorlage, ein Modul über alle Kerne: ein Eingabefeld, gesucht wird in allen
  * angewählten Kernen zugleich, zu denen der User die Such-Rolle hat. Die Kernschalter sind keine Seiten, sondern
  * Filter, welche Kerne der User durchsucht, merkt sich seine UsersSetting. Je Kern läuft seine eigene Suche mit eigener
- * Laufnummer, eigenem Fehler und eigener Blätterleiste: Ein langsamer Kern hält die anderen nicht auf. Über der Eingabe
- * die Filter als Chips, darunter die Treffer je Kern in seiner Darstellung. Keine Feldauswahl: Filter kommen aus den
- * Angeboten der Vervollständigung, aus „fsc.“, aus Hook-Werten in Treffern und auf der Dokumentseite.
+ * Laufnummer und eigenem Fehler: Ein langsamer Kern hält die anderen nicht auf. Über der Eingabe die Filter als Chips,
+ * darunter die Treffer je Kern in seiner Darstellung. Keine Feldauswahl: Filter kommen aus „fsc.“, aus Hook-Werten in
+ * Treffern und auf der Dokumentseite.
  *
  * Nie ins Leere suchen: ohne Suchwort ab drei Zeichen und ohne Filter wird nicht einmal gefragt. Höchstens sechs
- * Suchwörter, dieselbe Grenze wie im Backend. „fsc.“ in der Eingabe öffnet die Dateiarten als Kacheln, die Wahl wird
- * der Chip fileSubClassKey. Ein exakt getippter Schlüssel springt direkt zur Seite des Treffers. Vorbelegungen kommen
- * per Router-State (Hook-Werte aus Dokumentseite und Treffern), nie über die Adresse.
+ * Suchwörter, eine Regel der Maske. „fsc.“ in der Eingabe öffnet die Dateiarten als Kacheln, die Wahl wird der Chip
+ * fileSubClassKey. Ein exakt getippter Schlüssel springt direkt zur Seite des Treffers. Vorbelegungen kommen per
+ * Router-State (Hook-Werte aus Dokumentseite und Treffern), nie über die Adresse.
  *
- * Beim Tippen läuft je Kern neben der Suche die Vervollständigung: Ihre Filterangebote stehen über der Eingabe, Tab
- * loggt das erste ein, Klick jedes. Ihre kompakten Treffer zeigt die Seite nicht, die Suche darunter läuft ohnehin.
- * Der Treffergrund kommt immer mit, es gibt keinen Schalter dafür (User 2026-10-07).
+ * Das Backend liefert nur die besten Treffer (app1.solr.search.hits), keine Seiten: Gibt es mehr, sagt der Footer,
+ * dass man enger suchen soll. Der Treffergrund kommt immer mit, es gibt keinen Schalter dafür (User 2026-10-07).
+ *
+ * Die Angebote über der Eingabe (User 2026-10-09) kommen aus den Gründen der Treffer, ohne eigenen Request: Jeder
+ * Hook-Wert, den ein Suchwort getroffen hat, steht als Chip da. Klick oder Tab macht ihn zum Filter und nimmt das
+ * Suchwort aus dem Text: ein Wort weniger in der qf, ein exakter fq dazu.
  *
  * Suchwörter und Chips stehen in der Adresse (User 2026-10-07: ?q=… und f=feld:wert), die Seite schreibt sie bei jeder
  * Änderung hinein, ohne neuen Verlaufseintrag. Zurück aus einem Treffer, der Knopf „zurück zu Suche“ und ein Reload
@@ -81,7 +79,7 @@ export function Search() {
   const location = useLocation()
   const { hasAccessRole, sessionInfo } = useSession()
   const usersGuid = sessionInfo?.usersGuid ?? null
-  const { fileSubClasses, solrCores } = useMasterData()
+  const { fileSubClasses, solrCores, solrHooks } = useMasterData()
   const { settingValue, changeSetting } = useUsersSettings()
   const prefill = useSearchPrefill()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -95,11 +93,9 @@ export function Search() {
   const writtenSearchRef = useRef<string | null>(null)
   const [resultByCore, setResultByCore] = useState<Record<string, SearchResultPage>>({})
   const [errorByCore, setErrorByCore] = useState<Record<string, string | null>>({})
-  const [offersByCore, setOffersByCore] = useState<Record<string, SearchFilterOffer[]>>({})
   const [running, setRunning] = useState(0)
-  /** Laufnummern je Kern gegen veraltete Antworten, Suche und Vervollständigung getrennt */
+  /** Laufnummern je Kern gegen veraltete Antworten */
   const runByCore = useRef<Record<string, number>>({})
-  const suggestRunByCore = useRef<Record<string, number>>({})
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Die angewählten Kerne: die Wahl des Users in dieser Sitzung, sonst seine gespeicherte, gefiltert nach dem, was
@@ -166,19 +162,21 @@ export function Search() {
     (fileSubClass.readAccessRoleKeys ?? []).some(hasAccessRole),
   )
   const searchable = !fileSubClassMode && !tooManyWords && (hasSearchWord(searchText) || filters.length > 0)
-  /** Vervollständigt wird nur mit einem Suchwort: Ohne Eingabe gibt es keinen Anfang, den ein Wert treffen könnte */
-  const suggestable = !fileSubClassMode && !tooManyWords && hasSearchWord(searchText)
 
-  /** Die Angebote aller angewählten Kerne in Kernreihenfolge, ohne schon gesetzte Filter, ohne Doppelte */
-  const visibleOffers: SearchCoreFilterOffer[] = []
+  /** Die Angebote aus den Gründen der Treffer aller angewählten Kerne, ohne schon gesetzte Filter, ohne Doppelte */
+  const isHook = (fieldName: string) => (solrHooks ?? []).some((hook) => hook.key === fieldName)
+  const offers: SearchOffer[] = []
   for (const core of activeCores) {
-    for (const offer of offersByCore[core.key] ?? []) {
-      const asFilter = { fieldName: offer.fieldName, value: offer.value }
-      if (
-        !filters.some((existing) => isSameSearchFilter(existing, asFilter)) &&
-        !visibleOffers.some((existing) => existing.offer.fieldName === offer.fieldName && existing.offer.value === offer.value)
-      ) {
-        visibleOffers.push({ coreKey: core.key, offer })
+    for (const hit of resultByCore[core.key]?.hits ?? []) {
+      for (const reason of hit.reasons) {
+        const offer = searchOfferOfReason(core.key, reason, isHook)
+        if (
+          offer !== null &&
+          !filters.some((existing) => isSameSearchFilter(existing, offer)) &&
+          !offers.some((existing) => existing.fieldName === offer.fieldName && existing.value === offer.value)
+        ) {
+          offers.push(offer)
+        }
       }
     }
   }
@@ -200,34 +198,16 @@ export function Search() {
     setSearchText('')
   }
 
-  /** Ein Angebot einloggen: Der Wert wird Chip, das Suchwort hat seinen Zweck erfüllt und geht aus dem Feld */
-  function pickOffer(offer: SearchFilterOffer) {
+  /** Ein Angebot einloggen: der Wert wird Chip (fq), das Suchwort, das ihn traf, geht aus dem Suchtext, samt + davor */
+  function pickOffer(offer: SearchOffer) {
     addFilter({ fieldName: offer.fieldName, value: offer.value })
-    setSearchText('')
+    setSearchText((previous) => withoutSearchWord(previous, offer.word))
   }
 
-  function runSuggest(core: SearchCore, text: string, currentFilters: SearchFilter[]) {
-    const run = (suggestRunByCore.current[core.key] ?? 0) + 1
-    suggestRunByCore.current[core.key] = run
-    const request = searchRequestOf(text, currentFilters, [], 0)
-    core
-      .suggest(request)
-      .then(({ data }) => {
-        rememberSearchOffers(usersGuid, core.key, request, data.filterOffers)
-        if (suggestRunByCore.current[core.key] === run) {
-          setOffersByCore((previous) => ({ ...previous, [core.key]: data.filterOffers }))
-        }
-      })
-      .catch((error: unknown) => {
-        // Beiwerk: Die Suche läuft weiter, ihren Fehler zeigt sie selbst. In die Konsole gehört er trotzdem.
-        console.warn(`Vervollständigung (${core.key}) fehlgeschlagen:`, error instanceof RequestError ? error.message : error)
-      })
-  }
-
-  function runSearch(core: SearchCore, page: number, text: string, currentFilters: SearchFilter[]) {
+  function runSearch(core: SearchCore, text: string, currentFilters: SearchFilter[]) {
     const run = (runByCore.current[core.key] ?? 0) + 1
     runByCore.current[core.key] = run
-    const request = searchRequestOf(text, currentFilters, [], page)
+    const request = searchRequestOf(text, currentFilters)
     // schon gesehen: sofort aus dem Zwischenspeicher, kein Request, kein Direktsprung (der führte zurück und wieder hin)
     const cached = cachedSearchResult(usersGuid, core.key, request)
     if (cached !== undefined) {
@@ -245,9 +225,9 @@ export function Search() {
         }
         // Direktsprung: Passt ein Schlüssel exakt auf das Getippte, war es eine id, dann direkt zur Seite
         const typed = text.trim().toLowerCase()
-        if (core.directPathOf !== null && typed !== '' && page === 0) {
-          const direct = data.hits.find((hit) => core.idOf(hit.document)?.toLowerCase() === typed)
-          const path = direct ? core.directPathOf(direct.document) : null
+        if (core.directPathOf !== null && typed !== '') {
+          const direct = data.hits.find((hit) => core.idOf(hit.fieldValues)?.toLowerCase() === typed)
+          const path = direct ? core.directPathOf(direct.fieldValues) : null
           if (path !== null) {
             navigate(path, { state: { origin: { path: `${SEARCH_PATH}${location.search}`, label: 'search.title' } } })
             return
@@ -290,62 +270,43 @@ export function Search() {
   /** Beim Verlassen der Suche mitgeben, mit dem aktuellen Stand in der Adresse, damit „zurück zu Suche“ ihn wiederherstellt */
   const originState: OriginState = { origin: { path: `${SEARCH_PATH}${location.search}`, label: 'search.title' } }
 
-  // Je angewähltem Kern eine Suche ab Seite 0 und eine Vervollständigung. Was der Zwischenspeicher schon hat, steht
-  // sofort da, ohne Tipp-Pause (Zurück aus einem Treffer, Backspace auf Gesehenes); der Rest nach 250 ms Tipp-Pause.
+  // Je angewähltem Kern eine Suche. Was der Zwischenspeicher schon hat, steht sofort da, ohne Tipp-Pause (Zurück aus
+  // einem Treffer, Backspace auf Gesehenes); der Rest nach 250 ms Tipp-Pause.
   useEffect(() => {
     if (!searchable) {
       setResultByCore({})
       setErrorByCore({})
-    }
-    if (!suggestable) {
-      setOffersByCore({})
-    }
-    if (!searchable && !suggestable) {
       return
     }
     const pendingSearch: SearchCore[] = []
-    const pendingSuggest: SearchCore[] = []
-    const request = searchRequestOf(searchText, filters, [], 0)
+    const request = searchRequestOf(searchText, filters)
     for (const core of activeCores) {
-      if (searchable) {
-        const cached = cachedSearchResult(usersGuid, core.key, request)
-        if (cached !== undefined) {
-          setResultByCore((previous) => ({ ...previous, [core.key]: cached }))
-          setErrorByCore((previous) => ({ ...previous, [core.key]: null }))
-        } else {
-          pendingSearch.push(core)
-        }
-      }
-      if (suggestable) {
-        const cachedOffers = cachedSearchOffers(usersGuid, core.key, request)
-        if (cachedOffers !== undefined) {
-          setOffersByCore((previous) => ({ ...previous, [core.key]: cachedOffers }))
-        } else {
-          pendingSuggest.push(core)
-        }
+      const cached = cachedSearchResult(usersGuid, core.key, request)
+      if (cached !== undefined) {
+        setResultByCore((previous) => ({ ...previous, [core.key]: cached }))
+        setErrorByCore((previous) => ({ ...previous, [core.key]: null }))
+      } else {
+        pendingSearch.push(core)
       }
     }
-    if (pendingSearch.length === 0 && pendingSuggest.length === 0) {
+    if (pendingSearch.length === 0) {
       return
     }
     const timer = setTimeout(() => {
       for (const core of pendingSearch) {
-        runSearch(core, 0, searchText, filters)
-      }
-      for (const core of pendingSuggest) {
-        runSuggest(core, searchText, filters)
+        runSearch(core, searchText, filters)
       }
     }, SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
     // die Kerne stehen über activeCoresKey drin, filters über ihren Schlüssel
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchText, filtersKey, activeCoresKey, searchable, suggestable])
+  }, [searchText, filtersKey, activeCoresKey, searchable])
 
   function keyDown(event: KeyboardEvent<HTMLInputElement>) {
     // Tab loggt das erste Angebot ein, wie in der Vorlage; ohne Angebot bleibt Tab, was es ist
-    if (event.key === 'Tab' && !event.shiftKey && visibleOffers.length > 0) {
+    if (event.key === 'Tab' && !event.shiftKey && offers.length > 0) {
       event.preventDefault()
-      pickOffer(visibleOffers[0].offer)
+      pickOffer(offers[0])
       return
     }
     if (fileSubClassMode && event.key === 'Enter') {
@@ -417,7 +378,7 @@ export function Search() {
             <div className="d-flex flex-column gap-3">
               <p className="form-text mb-0">{t('search.intro')}</p>
               <SearchFilterChips filters={filters} onRemove={removeFilter} language={language} />
-              <SearchSuggestions offers={visibleOffers} language={language} onPick={pickOffer} />
+              <SearchSuggestions offers={offers} language={language} onPick={pickOffer} />
               <div className="d-flex align-items-center gap-2">
                 <input
                   ref={inputRef}
@@ -459,9 +420,7 @@ export function Search() {
               solrCore={solrCoreOfKey(solrCores, core.key)}
               result={resultByCore[core.key] ?? null}
               errorMessage={errorByCore[core.key] ?? null}
-              busy={running > 0}
               origin={originState}
-              onPage={(page) => runSearch(core, page, searchText, filters)}
               onFilter={addFilter}
             />
           ))}
@@ -476,18 +435,17 @@ interface SearchCoreResultsProps {
   solrCore: SolrCore | null
   result: SearchResultPage | null
   errorMessage: string | null
-  busy: boolean
   /** woher man kommt, mit dem Stand der Suche in der Adresse */
   origin: OriginState
-  onPage: (page: number) => void
   onFilter: (filter: SearchFilter) => void
 }
 
 /**
- * Die Treffer eines Kerns: Emblem und Zahl im Kopf, der Fehler oder Hinweis, die Liste in der Darstellung des Kerns in
- * seiner Farbe (Marken des Treffergrunds, Rand der Treffer), unten das Blättern.
+ * Die Treffer eines Kerns: Emblem und Zahl im Kopf, der Fehler, die Liste in der Darstellung des Kerns in seiner Farbe
+ * (Marken des Treffergrunds, Rand der Treffer), unten die Gesamtzahl und, wenn das Backend mehr hat als es liefert,
+ * der Rat, enger zu suchen.
  */
-function SearchCoreResults({ core, solrCore, result, errorMessage, busy, origin, onPage, onFilter }: SearchCoreResultsProps) {
+function SearchCoreResults({ core, solrCore, result, errorMessage, origin, onFilter }: SearchCoreResultsProps) {
   const { t } = useTranslation()
   const { language } = useLanguage()
   const coreName = solrCore ? (
@@ -496,34 +454,14 @@ function SearchCoreResults({ core, solrCore, result, errorMessage, busy, origin,
     t(`search.cores.${core.labelKey}`)
   )
   const total = result?.totalFound ?? 0
-  const size = result?.size ?? 1
-  const page = result?.page ?? 0
-  const pages = Math.min(Math.ceil(total / size), SEARCH_MAX_PAGES)
+  const shown = result?.hits.length ?? 0
   const ResultList = core.ResultList
 
   const footer =
-    result !== null && result.hint === null ? (
+    result !== null ? (
       <div className="d-flex flex-wrap align-items-center gap-2">
         <span>{t('resolve.total', { count: total })}</span>
-        {pages > 1 && (
-          <>
-            <span>{t('resolve.page', { page: page + 1, pages })}</span>
-            <button type="button" className="button-other" disabled={busy || page === 0} onClick={() => onPage(page - 1)}>
-              {t('resolve.previous')}
-            </button>
-            <button
-              type="button"
-              className="button-other"
-              disabled={busy || page + 1 >= pages}
-              onClick={() => onPage(page + 1)}
-            >
-              {t('resolve.next')}
-            </button>
-          </>
-        )}
-        {total > pages * size && (
-          <span className="small text-muted">{t('search.results.moreThanReachable', { reachable: pages * size })}</span>
-        )}
+        {total > shown && <span className="small text-muted">{t('search.results.onlyBest', { count: shown })}</span>}
       </div>
     ) : undefined
 
@@ -532,12 +470,6 @@ function SearchCoreResults({ core, solrCore, result, errorMessage, busy, origin,
     body = <p className="text-danger mb-0">{errorMessage}</p>
   } else if (result === null) {
     body = <span className="spinner-border spinner-border-sm" role="status" aria-label={t('search.running')} />
-  } else if (result.hint !== null) {
-    body = (
-      <p className="mb-0 text-muted">
-        {t(`search.hint.${result.hint}`, { min: SEARCH_MIN_CHARACTERS, max: SEARCH_MAX_WORDS })}
-      </p>
-    )
   } else if (result.hits.length === 0) {
     body = <p className="mb-0 text-muted">{t('resolve.empty')}</p>
   } else {
@@ -547,7 +479,7 @@ function SearchCoreResults({ core, solrCore, result, errorMessage, busy, origin,
   const title = (
     <span className="d-inline-flex align-items-center gap-2">
       {coreName}
-      {result !== null && result.hint === null && <span className="fw-normal">{t('resolve.total', { count: total })}</span>}
+      {result !== null && <span className="fw-normal">{t('resolve.total', { count: total })}</span>}
     </span>
   )
 
