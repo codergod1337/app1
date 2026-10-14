@@ -1751,7 +1751,7 @@
   },
   "testfakedata": {
     "title": "Testdaten",
-    "intro": "Erzeugt Testdaten über die normalen Schreibwege des Backends, um früh die spätere Performance einzuschätzen: Kunden und Lieferanten im Kern KONTAKTE, Artikel im Kern ARTIKEL, Datenblätter als TXT im DMS. Gefüllt werden die Felder, die die Suche des Kerns nutzt. Was es schon gibt, wird übersprungen.",
+    "intro": "Erzeugt Testdaten über die normalen Schreibwege des Backends, um früh die spätere Performance einzuschätzen: Kunden und Lieferanten im Kern KONTAKTE, Artikel im Kern ARTIKEL, Datenblätter als TXT im DMS. Jeder Lauf legt WEITERE Daten an: Alle Nummern zählen direkt hinter dem vorhandenen Testbestand weiter. Gefüllt werden die Felder, die die Suche des Kerns nutzt.",
     "form": {
       "title": "Was erzeugt wird"
     },
@@ -1764,10 +1764,10 @@
       "documentsPerArticleDeviation": "Streuung der Normalverteilung"
     },
     "hints": {
-      "articleCount": "Nummern fortlaufend ab 10000000; Nummern mit 997 vorn sind Werkzeuge. Jeder Artikel hat einen Kunden und 1 bis 3 Lieferanten.",
-      "customerCount": "Je Kunde eine Firma mit 1 bis 15 Ansprechpartnern, im Mittel 5. Kundennummern ab 2000001.",
-      "supplierCount": "Je Lieferant eine Firma mit 1 bis 15 Ansprechpartnern, im Mittel 5. Lieferantennummern ab 7000001.",
-      "documentCount": "TXT als Datenblatt: Inhalt die laufende Nummer 0 bis Anzahl − 1 und 1 bis 5 Sätze zu seinen Artikeln.",
+      "articleCount": "Weitere Artikel, Nummern direkt hinter dem höchsten Testartikel (der erste Lauf beginnt bei 10000000); Nummern mit 997 vorn sind Werkzeuge. Jeder Artikel hat einen Kunden und 1 bis 3 Lieferanten aus allen Testfirmen.",
+      "customerCount": "Weitere Kunden, je eine Firma mit 1 bis 15 Ansprechpartnern, im Mittel 5. Kundennummern hinter den vorhandenen (ab 2000001).",
+      "supplierCount": "Weitere Lieferanten, je eine Firma mit 1 bis 15 Ansprechpartnern, im Mittel 5. Lieferantennummern hinter den vorhandenen (ab 7000001).",
+      "documentCount": "Weitere TXT-Datenblätter, Nummer hinter dem höchsten vorhandenen, dazu 1 bis 5 Sätze zu ihren Artikeln. Sie hängen an den Artikeln dieses Laufs; ohne neue Artikel an allen Testartikeln.",
       "documentsPerArticleMean": "Wie viele Datenblätter ein Artikel im Mittel hat.",
       "documentsPerArticleDeviation": "Wie stark die Zahl der Datenblätter je Artikel um das Mittel streut."
     },
@@ -1782,6 +1782,8 @@
     "perSecond": "{{value}}/s",
     "columns": {
       "phase": "Phase",
+      "numbers": "Nummern",
+      "numbersHint": "Die Nummern, die dieser Lauf vergibt: Kunden- oder Lieferantennummer, Artikelnummer, Datenblatt-Nummer. Sie schließen direkt an den vorhandenen Testbestand an.",
       "progress": "Fortschritt",
       "written": "Solr-Dokumente",
       "writtenHint": "Geschriebene Solr-Dokumente; bei Kunden und Lieferanten die Firma und ihre Ansprechpartner.",

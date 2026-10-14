@@ -135,6 +135,13 @@ export function TestFakeData() {
   const columns: TableColumn<TestFakeDataPhase>[] = [
     { header: t('testfakedata.columns.phase'), cell: (phase) => t(`testfakedata.phases.${phase.key}`), width: '9rem' },
     {
+      header: t('testfakedata.columns.numbers'),
+      headerHint: t('testfakedata.columns.numbersHint'),
+      // ohne Grouping: Nummern liest man ohne Tausenderpunkte
+      cell: (phase) => (phase.total > 0 ? `${phase.firstNumber} – ${phase.lastNumber}` : '—'),
+      width: '11rem',
+    },
+    {
       header: t('testfakedata.columns.progress'),
       cell: (phase) => {
         const percent = phase.total > 0 ? Math.min(100, (phase.done / phase.total) * 100) : phase.finishedAt !== null ? 100 : 0

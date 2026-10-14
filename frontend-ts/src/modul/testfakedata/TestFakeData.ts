@@ -34,6 +34,10 @@ export interface TestFakeDataPhase {
   key: TestFakeDataPhaseKey
   /** Firmen, Artikel oder Datenblätter insgesamt */
   total: number
+  /** die erste Nummer dieses Laufs, direkt hinter dem vorhandenen Testbestand */
+  firstNumber: number
+  /** die letzte Nummer dieses Laufs */
+  lastNumber: number
   done: number
   skipped: number
   failed: number

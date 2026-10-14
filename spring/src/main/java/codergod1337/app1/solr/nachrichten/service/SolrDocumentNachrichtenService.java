@@ -15,6 +15,8 @@ import codergod1337.app1.system.security.CurrentUsersProvider;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -99,10 +101,21 @@ public class SolrDocumentNachrichtenService {
 
 	// ===== Lesen =====
 
-	/** Eine Nachricht über ihre laufende Nummer; null, wenn es sie nicht gibt oder der User sie nicht sehen darf */
+	/**
+	 * Eine Nachricht über ihre laufende Nummer, mit denselben Rechten wie das Auflösen; null, wenn es sie nicht gibt oder
+	 * der User sie nicht sehen darf. Echtzeit-Lesen (/get) statt Suche: sieht auch eine gerade archivierte Nachricht, die
+	 * Solr noch nicht aufgefrischt hat (User 2026-10-14, Auffrischen alle 10 s).
+	 */
 	public Map<String, Object> getById(String id) {
-		List<Map<String, Object>> documents = resolveNachrichtenDocuments(Map.of("id", id), 0).documents();
-		return documents.isEmpty() ? null : documents.get(0);
+		utils.requireAccessRole();
+		ModifiableSolrParams params = new ModifiableSolrParams();
+		applyUserReadRules(params, Map.of());
+		try {
+			SolrDocument document = client().getById(id, params);
+			return document == null ? null : new LinkedHashMap<>(document);
+		} catch (SolrServerException | IOException e) {
+			throw unavailable(e);
+		}
 	}
 
 	/**
@@ -158,9 +171,17 @@ public class SolrDocumentNachrichtenService {
 			messages.addAll(resolvedPage.documents());
 			// die letzte Seite ist kleiner als die Seitengröße, notfalls leer
 			if (resolvedPage.documents().size() < resolvePageSize) {
-				return messages;
+				break;
 			}
 		}
+		// eine gerade archivierte Nachricht kennt die Suche erst nach dem Auffrischen (bis 10 s): sie selbst gehört immer dazu
+		boolean contained = messages.stream().anyMatch(candidate -> id.equals(String.valueOf(candidate.get("id"))));
+		if (!contained) {
+			messages.add(message);
+			// Solr liefert das Datum als Date; ohne Datum ganz vorn
+			messages.sort(Comparator.comparingLong(candidate -> candidate.get("sentDateTime") instanceof Date sent ? sent.getTime() : 0L));
+		}
+		return messages;
 	}
 
 	/**
@@ -187,17 +208,7 @@ public class SolrDocumentNachrichtenService {
 		for (String filterQuery : backendFilterQueries) {
 			params.add("fq", filterQuery);
 		}
-		if (utils.isAdmin()) {
-			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, null, List.of());
-		} else if (utils.isEveryFieldReadable()) {
-			utils.buildUserReadAclForSolrRequest(params);
-			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, null, List.of());
-		} else {
-			List<String> readableFieldNames = utils.buildUserSolrResponseFieldList(params);
-			List<String> debuffedFieldNames = utils.buildUserDebuffsForSolrRequest(params);
-			utils.buildUserReadAclForSolrRequest(params);
-			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, readableFieldNames, debuffedFieldNames);
-		}
+		applyUserReadRules(params, valuesByFieldName);
 		try {
 			QueryResponse response = client().query(params);
 			List<Map<String, Object>> documents = new ArrayList<>();
@@ -208,6 +219,21 @@ public class SolrDocumentNachrichtenService {
 					documents);
 		} catch (SolrServerException | IOException e) {
 			throw unavailable(e);
+		}
+	}
+
+	/** Auflösen und getById rufen das: die drei Stufen ADMIN, SOLR_USERS_VIEW_ALL und alle anderen, dazu die Bedingungen */
+	private void applyUserReadRules(ModifiableSolrParams params, Map<String, List<String>> valuesByFieldName) {
+		if (utils.isAdmin()) {
+			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, null, List.of());
+		} else if (utils.isEveryFieldReadable()) {
+			utils.buildUserReadAclForSolrRequest(params);
+			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, null, List.of());
+		} else {
+			List<String> readableFieldNames = utils.buildUserSolrResponseFieldList(params);
+			List<String> debuffedFieldNames = utils.buildUserDebuffsForSolrRequest(params);
+			utils.buildUserReadAclForSolrRequest(params);
+			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, readableFieldNames, debuffedFieldNames);
 		}
 	}
 

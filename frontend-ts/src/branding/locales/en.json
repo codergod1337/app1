@@ -1751,7 +1751,7 @@
   },
   "testfakedata": {
     "title": "Test data",
-    "intro": "Creates test data through the normal write paths of the backend to estimate the later performance early: customers and suppliers in the core KONTAKTE, articles in the core ARTIKEL, data sheets as TXT in the DMS. The fields used by the search of each core are filled. Anything that already exists is skipped.",
+    "intro": "Creates test data through the normal write paths of the backend to estimate the later performance early: customers and suppliers in the core KONTAKTE, articles in the core ARTIKEL, data sheets as TXT in the DMS. Every run adds MORE data: all numbers continue right after the existing test data. The fields used by the search of each core are filled.",
     "form": {
       "title": "What is created"
     },
@@ -1764,10 +1764,10 @@
       "documentsPerArticleDeviation": "Deviation of the normal distribution"
     },
     "hints": {
-      "articleCount": "Numbers consecutive from 10000000; numbers starting with 997 are tools. Every article has one customer and 1 to 3 suppliers.",
-      "customerCount": "Each customer is a company with 1 to 15 contact persons, 5 on average. Customer numbers from 2000001.",
-      "supplierCount": "Each supplier is a company with 1 to 15 contact persons, 5 on average. Supplier numbers from 7000001.",
-      "documentCount": "TXT as data sheet: content is the running number 0 to count − 1 and 1 to 5 sentences about its articles.",
+      "articleCount": "More articles, numbers right after the highest test article (the first run starts at 10000000); numbers starting with 997 are tools. Every article has one customer and 1 to 3 suppliers from all test companies.",
+      "customerCount": "More customers, each a company with 1 to 15 contact persons, 5 on average. Customer numbers after the existing ones (from 2000001).",
+      "supplierCount": "More suppliers, each a company with 1 to 15 contact persons, 5 on average. Supplier numbers after the existing ones (from 7000001).",
+      "documentCount": "More TXT data sheets, number after the highest existing one, plus 1 to 5 sentences about their articles. They are linked to the articles of this run; without new articles to all test articles.",
       "documentsPerArticleMean": "How many data sheets an article has on average.",
       "documentsPerArticleDeviation": "How widely the number of data sheets per article spreads around the average."
     },
@@ -1782,6 +1782,8 @@
     "perSecond": "{{value}}/s",
     "columns": {
       "phase": "Phase",
+      "numbers": "Numbers",
+      "numbersHint": "The numbers this run assigns: customer or supplier number, article number, data sheet number. They continue right after the existing test data.",
       "progress": "Progress",
       "written": "Solr documents",
       "writtenHint": "Written Solr documents; for customers and suppliers the company and its contact persons.",

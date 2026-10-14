@@ -65,7 +65,9 @@ services:
       SOLR_HEAP: 2g
       # Obergrenze der Klauseln je Abfrage für den ganzen Knoten. Die solrconfig.xml eines Kerns kann sie nicht
       # überschreiten, deshalb stehen beide auf 3000 (User 2026-10-07, docs/backend/solr.md).
-      SOLR_OPTS: -Dsolr.max.booleanClauses=3000
+      # Soft-Commit alle 10 s für jeden Kern (User 2026-10-14): Das Backend committet nie selbst. Als Property, denn die
+      # vorhandenen Kerne behalten ihre eigene Kopie der solrconfig.xml, die liest sie über ${solr.autoSoftCommit.maxTime}.
+      SOLR_OPTS: -Dsolr.max.booleanClauses=3000 -Dsolr.autoSoftCommit.maxTime=10000
       SOLR_ADMIN_USER: ${solr_user}
       SOLR_ADMIN_PW: ${solr_pw}
       SOLR_CORES: ${solr_cores}

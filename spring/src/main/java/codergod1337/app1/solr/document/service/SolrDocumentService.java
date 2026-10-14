@@ -17,6 +17,7 @@ import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.common.params.ModifiableSolrParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -32,8 +33,10 @@ import org.springframework.web.server.ResponseStatusException;
  * Kern seine drei Lese-Services und sein Schreibservice im Fachpaket, die ihre Abfragen selbst bauen und die Rechte
  * selbst prüfen. Ein hartes Löschen gibt es nicht, gelöscht wird weich über den Status des Kerns.
  *
- * Nach jedem Schreiben ein Soft-Commit: Das Dokument ist sofort sichtbar, dauerhaft wird es mit dem Hard-Commit des
- * Kerns (solrconfig.xml). Ohne den Soft-Commit sähe der Aufrufer sein eigenes Dokument erst nach bis zu 5 s.
+ * Kein Commit nach dem Schreiben (User 2026-10-14): Ein Soft-Commit je Dokument hat beim Schreiben von 555.000
+ * Testartikeln den Heap von Solr gesprengt. Suchbar wird ein Dokument mit dem autoSoftCommit des Kerns alle 10 s,
+ * dauerhaft mit dem Hard-Commit (solrconfig.xml). Wer ein Dokument direkt nach dem Schreiben braucht, liest es per
+ * Echtzeit-Lesen (/get, existsById und die getById der Kerne): Das sieht es schon vor dem Auffrischen.
  *
  * _version_ ist Solrs eigener Zähler je Dokument, Solr setzt ihn bei jedem Schreiben selbst. Beim Lesen bleibt er im
  * Dokument, beim Schreiben wird er nie mitgeschickt (Vorgabe 2026-10-07): keine Prüfung, kein 409, der Letzte gewinnt.
@@ -103,9 +106,8 @@ public class SolrDocumentService {
 			}
 		}
 		try {
-			SolrClient client = client(coreKey);
-			client.add(input);
-			client.commit(false, false, true);
+			// kein Commit: Solr frischt alle 10 s selbst auf (autoSoftCommit, User 2026-10-14)
+			client(coreKey).add(input);
 		} catch (SolrServerException | IOException e) {
 			throw unavailable(coreKey, e);
 		} catch (SolrException e) {
@@ -122,9 +124,8 @@ public class SolrDocumentService {
 	public void atomicUpdateDocument(String coreKey, String id, Map<String, Map<String, Object>> modifiersByFieldName) {
 		SolrInputDocument input = inputWithModifiers(id, modifiersByFieldName);
 		try {
-			SolrClient client = client(coreKey);
-			client.add(input);
-			client.commit(false, false, true);
+			// kein Commit: Solr frischt alle 10 s selbst auf (autoSoftCommit, User 2026-10-14)
+			client(coreKey).add(input);
 		} catch (SolrServerException | IOException e) {
 			throw unavailable(coreKey, e);
 		} catch (SolrException e) {
@@ -133,7 +134,7 @@ public class SolrDocumentService {
 	}
 
 	/**
-	 * Dasselbe Atomic Update für viele Dokumente auf einmal, ein Commit am Ende: z. B. die guid einer Dateifreigabe in
+	 * Dasselbe Atomic Update für viele Dokumente in einer Anfrage: z. B. die guid einer Dateifreigabe in
 	 * jeden Treffer schreiben. Die ids hat der Schreibservice des Kerns vorher gegen writeAcl geprüft.
 	 */
 	public void atomicUpdateManyDocuments(String coreKey, List<String> ids,
@@ -146,13 +147,26 @@ public class SolrDocumentService {
 			inputs.add(inputWithModifiers(id, modifiersByFieldName));
 		}
 		try {
-			SolrClient client = client(coreKey);
-			client.add(inputs);
-			client.commit(false, false, true);
+			// kein Commit: Solr frischt alle 10 s selbst auf (autoSoftCommit, User 2026-10-14)
+			client(coreKey).add(inputs);
 		} catch (SolrServerException | IOException e) {
 			throw unavailable(coreKey, e);
 		} catch (SolrException e) {
 			throw rejected(coreKey, e);
+		}
+	}
+
+	/**
+	 * Gibt es das Dokument? Echtzeit-Lesen (/get) nur der id, ohne Rechteprüfung: sieht auch ein Dokument, das Solr noch
+	 * nicht aufgefrischt hat. Die Schreibservices fragen das vor dem Schreiben, ob neu anlegen oder per Atomic Update ändern.
+	 */
+	public boolean existsById(String coreKey, String id) {
+		ModifiableSolrParams params = new ModifiableSolrParams();
+		params.set("fl", ID_FIELD_NAME);
+		try {
+			return client(coreKey).getById(id, params) != null;
+		} catch (SolrServerException | IOException e) {
+			throw unavailable(coreKey, e);
 		}
 	}
 

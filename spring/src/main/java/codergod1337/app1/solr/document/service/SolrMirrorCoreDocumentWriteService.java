@@ -11,8 +11,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.solr.client.solrj.request.SolrQuery;
-import org.apache.solr.client.solrj.util.ClientUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -120,13 +118,13 @@ public class SolrMirrorCoreDocumentWriteService {
 				modifiersByFieldName.size());
 	}
 
-	/** Gibt es das Dokument schon? Eine Anfrage des Backends ohne Feldgrenze, nur die id. */
+	/**
+	 * Gibt es das Dokument schon? Echtzeit-Lesen der id ohne Feldgrenze: sieht auch ein Dokument, das Solr noch nicht
+	 * aufgefrischt hat (User 2026-10-14, Auffrischen alle 10 s). Sonst würde ein zweites Schreiben derselben id innerhalb
+	 * der 10 s voll anlegen statt ändern und die Felder ohne command löschen.
+	 */
 	private boolean existsMirrorCoreDocument(String coreKey, String id) {
-		SolrQuery query = new SolrQuery("*:*");
-		query.addFilterQuery(SolrDocumentService.ID_FIELD_NAME + ":" + ClientUtils.escapeQueryChars(id));
-		query.setFields(SolrDocumentService.ID_FIELD_NAME);
-		query.setRows(1);
-		return solrDocumentService.queryDocumentsPage(coreKey, query).totalFound() > 0;
+		return solrDocumentService.existsById(coreKey, id);
 	}
 
 	private static Object firstValue(List<Object> values) {

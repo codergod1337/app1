@@ -24,8 +24,9 @@
         <lockType>${solr.lock.type:native}</lockType>
     </indexConfig>
 
-    <!-- updateLog ist Pflicht für Atomic Updates und _version_. Hard-Commit alle 15 s ohne neuen Searcher
-         (Dauerhaftigkeit), Soft-Commit alle 5 s (Sichtbarkeit). -->
+    <!-- updateLog ist Pflicht für Atomic Updates, _version_ und das Echtzeit-Lesen (/get). Hard-Commit alle 15 s ohne
+         neuen Searcher (Dauerhaftigkeit), Soft-Commit alle 10 s (Sichtbarkeit in Suche und Auflösen). Das Backend
+         committet nie selbst (User 2026-10-14: ein Soft-Commit je Dokument hat den Heap gesprengt). -->
     <updateHandler class="solr.DirectUpdateHandler2">
         <updateLog>
             <str name="dir">${solr.ulog.dir:}</str>
@@ -35,7 +36,7 @@
             <openSearcher>false</openSearcher>
         </autoCommit>
         <autoSoftCommit>
-            <maxTime>${solr.autoSoftCommit.maxTime:5000}</maxTime>
+            <maxTime>${solr.autoSoftCommit.maxTime:10000}</maxTime>
         </autoSoftCommit>
     </updateHandler>
 

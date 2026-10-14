@@ -252,10 +252,10 @@ public class DmsShareService {
 	}
 
 	private void send(SolrInputDocument update) {
-		// Atomic Update an …/solr/DMS/update, dann Soft Commit, damit der Hash sofort gilt
+		// Atomic Update an …/solr/DMS/update, kein Commit (User 2026-10-14): Der Hash gilt in Solr mit dem autoSoftCommit
+		// nach höchstens 10 s; ein zurückgezogener Schein ist schon vorher über seine Zeile in Postgres ungültig
 		try {
 			client().add(update);
-			client().commit(false, false, true);
 		} catch (SolrException e) {
 			throw new ResponseStatusException(e.code() == 400 ? HttpStatus.BAD_REQUEST : HttpStatus.SERVICE_UNAVAILABLE,
 					"Solr lehnt das Schreiben ab (Kern " + DMS_CORE_KEY + "): " + e.getMessage(), e);

@@ -128,9 +128,17 @@ public class SolrDocumentDmsService {
 	}
 
 	public Map<String, Object> getById(String id) {
-		// Schnellweg zum Auflösen: dieselbe Methode mit der einen Bedingung id, Seite 0; eine id trifft höchstens einmal
-		List<Map<String, Object>> documents = resolveDmsDocuments(Map.of("id", id), 0).documents();
-		return documents.isEmpty() ? null : documents.get(0);
+		// Ein Dokument über seine id, mit denselben Rechten wie das Auflösen (fq und fl). Echtzeit-Lesen (/get) statt
+		// Suche: sieht auch ein gerade geschriebenes Dokument, das Solr noch nicht aufgefrischt hat (User 2026-10-14,
+		// Auffrischen alle 10 s), z. B. nach Upload und Bearbeiten. null, wenn es keins gibt oder der User es nicht sieht.
+		ModifiableSolrParams params = new ModifiableSolrParams();
+		applyUserReadRules(params, Map.of());
+		try {
+			SolrDocument document = client().getById(id, params);
+			return document == null ? null : new LinkedHashMap<>(document);
+		} catch (SolrServerException | IOException e) {
+			throw unavailable(e);
+		}
 	}
 
 	public List<Map<String, Object>> getByVersionGuid(String versionGuid) {
@@ -172,7 +180,6 @@ public class SolrDocumentDmsService {
 		if (page < 0) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page ist kleiner als 0");
 		}
-		List<String> accessRoleKeys = currentUsersProvider.getCurrentUsersAccessRoleKeys();
 		ModifiableSolrParams params = new ModifiableSolrParams();
 		// *:* trifft alles, die Einschränkung machen allein die fq
 		params.set("q", "*:*");
@@ -189,6 +196,26 @@ public class SolrDocumentDmsService {
 		for (String filterQuery : backendFilterQueries) {
 			params.add("fq", filterQuery);
 		}
+		applyUserReadRules(params, valuesByFieldName);
+
+		try {
+			// POST an …/solr/DMS/select mit allen Params
+			QueryResponse response = client().query(params);
+			List<Map<String, Object>> documents = new ArrayList<>();
+			for (SolrDocument document : response.getResults()) {
+				// SolrDocument ist selbst eine Map Feldname -> Wert: multiValued als Liste, pdate als Date, plong als Long
+				documents.add(new LinkedHashMap<>(document));
+			}
+			// getNumFound: Treffer insgesamt, auch über rows und max-results hinaus
+			return new DmsResolvedDocumentsPage(response.getResults().getNumFound(), page, resolvePageSize, documents);
+		} catch (SolrServerException | IOException e) {
+			throw unavailable(e);
+		}
+	}
+
+	private void applyUserReadRules(ModifiableSolrParams params, Map<String, List<String>> valuesByFieldName) {
+		// Auflösen und getById rufen das: die Rechte des Users als fq und fl, dazu die Bedingungen des Clients
+		List<String> accessRoleKeys = currentUsersProvider.getCurrentUsersAccessRoleKeys();
 		if (accessRoleKeys.contains("ADMIN")) {
 			// ADMIN bekommt alles: kein fq, kein fl, keine Debuffs
 			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, null, List.of());
@@ -204,20 +231,6 @@ public class SolrDocumentDmsService {
 			utils.buildUserReadAclForSolrRequest(params);
 			utils.buildUserSolrResponseStateVisibility(params);
 			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, readableFieldNames, debuffedFieldNames);
-		}
-
-		try {
-			// POST an …/solr/DMS/select mit allen Params
-			QueryResponse response = client().query(params);
-			List<Map<String, Object>> documents = new ArrayList<>();
-			for (SolrDocument document : response.getResults()) {
-				// SolrDocument ist selbst eine Map Feldname -> Wert: multiValued als Liste, pdate als Date, plong als Long
-				documents.add(new LinkedHashMap<>(document));
-			}
-			// getNumFound: Treffer insgesamt, auch über rows und max-results hinaus
-			return new DmsResolvedDocumentsPage(response.getResults().getNumFound(), page, resolvePageSize, documents);
-		} catch (SolrServerException | IOException e) {
-			throw unavailable(e);
 		}
 	}
 
@@ -455,12 +468,10 @@ public class SolrDocumentDmsService {
 	}
 
 	private void send(SolrInputDocument update) {
-		// Jede Schreibmethode schickt damit ihr Update: add an …/solr/DMS/update, dann Soft Commit, damit die Änderung
-		// sofort sichtbar ist statt erst mit dem autoSoftCommit.
+		// Jede Schreibmethode schickt damit ihr Update: add an …/solr/DMS/update, kein Commit (User 2026-10-14). Suchbar
+		// wird die Änderung mit dem autoSoftCommit alle 10 s; getById liest sie per Echtzeit-Lesen sofort.
 		try {
 			client().add(update);
-			// commit(waitFlush, waitSearcher, softCommit): nur im Speicher sichtbar machen, auf die Platte schreibt der autoCommit
-			client().commit(false, false, true);
 		} catch (SolrException e) {
 			// Solr lehnt ab, z. B. unbekanntes Feld oder falscher Typ: dessen 400 bleibt 400, alles andere ist 503
 			throw new ResponseStatusException(e.code() == 400 ? HttpStatus.BAD_REQUEST : HttpStatus.SERVICE_UNAVAILABLE,

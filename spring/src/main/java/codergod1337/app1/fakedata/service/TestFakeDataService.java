@@ -8,6 +8,7 @@ import codergod1337.app1.file.filedata.model.FileDataUploadResult;
 import codergod1337.app1.file.filedata.service.FileDataService;
 import codergod1337.app1.message.archive.service.MailAttachmentMultipartFile;
 import codergod1337.app1.solr.artikel.service.SolrDocumentArtikelService;
+import codergod1337.app1.solr.document.service.SolrDocumentService;
 import codergod1337.app1.solr.kontakte.service.SolrDocumentKontakteService;
 import jakarta.annotation.PreDestroy;
 import java.nio.charset.StandardCharsets;
@@ -24,7 +25,10 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.datafaker.Faker;
+import org.apache.solr.client.solrj.request.SolrQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -43,19 +47,26 @@ import tools.jackson.databind.ObjectMapper;
  * Gefüllt werden nur die Felder, die die Suche des jeweiligen Kerns nutzt, dazu id, kontaktorig, tele und die Hooks.
  * Jedes Dokument trägt im Hook wtf den Wert TEST_DATA: Daran findet das Aufräumen alles wieder.
  *
+ * Jeder Lauf legt WEITERE Daten an (User 2026-10-14): Vor dem Start fragt der Service Solr einmal nach dem
+ * vorhandenen Testbestand (wtf:TEST_DATA) und zählt dahinter weiter, je Art ihr eigener Zähler (Plan).
+ *
  * - Kunden und Lieferanten: je eine Firma mit 1 bis 15 Ansprechpartnern, im Mittel 5, normalverteilt. Namen, Straßen
  * und Orte von Datafaker; Kundennummern ab 2000001, Lieferantennummern ab 7000001 (die echten sind sechsstellig);
- * Sternzeiten ab (900000000,19,0) und (950000000,19,0), je Firma 16 Plätze.
- * - Artikel: Nummern fortlaufend ab 10000000, 997… sind Werkzeuge (TestFakeDataWordLists). Jeder hat einen Kunden und
- * 1 bis 3 Lieferanten aus den Testfirmen, rund jeder zweite eine EAN.
- * - Datenblätter: Inhalt die laufende Nummer 0 bis documentCount − 1 und 1 bis 5 Sätze zu ihren Artikeln, Dateiart
- * DATENBLATT. Je Artikel eine Zahl Datenblätter aus der Normalverteilung um das Mittel, je Datenblatt eine Zahl
- * Artikel um articleCount × Mittel ÷ documentCount, mindestens einer; beide Seiten ziehen aus demselben Vorrat,
- * deshalb geht die Rechnung auf.
+ * Sternzeiten ab (900000000,19,0) und (950000000,19,0), je Firma 16 Plätze. Weiter geht es hinter der höchsten
+ * Sternzeit des Testbestands.
+ * - Artikel: Nummern fortlaufend ab 10000000, weiter hinter der höchsten Testartikelnummer, 997… sind Werkzeuge
+ * (TestFakeDataWordLists). Jeder hat einen Kunden und 1 bis 3 Lieferanten aus allen Testfirmen, rund jeder zweite eine
+ * EAN.
+ * - Datenblätter: Inhalt die laufende Nummer, weiter hinter dem höchsten vorhandenen Datenblatt, dazu 1 bis 5 Sätze zu
+ * ihren Artikeln, Dateiart DATENBLATT. Sie hängen an den Artikeln dieses Laufs, legt er keine an, an allen
+ * Testartikeln. Je Artikel eine Zahl Datenblätter aus der Normalverteilung um das Mittel, je Datenblatt eine Zahl
+ * Artikel um Artikel × Mittel ÷ Datenblätter, mindestens einer; beide Seiten ziehen aus demselben Vorrat, deshalb geht
+ * die Rechnung auf.
  *
- * Ein fester Startwert für den Zufall: Derselbe Lauf ergibt dieselben Daten. Was es schon gibt (id im Kern, Hash im
- * DMS), wird übersprungen, nie überschrieben. Ein Lauf zur Zeit, im Hintergrund mit dem Security-Context des Admins,
- * der ihn startet.
+ * Der Zufall hängt an der Nummer: Derselbe Artikel, dieselbe Firma heißt immer gleich, neue Nummern bringen neue
+ * Namen. Was es schon gibt (id im Kern, Hash im DMS), wird übersprungen, nie überschrieben; das Echtzeit-Lesen sieht
+ * dabei auch, was Solr noch nicht aufgefrischt hat. Ein Lauf zur Zeit, im Hintergrund mit dem Security-Context des
+ * Admins, der ihn startet.
  */
 @Service
 public class TestFakeDataService {
@@ -99,6 +110,8 @@ public class TestFakeDataService {
 
 	private static final String DOCUMENT_FILE_SUB_CLASS_KEY = "DATENBLATT";
 
+	private static final String DMS_CORE_KEY = "DMS";
+
 	/** So viele Sätze zu den Artikeln stehen höchstens in einem Datenblatt */
 	private static final int MAX_DATA_SHEET_SENTENCES = 5;
 
@@ -110,9 +123,24 @@ public class TestFakeDataService {
 	private static final String PHASE_ARTICLES = "ARTICLES";
 	private static final String PHASE_DOCUMENTS = "DOCUMENTS";
 
+	/** Der Dateiname eines Datenblatts trägt seine Nummer: datenblatt-123.txt */
+	private static final String DOCUMENT_FILE_NAME_PREFIX = "datenblatt-";
+	private static final Pattern DOCUMENT_FILE_NAME = Pattern.compile(DOCUMENT_FILE_NAME_PREFIX + "(\\d+)\\.txt");
+
+	/** So viele der jüngsten Datenblätter liest der Plan, um die höchste Nummer zu finden */
+	private static final int NEWEST_DOCUMENTS_FOR_PLAN = 100;
+
+	/**
+	 * Wo dieser Lauf anfängt, hinter dem vorhandenen Testbestand: der erste Index der Artikel (Nummer minus 10000000),
+	 * der Kunden und der Lieferanten und die erste Nummer der Datenblätter. Alles davor gibt es schon.
+	 */
+	private record Plan(int firstArticleIndex, int firstCustomerIndex, int firstSupplierIndex, int firstDocumentNumber) {
+	}
+
 	private final SolrDocumentKontakteService solrDocumentKontakteService;
 	private final SolrDocumentArtikelService solrDocumentArtikelService;
 	private final FileDataService fileDataService;
+	private final SolrDocumentService solrDocumentService;
 	private final ObjectMapper objectMapper;
 
 	/** Ein Thread: nie zwei Läufe gleichzeitig */
@@ -127,10 +155,11 @@ public class TestFakeDataService {
 
 	public TestFakeDataService(SolrDocumentKontakteService solrDocumentKontakteService,
 			SolrDocumentArtikelService solrDocumentArtikelService, FileDataService fileDataService,
-			ObjectMapper objectMapper) {
+			SolrDocumentService solrDocumentService, ObjectMapper objectMapper) {
 		this.solrDocumentKontakteService = solrDocumentKontakteService;
 		this.solrDocumentArtikelService = solrDocumentArtikelService;
 		this.fileDataService = fileDataService;
+		this.solrDocumentService = solrDocumentService;
 		this.objectMapper = objectMapper;
 	}
 
@@ -153,12 +182,95 @@ public class TestFakeDataService {
 		if (running != null && running.finishedAt == null) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "es läuft schon ein Testdaten-Lauf");
 		}
-		Run run = new Run(request);
+		Plan plan = planOf();
+		requireFits(request, plan);
+		Run run = new Run(request, plan);
 		currentRun = run;
 		// der Security-Context des Admins geht mit: Die Schreibwege prüfen ADMIN und Schreibrolle wie bei jedem Request
 		executor.submit(new DelegatingSecurityContextRunnable(() -> execute(run)));
-		log.info("Testdaten: Lauf gestartet mit {}", request);
+		log.info("Testdaten: Lauf gestartet mit {}, weiter ab {}", request, plan);
 		return statusOf(run);
+	}
+
+	// ===== Der Plan: hinter dem vorhandenen Testbestand weiter =====
+
+	/**
+	 * Eine Abfrage je Zähler an Solr, nur Dokumente mit wtf:TEST_DATA: die höchste Artikelnummer (alle achtstellig, die
+	 * Sortierung als Text stimmt), die höchste Sternzeit der Kunden und der Lieferanten (alle neunstellig) und die
+	 * höchste Nummer unter den jüngsten Datenblättern. Was in den letzten 10 s geschrieben und noch nicht aufgefrischt
+	 * ist, sieht die Suche nicht; die Prüfung je Eintrag überspringt es dann, statt es zu überschreiben.
+	 */
+	private Plan planOf() {
+		String highestArticle = highestTestDocumentId(SolrDocumentArtikelService.CORE_KEY, null);
+		int firstArticleIndex = highestArticle == null ? 0 : Integer.parseInt(highestArticle) - FIRST_ARTICLE_NUMBER + 1;
+		int firstCustomerIndex = nextPartnerIndex("kundenNummer", FIRST_CUSTOMER_STERNZEIT);
+		int firstSupplierIndex = nextPartnerIndex("lieferantenNummer", FIRST_SUPPLIER_STERNZEIT);
+		return new Plan(firstArticleIndex, firstCustomerIndex, firstSupplierIndex, nextDocumentNumber());
+	}
+
+	/** Die höchste id unter den Testdokumenten des Kerns, mit einem weiteren Filter; null ohne Testdokument */
+	private String highestTestDocumentId(String coreKey, String extraFilterQuery) {
+		SolrQuery query = new SolrQuery("*:*");
+		query.addFilterQuery(FLAG_HOOK_KEY + ":" + TEST_DATA_FLAG);
+		if (extraFilterQuery != null) {
+			query.addFilterQuery(extraFilterQuery);
+		}
+		query.setSort(SolrDocumentService.ID_FIELD_NAME, SolrQuery.ORDER.desc);
+		query.setFields(SolrDocumentService.ID_FIELD_NAME);
+		query.setRows(1);
+		List<Map<String, Object>> documents = solrDocumentService.queryDocumentsPage(coreKey, query).documents();
+		return documents.isEmpty() ? null : String.valueOf(documents.get(0).get(SolrDocumentService.ID_FIELD_NAME));
+	}
+
+	/** Der nächste freie Index der Kunden oder Lieferanten: aus der höchsten Sternzeit ihres Blocks, je Firma 16 Plätze */
+	private int nextPartnerIndex(String numberHookKey, long firstSternzeit) {
+		String highest = highestTestDocumentId(SolrDocumentKontakteService.CORE_KEY, numberHookKey + ":[* TO *]");
+		if (highest == null) {
+			return 0;
+		}
+		// (900000016,19,0) → 900000016
+		long sternzeit = Long.parseLong(highest.substring(1, highest.indexOf(',')));
+		return (int) ((sternzeit - firstSternzeit) / STERNZEIT_STEP) + 1;
+	}
+
+	/** Die nächste Nummer der Datenblätter: die höchste unter den jüngsten Test-Datenblättern plus eins, sonst 0 */
+	private int nextDocumentNumber() {
+		SolrQuery query = new SolrQuery("*:*");
+		query.addFilterQuery(FLAG_HOOK_KEY + ":" + TEST_DATA_FLAG);
+		query.addFilterQuery("fileSubClassKey:" + DOCUMENT_FILE_SUB_CLASS_KEY);
+		query.setSort("documentCreatedAt", SolrQuery.ORDER.desc);
+		query.setFields("fileName");
+		query.setRows(NEWEST_DOCUMENTS_FOR_PLAN);
+		int next = 0;
+		for (Map<String, Object> document : solrDocumentService.queryDocumentsPage(DMS_CORE_KEY, query).documents()) {
+			Matcher matcher = DOCUMENT_FILE_NAME.matcher(String.valueOf(document.get("fileName")));
+			if (matcher.matches()) {
+				next = Math.max(next, Integer.parseInt(matcher.group(1)) + 1);
+			}
+		}
+		return next;
+	}
+
+	/** Die Zähler dürfen ihre Nummernkreise nicht verlassen, und jeder Artikel braucht Testkunden und -lieferanten */
+	private static void requireFits(TestFakeDataRequest request, Plan plan) {
+		List<String> problems = new ArrayList<>();
+		if ((long) plan.firstArticleIndex() + request.articleCount() > MAX_ARTICLE_COUNT) {
+			problems.add("es gibt schon Testartikel bis " + (FIRST_ARTICLE_NUMBER + plan.firstArticleIndex() - 1)
+					+ ", höchstens " + (MAX_ARTICLE_COUNT - plan.firstArticleIndex()) + " weitere passen in die achtstelligen Nummern");
+		}
+		if ((long) plan.firstCustomerIndex() + request.customerCount() > MAX_PARTNER_COUNT) {
+			problems.add("höchstens " + (MAX_PARTNER_COUNT - plan.firstCustomerIndex()) + " weitere Kunden");
+		}
+		if ((long) plan.firstSupplierIndex() + request.supplierCount() > MAX_PARTNER_COUNT) {
+			problems.add("höchstens " + (MAX_PARTNER_COUNT - plan.firstSupplierIndex()) + " weitere Lieferanten");
+		}
+		if (request.articleCount() > 0 && (plan.firstCustomerIndex() + request.customerCount() == 0
+				|| plan.firstSupplierIndex() + request.supplierCount() == 0)) {
+			problems.add("jeder Artikel braucht einen Kunden und Lieferanten: es gibt noch keine Testkunden oder -lieferanten");
+		}
+		if (!problems.isEmpty()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.join("; ", problems));
+		}
 	}
 
 	/** Der Stand des letzten Laufs */
@@ -195,9 +307,6 @@ public class TestFakeDataService {
 		if (request.documentCount() < 0) {
 			problems.add("documentCount darf nicht negativ sein");
 		}
-		if (request.articleCount() > 0 && (request.customerCount() == 0 || request.supplierCount() == 0)) {
-			problems.add("jeder Artikel braucht einen Kunden und Lieferanten: customerCount und supplierCount mindestens 1");
-		}
 		if (!Double.isFinite(request.documentsPerArticleMean()) || request.documentsPerArticleMean() < 0) {
 			problems.add("documentsPerArticleMean darf nicht negativ sein");
 		}
@@ -230,14 +339,16 @@ public class TestFakeDataService {
 		}
 	}
 
-	/** Kunden oder Lieferanten: je Firma ihr Dokument und die ihrer Ansprechpartner */
+	/** Kunden oder Lieferanten, hinter den vorhandenen weiter: je Firma ihr Dokument und die ihrer Ansprechpartner */
 	private void writePartners(Run run, PhaseProgress progress, boolean customers) {
 		int count = customers ? run.request.customerCount() : run.request.supplierCount();
-		Random random = new Random(SEED + (customers ? 1 : 2));
+		int firstIndex = customers ? run.plan.firstCustomerIndex() : run.plan.firstSupplierIndex();
+		// ein Random für Datafaker und die Wortlisten, je Firma neu gesetzt: Dieselbe Firma heißt immer gleich
+		Random random = new Random();
 		Faker faker = new Faker(Locale.GERMANY, random);
 		begin(run, progress);
-		for (int index = 0; index < count && !run.cancelRequested; index++) {
-			// erst erzeugen, dann prüfen: So bleibt der Zufall gleich, auch wenn eine Firma übersprungen wird
+		for (int index = firstIndex; index < firstIndex + count && !run.cancelRequested; index++) {
+			random.setSeed(SEED * 1_000_033L + (customers ? 0 : 500_000_000L) + index);
 			List<Map<String, Object>> documents = partnerDocuments(customers, index, random, faker);
 			attempt(run, progress, () -> {
 				if (solrDocumentKontakteService.getById(String.valueOf(documents.get(0).get("id"))) != null) {
@@ -309,14 +420,18 @@ public class TestFakeDataService {
 		return document;
 	}
 
-	/** Die Artikel, Nummer für Nummer */
+	/** Die Artikel, Nummer für Nummer hinter dem vorhandenen Testbestand */
 	private void writeArticles(Run run, PhaseProgress progress) {
 		TestFakeDataRequest request = run.request;
+		int firstIndex = run.plan.firstArticleIndex();
+		// Kunden und Lieferanten aus dem ganzen Testbestand, die dieses Laufs eingeschlossen
+		int customerCount = run.plan.firstCustomerIndex() + request.customerCount();
+		int supplierCount = run.plan.firstSupplierIndex() + request.supplierCount();
 		begin(run, progress);
-		for (int index = 0; index < request.articleCount() && !run.cancelRequested; index++) {
+		for (int index = firstIndex; index < firstIndex + request.articleCount() && !run.cancelRequested; index++) {
 			Random random = articleRandom(index);
 			FakeArticle article = TestFakeDataWordLists.articleOf(FIRST_ARTICLE_NUMBER + index, random);
-			Map<String, Object> document = articleDocument(article, random, request);
+			Map<String, Object> document = articleDocument(article, random, customerCount, supplierCount);
 			attempt(run, progress, () -> {
 				if (solrDocumentArtikelService.getById(article.number()) != null) {
 					progress.skipped.incrementAndGet();
@@ -336,7 +451,8 @@ public class TestFakeDataService {
 	}
 
 	/** Die durchsuchten Felder des Artikels, ein Kunde, 1 bis 3 Lieferanten, rund jeder zweite eine EAN */
-	private static Map<String, Object> articleDocument(FakeArticle article, Random random, TestFakeDataRequest request) {
+	private static Map<String, Object> articleDocument(FakeArticle article, Random random, int customerCount,
+			int supplierCount) {
 		Map<String, Object> document = new LinkedHashMap<>();
 		document.put("id", article.number());
 		document.put("name", article.name());
@@ -346,11 +462,11 @@ public class TestFakeDataService {
 		document.put("bem", article.remark());
 		document.put("beschr", article.description());
 		document.put("artikelNummer", List.of(article.number()));
-		document.put("kundenNummer", List.of(String.valueOf(FIRST_CUSTOMER_NUMBER + random.nextInt(request.customerCount()))));
-		int suppliers = 1 + random.nextInt(Math.min(MAX_SUPPLIERS_PER_ARTICLE, request.supplierCount()));
+		document.put("kundenNummer", List.of(String.valueOf(FIRST_CUSTOMER_NUMBER + random.nextInt(customerCount))));
+		int suppliers = 1 + random.nextInt(Math.min(MAX_SUPPLIERS_PER_ARTICLE, supplierCount));
 		Set<String> supplierNumbers = new LinkedHashSet<>();
 		while (supplierNumbers.size() < suppliers) {
-			supplierNumbers.add(String.valueOf(FIRST_SUPPLIER_NUMBER + random.nextInt(request.supplierCount())));
+			supplierNumbers.add(String.valueOf(FIRST_SUPPLIER_NUMBER + random.nextInt(supplierCount)));
 		}
 		document.put("lieferantenNummer", new ArrayList<>(supplierNumbers));
 		if (random.nextBoolean()) {
@@ -381,10 +497,14 @@ public class TestFakeDataService {
 	 */
 	private void writeDocuments(Run run, PhaseProgress progress) {
 		TestFakeDataRequest request = run.request;
-		int articleCount = request.articleCount();
 		int documentCount = request.documentCount();
+		int firstDocumentNumber = run.plan.firstDocumentNumber();
+		// die Artikel, an denen die Datenblätter hängen: die dieses Laufs, legt er keine an, alle Testartikel davor
+		int rangeStart = request.articleCount() > 0 ? run.plan.firstArticleIndex() : 0;
+		int articleCount = request.articleCount() > 0 ? request.articleCount() : run.plan.firstArticleIndex();
 		begin(run, progress);
-		Random random = new Random(SEED + 3);
+		// je Lauf ein anderer Zufall: Die Nummer des ersten Datenblatts unterscheidet die Läufe
+		Random random = new Random(SEED * 1_000_037L + firstDocumentNumber);
 		int[] remaining = new int[0];
 		int[] pool = new int[0];
 		int poolSize = 0;
@@ -393,13 +513,13 @@ public class TestFakeDataService {
 		if (articleCount > 0 && documentCount > 0) {
 			remaining = new int[articleCount];
 			pool = new int[articleCount];
-			for (int index = 0; index < articleCount; index++) {
+			for (int local = 0; local < articleCount; local++) {
 				int links = normalCount(random, request.documentsPerArticleMean(), request.documentsPerArticleDeviation(), 0,
 						Integer.MAX_VALUE);
-				remaining[index] = links;
+				remaining[local] = links;
 				remainingLinks += links;
 				if (links > 0) {
-					pool[poolSize++] = index;
+					pool[poolSize++] = local;
 				}
 			}
 			double articlesPerDocument = (double) remainingLinks / documentCount;
@@ -409,10 +529,10 @@ public class TestFakeDataService {
 			log.info("Testdaten: {} Verknüpfungen, im Mittel {} Artikel je Datenblatt", remainingLinks,
 					String.format(Locale.ROOT, "%.2f", articlesPerDocument));
 		}
-		for (int number = 0; number < documentCount && !run.cancelRequested; number++) {
+		for (int offset = 0; offset < documentCount && !run.cancelRequested; offset++) {
 			List<Integer> articleIndexes = new ArrayList<>();
 			if (articleCount > 0) {
-				double expected = (double) remainingLinks / (documentCount - number);
+				double expected = (double) remainingLinks / (documentCount - offset);
 				int wanted = normalCount(random, expected, deviationPerDocument, 1, articleCount);
 				Set<Integer> chosen = new LinkedHashSet<>();
 				int attempts = 0;
@@ -420,30 +540,32 @@ public class TestFakeDataService {
 					attempts++;
 					if (poolSize > 0) {
 						int position = random.nextInt(poolSize);
-						int articleIndex = pool[position];
-						if (!chosen.add(articleIndex)) {
+						int local = pool[position];
+						if (!chosen.add(local)) {
 							continue;
 						}
 						remainingLinks--;
-						if (--remaining[articleIndex] == 0) {
+						if (--remaining[local] == 0) {
 							pool[position] = pool[--poolSize];
 						}
 					} else {
 						chosen.add(random.nextInt(articleCount));
 					}
 				}
-				articleIndexes.addAll(chosen);
+				for (int local : chosen) {
+					articleIndexes.add(rangeStart + local);
+				}
 			}
-			int documentNumber = number;
+			int documentNumber = firstDocumentNumber + offset;
 			Map<String, Object> values = new LinkedHashMap<>();
 			byte[] bytes = dataSheetOf(documentNumber, articleIndexes, random, values);
 			attempt(run, progress, () -> {
 				FileDataUploadResult result = fileDataService.upload(new MailAttachmentMultipartFile(
-						"datenblatt-" + documentNumber + ".txt", "text/plain", bytes), values);
+						DOCUMENT_FILE_NAME_PREFIX + documentNumber + ".txt", "text/plain", bytes), values);
 				if (result.status() == FileDataUploadResult.FileDataUploadStatus.CREATED) {
 					progress.written.incrementAndGet();
 				} else {
-					// dieselben Bytes lagen schon im DMS: ein früherer Lauf
+					// dieselben Bytes lagen schon im DMS
 					progress.skipped.incrementAndGet();
 				}
 			});
@@ -546,9 +668,10 @@ public class TestFakeDataService {
 		}
 	}
 
-	/** Ein Lauf: seine Eingabe, sein Stand und seine Phasen */
+	/** Ein Lauf: seine Eingabe, wo er anfängt, sein Stand und seine Phasen */
 	private static final class Run {
 		final TestFakeDataRequest request;
+		final Plan plan;
 		final Instant startedAt = Instant.now();
 		final Map<String, PhaseProgress> phases = new LinkedHashMap<>();
 		volatile Instant finishedAt;
@@ -558,12 +681,17 @@ public class TestFakeDataService {
 		/** nur der Lauf-Thread zählt */
 		int failuresInARow;
 
-		Run(TestFakeDataRequest request) {
+		Run(TestFakeDataRequest request, Plan plan) {
 			this.request = request;
-			phases.put(PHASE_CUSTOMERS, new PhaseProgress(PHASE_CUSTOMERS, request.customerCount()));
-			phases.put(PHASE_SUPPLIERS, new PhaseProgress(PHASE_SUPPLIERS, request.supplierCount()));
-			phases.put(PHASE_ARTICLES, new PhaseProgress(PHASE_ARTICLES, request.articleCount()));
-			phases.put(PHASE_DOCUMENTS, new PhaseProgress(PHASE_DOCUMENTS, request.documentCount()));
+			this.plan = plan;
+			// je Phase die erste Nummer, die sie vergibt: Kunden- und Lieferantennummer, Artikelnummer, Datenblatt-Nummer
+			phases.put(PHASE_CUSTOMERS, new PhaseProgress(PHASE_CUSTOMERS, request.customerCount(),
+					FIRST_CUSTOMER_NUMBER + plan.firstCustomerIndex()));
+			phases.put(PHASE_SUPPLIERS, new PhaseProgress(PHASE_SUPPLIERS, request.supplierCount(),
+					FIRST_SUPPLIER_NUMBER + plan.firstSupplierIndex()));
+			phases.put(PHASE_ARTICLES, new PhaseProgress(PHASE_ARTICLES, request.articleCount(),
+					FIRST_ARTICLE_NUMBER + plan.firstArticleIndex()));
+			phases.put(PHASE_DOCUMENTS, new PhaseProgress(PHASE_DOCUMENTS, request.documentCount(), plan.firstDocumentNumber()));
 		}
 
 		PhaseProgress phase(String key) {
@@ -575,6 +703,8 @@ public class TestFakeDataService {
 	private static final class PhaseProgress {
 		final String key;
 		final long total;
+		/** die erste Nummer der Phase; die letzte ist firstNumber + total − 1 */
+		final long firstNumber;
 		final AtomicLong done = new AtomicLong();
 		final AtomicLong skipped = new AtomicLong();
 		final AtomicLong failed = new AtomicLong();
@@ -583,9 +713,10 @@ public class TestFakeDataService {
 		volatile Instant finishedAt;
 		volatile String lastErrorMessage;
 
-		PhaseProgress(String key, long total) {
+		PhaseProgress(String key, long total, long firstNumber) {
 			this.key = key;
 			this.total = total;
+			this.firstNumber = firstNumber;
 		}
 
 		TestFakeDataStatus.Phase snapshot() {
@@ -593,8 +724,8 @@ public class TestFakeDataService {
 			Instant end = finishedAt != null ? finishedAt : Instant.now();
 			double seconds = start == null ? 0 : Math.max(0.001, Duration.between(start, end).toMillis() / 1000.0);
 			double perSecond = start == null ? 0 : written.get() / seconds;
-			return new TestFakeDataStatus.Phase(key, total, done.get(), skipped.get(), failed.get(), written.get(), start,
-					finishedAt, perSecond, lastErrorMessage);
+			return new TestFakeDataStatus.Phase(key, total, firstNumber, firstNumber + total - 1, done.get(), skipped.get(),
+					failed.get(), written.get(), start, finishedAt, perSecond, lastErrorMessage);
 		}
 	}
 

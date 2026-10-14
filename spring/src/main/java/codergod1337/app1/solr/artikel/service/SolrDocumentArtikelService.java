@@ -178,9 +178,31 @@ public class SolrDocumentArtikelService {
 	}
 
 	public Map<String, Object> getById(String id) {
-		// Schnellweg zum Auflösen: dieselbe Methode mit der einen Bedingung id, Seite 0; eine id trifft höchstens einmal
-		List<Map<String, Object>> documents = resolveArtikelDocuments(Map.of("id", id), 0).documents();
-		return documents.isEmpty() ? null : documents.get(0);
+		// Ein Artikel über seine Nummer, mit denselben Rechten wie das Auflösen (Tür ARTIKEL, fl, Debuffs). Echtzeit-Lesen
+		// (/get) statt Suche: sieht auch einen gerade geschriebenen Artikel, den Solr noch nicht aufgefrischt hat (User
+		// 2026-10-14, Auffrischen alle 10 s), z. B. die Mappe direkt nach dem Nachladen aus ABAS.
+		utils.requireAccessRole();
+		ModifiableSolrParams params = new ModifiableSolrParams();
+		applyUserReadRules(params, Map.of());
+		try {
+			SolrDocument document = client().getById(id, params);
+			return document == null ? null : new LinkedHashMap<>(document);
+		} catch (SolrServerException | IOException e) {
+			throw unavailable(e);
+		}
+	}
+
+	private void applyUserReadRules(ModifiableSolrParams params, Map<String, List<String>> valuesByFieldName) {
+		// Auflösen und getById rufen das: fl und Debuffs nach den Rechten des Users, dazu die Bedingungen des Clients
+		if (utils.isEveryFieldReadable()) {
+			// ADMIN, SOLR_USERS_VIEW_ALL, ARTIKEL_SUCHE: alles, kein fl, keine Debuffs; der Spiegelkern hat weder readAcl noch Status
+			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, null, List.of());
+		} else {
+			// alle anderen, Kunden, Lieferanten: fl aus den Lese-ARs der Felder, 403 für fremde Bedingungen, Debuffs darüber
+			List<String> readableFieldNames = utils.buildUserSolrResponseFieldList(params);
+			List<String> debuffedFieldNames = utils.buildUserDebuffsForSolrRequest(params);
+			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, readableFieldNames, debuffedFieldNames);
+		}
 	}
 
 	public List<Map<String, Object>> getMasterGroup(String masterArtikelNummer) {
@@ -218,15 +240,7 @@ public class SolrDocumentArtikelService {
 		}
 		params.set("start", start);
 		params.set("rows", rows);
-		if (utils.isEveryFieldReadable()) {
-			// ADMIN, SOLR_USERS_VIEW_ALL, ARTIKEL_SUCHE: alles, kein fl, keine Debuffs; der Spiegelkern hat weder readAcl noch Status
-			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, null, List.of());
-		} else {
-			// alle anderen, Kunden, Lieferanten: fl aus den Lese-ARs der Felder, 403 für fremde Bedingungen, Debuffs darüber
-			List<String> readableFieldNames = utils.buildUserSolrResponseFieldList(params);
-			List<String> debuffedFieldNames = utils.buildUserDebuffsForSolrRequest(params);
-			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, readableFieldNames, debuffedFieldNames);
-		}
+		applyUserReadRules(params, valuesByFieldName);
 		try {
 			QueryResponse response = client().query(params);
 			List<Map<String, Object>> documents = new ArrayList<>();

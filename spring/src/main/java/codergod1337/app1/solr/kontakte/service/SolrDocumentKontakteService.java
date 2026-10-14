@@ -125,10 +125,33 @@ public class SolrDocumentKontakteService {
 
 	// ===== Lesen =====
 
-	/** Ein Kontakt über seine 19er-Sternzeit; null, wenn es ihn nicht gibt oder der User ihn nicht sehen darf */
+	/**
+	 * Ein Kontakt über seine 19er-Sternzeit, mit denselben Rechten wie das Auflösen; null, wenn es ihn nicht gibt oder
+	 * der User ihn nicht sehen darf. Echtzeit-Lesen (/get) statt Suche: sieht auch einen gerade geschriebenen Kontakt, den
+	 * Solr noch nicht aufgefrischt hat (User 2026-10-14, Auffrischen alle 10 s).
+	 */
 	public Map<String, Object> getById(String sternzeit) {
-		List<Map<String, Object>> documents = resolveKontakteDocuments(Map.of("id", sternzeit), 0).documents();
-		return documents.isEmpty() ? null : documents.get(0);
+		utils.requireAccessRole();
+		ModifiableSolrParams params = new ModifiableSolrParams();
+		applyUserReadRules(params, Map.of());
+		try {
+			SolrDocument document = client().getById(sternzeit, params);
+			return document == null ? null : new LinkedHashMap<>(document);
+		} catch (SolrServerException | IOException e) {
+			throw unavailable(e);
+		}
+	}
+
+	/** Auflösen und getById rufen das: fl und Debuffs nach den Rechten des Users, dazu die Bedingungen des Clients */
+	private void applyUserReadRules(ModifiableSolrParams params, Map<String, List<String>> valuesByFieldName) {
+		if (utils.isEveryFieldReadable()) {
+			// ADMIN, SOLR_USERS_VIEW_ALL, KONTAKTE_SUCHE: alles, kein fl, keine Debuffs; der Spiegelkern hat weder readAcl noch Status
+			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, null, List.of());
+		} else {
+			List<String> readableFieldNames = utils.buildUserSolrResponseFieldList(params);
+			List<String> debuffedFieldNames = utils.buildUserDebuffsForSolrRequest(params);
+			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, readableFieldNames, debuffedFieldNames);
+		}
 	}
 
 	/**
@@ -160,14 +183,7 @@ public class SolrDocumentKontakteService {
 		}
 		params.set("start", start);
 		params.set("rows", rows);
-		if (utils.isEveryFieldReadable()) {
-			// ADMIN, SOLR_USERS_VIEW_ALL, KONTAKTE_SUCHE: alles, kein fl, keine Debuffs; der Spiegelkern hat weder readAcl noch Status
-			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, null, List.of());
-		} else {
-			List<String> readableFieldNames = utils.buildUserSolrResponseFieldList(params);
-			List<String> debuffedFieldNames = utils.buildUserDebuffsForSolrRequest(params);
-			utils.buildClientConditionsForSolrRequest(params, valuesByFieldName, readableFieldNames, debuffedFieldNames);
-		}
+		applyUserReadRules(params, valuesByFieldName);
 		try {
 			QueryResponse response = client().query(params);
 			List<Map<String, Object>> documents = new ArrayList<>();

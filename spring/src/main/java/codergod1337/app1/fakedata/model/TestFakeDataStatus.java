@@ -25,6 +25,9 @@ public record TestFakeDataStatus(boolean running, boolean cancelRequested, Strin
 	 *
 	 * @param key                    CUSTOMERS, SUPPLIERS, ARTICLES oder DOCUMENTS
 	 * @param total                  Einheiten insgesamt: Firmen, Artikel oder Datenblätter
+	 * @param firstNumber            die erste Nummer dieses Laufs, direkt hinter dem vorhandenen Testbestand:
+	 *                               Kunden- oder Lieferantennummer, Artikelnummer, Datenblatt-Nummer
+	 * @param lastNumber             die letzte Nummer dieses Laufs, firstNumber + total − 1
 	 * @param done                   davon erledigt, ob geschrieben, übersprungen oder gescheitert
 	 * @param skipped                übersprungen, weil die id schon da war
 	 * @param failed                 gescheitert, der Grund des letzten steht in lastErrorMessage
@@ -34,7 +37,8 @@ public record TestFakeDataStatus(boolean running, boolean cancelRequested, Strin
 	 * @param solrDocumentsPerSecond geschriebene Solr-Dokumente je Sekunde seit dem Start der Phase
 	 * @param lastErrorMessage       der Grund des letzten Fehlers, null ohne
 	 */
-	public record Phase(String key, long total, long done, long skipped, long failed, long writtenSolrDocuments,
+	public record Phase(String key, long total, long firstNumber, long lastNumber, long done, long skipped, long failed,
+			long writtenSolrDocuments,
 			Instant startedAt, Instant finishedAt, double solrDocumentsPerSecond, String lastErrorMessage) {
 	}
 
