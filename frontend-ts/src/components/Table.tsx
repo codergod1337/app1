@@ -38,8 +38,9 @@ interface TableProps<T> {
   emptyText: string
   /**
    * Macht die Zeilen per Drag and Drop verschiebbar (Griff ganz links). Bekommt die Zeilen in neuer Reihenfolge.
-   * Im festen Layout (eine Spalte mit width) braucht auch die erste Spalte eine width, die Griff und Inhalt fasst:
-   * ohne sie ist sie nur 1 % breit und der Inhalt läuft in die nächste Spalte.
+   * Im festen Layout (eine Spalte mit width) bekommt die erste sichtbare Spalte, wenn sie selbst keine width nennt,
+   * DRAG_COLUMN_DEFAULT_WIDTH: Ohne Breite wäre sie dort nur 1 % breit, und Griff und Inhalt liefen über die nächsten
+   * Spalten (User 2026-10-13, dreimal passiert, deshalb hier zentral).
    */
   onReorder?: (rows: T[]) => void
   /**
@@ -54,6 +55,12 @@ interface TableProps<T> {
   /** Eine zusätzliche Klasse je Zeile, z. B. für eine fertige oder gescheiterte Zeile. Das Aussehen bestimmt das Theme. */
   rowClassName?: (row: T) => string | undefined
 }
+
+/**
+ * Die Breite der ersten Spalte mit dem Griff im festen Layout, wenn sie selbst keine nennt: Griff plus eine kurze
+ * Position oder Nummer. Im automatischen Layout gilt weiter „so schmal wie möglich“ (drag-cell in basic.css).
+ */
+const DRAG_COLUMN_DEFAULT_WIDTH = '5rem'
 
 /** Der Platz des Griffs in einer festen Zeile: gleiche Breite, unsichtbar */
 const FIXED_ROW_HANDLE = (
@@ -175,9 +182,11 @@ export function Table<T>({
     <table className={`table table-striped align-middle mb-0 data-table${fixedLayout ? ' data-table-fixed' : ''}`}>
       {fixedLayout && (
         <colgroup>
-          {visibleColumns.map((column) => (
-            <col key={column.header} style={column.width !== undefined ? { width: column.width } : undefined} />
-          ))}
+          {visibleColumns.map((column, index) => {
+            // die Spalte mit dem Griff braucht im festen Layout eine Breite, sonst ist sie 1 % breit (siehe onReorder)
+            const width = column.width ?? (onReorder && index === 0 ? DRAG_COLUMN_DEFAULT_WIDTH : undefined)
+            return <col key={column.header} style={width !== undefined ? { width } : undefined} />
+          })}
           {actions && <col style={{ width: actionsWidth }} />}
         </colgroup>
       )}

@@ -4,6 +4,7 @@ import codergod1337.app1.file.fileextension.service.FileExtensionCollectionServi
 import codergod1337.app1.file.fileextension.service.FileExtensionService;
 import codergod1337.app1.file.filesubclass.service.FileSubClassDestinationService;
 import codergod1337.app1.file.filesubclass.service.FileSubClassService;
+import codergod1337.app1.message.messagesubclass.service.MessageSubClassService;
 import codergod1337.app1.solr.core.service.SolrCoreService;
 import codergod1337.app1.solr.field.service.SolrFieldService;
 import codergod1337.app1.solr.hook.service.SolrHookGroupService;
@@ -18,8 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Die Stammdaten in einem Request, auch ohne Anmeldung: Das Frontend lädt sie sofort beim Start. Später kommen MSC
- * dazu.
+ * Die Stammdaten in einem Request, auch ohne Anmeldung: Das Frontend lädt sie sofort beim Start. Die Postfächer stehen
+ * nicht darin, jeder User bekommt nur seine (MailboxController).
  */
 @RestController
 @RequestMapping("/api/rest/v1/public/masterdata")
@@ -29,6 +30,7 @@ public class MasterDataPublicController {
 	private final AccessRoleCollectionService accessRoleCollectionService;
 	private final FileSubClassService fileSubClassService;
 	private final FileSubClassDestinationService fileSubClassDestinationService;
+	private final MessageSubClassService messageSubClassService;
 	private final FileExtensionService fileExtensionService;
 	private final FileExtensionCollectionService fileExtensionCollectionService;
 	private final SolrHookGroupService solrHookGroupService;
@@ -39,14 +41,15 @@ public class MasterDataPublicController {
 
 	public MasterDataPublicController(AccessRoleService accessRoleService,
 			AccessRoleCollectionService accessRoleCollectionService, FileSubClassService fileSubClassService,
-			FileSubClassDestinationService fileSubClassDestinationService, FileExtensionService fileExtensionService,
-			FileExtensionCollectionService fileExtensionCollectionService, SolrHookGroupService solrHookGroupService,
-			SolrHookService solrHookService, SolrCoreService solrCoreService, SolrFieldService solrFieldService,
-			EntityStateService entityStateService) {
+			FileSubClassDestinationService fileSubClassDestinationService, MessageSubClassService messageSubClassService,
+			FileExtensionService fileExtensionService, FileExtensionCollectionService fileExtensionCollectionService,
+			SolrHookGroupService solrHookGroupService, SolrHookService solrHookService, SolrCoreService solrCoreService,
+			SolrFieldService solrFieldService, EntityStateService entityStateService) {
 		this.accessRoleService = accessRoleService;
 		this.accessRoleCollectionService = accessRoleCollectionService;
 		this.fileSubClassService = fileSubClassService;
 		this.fileSubClassDestinationService = fileSubClassDestinationService;
+		this.messageSubClassService = messageSubClassService;
 		this.fileExtensionService = fileExtensionService;
 		this.fileExtensionCollectionService = fileExtensionCollectionService;
 		this.solrHookGroupService = solrHookGroupService;
@@ -57,8 +60,9 @@ public class MasterDataPublicController {
 	}
 
 	/**
-	 * {accessRoles, accessRoleCollections, fileSubClasses, fileExtensions, fileExtensionCollections, solrHookGroups,
-	 * solrHooks, solrCores, solrFields, entityStates}, alle sortiert nach listingPosition, die Felder zuerst nach Kern
+	 * {accessRoles, accessRoleCollections, fileSubClassDestinations, fileSubClasses, messageSubClasses, fileExtensions,
+	 * fileExtensionCollections, solrHookGroups, solrHooks, solrCores, solrFields, entityStates}, alle sortiert nach
+	 * listingPosition, die Felder zuerst nach Kern
 	 */
 	@GetMapping
 	public Map<String, Object> getMasterData() {
@@ -67,6 +71,7 @@ public class MasterDataPublicController {
 		masterData.put("accessRoleCollections", accessRoleCollectionService.getAllAccessRoleCollections());
 		masterData.put("fileSubClassDestinations", fileSubClassDestinationService.getAllFileSubClassDestinations());
 		masterData.put("fileSubClasses", fileSubClassService.getAllFileSubClasses());
+		masterData.put("messageSubClasses", messageSubClassService.getAllMessageSubClasses());
 		masterData.put("fileExtensions", fileExtensionService.getAllFileExtensions());
 		masterData.put("fileExtensionCollections", fileExtensionCollectionService.getAllFileExtensionCollections());
 		masterData.put("solrHookGroups", solrHookGroupService.getAllSolrHookGroups());

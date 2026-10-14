@@ -7,6 +7,7 @@ import { Tile } from '../../components/Tile.tsx'
 import { ABAS_MANAGER_PATH } from '../abasmanager/AbasSternzeit.ts'
 import { ADMIN_ACCESS_ROLE_KEY } from '../accessrole/AccessRole.ts'
 import { AccessRoleBadge } from '../accessrole/AccessRoleBadge.tsx'
+import { ARCHIVIEREN_ENTRY_ACCESS_ROLE_KEYS, ARCHIVIEREN_PATH } from '../archivieren/Archivieren.ts'
 import { ARTIKEL_ACCESS_ROLE_KEY, ARTIKEL_PATH } from '../artikel/Artikel.ts'
 import { BELEGNUMMER_PATH } from '../belegnummer/Belegnummer.ts'
 import { DMS_ACCESS_ROLE_KEY, DMS_PUBLIC_ACCESS_ROLE_KEY, DMS_SEARCH_ACCESS_ROLE_KEY } from '../dms/Dms.ts'
@@ -14,11 +15,12 @@ import { INFOSYS_MANAGER_PATH } from '../infosys/InfosysManager.tsx'
 import { useSession } from '../login/sessionContext.ts'
 import { MAPPING_PATH } from '../mapping/Mapping.tsx'
 import { SEARCH_PATH } from '../search/Search.ts'
+import { TESTFAKEDATA_PATH } from '../testfakedata/TestFakeData.ts'
 
 interface HomeTile {
   icon: IconName
   /** Schlüssel des Titels im Sprachkatalog, unter home.tiles */
-  titleKey: 'admin' | 'solrManager' | 'abasManager' | 'infosys' | 'mapping' | 'dms' | 'artikel' | 'belegnummer' | 'search' | 'grant' | 'graph'
+  titleKey: 'admin' | 'solrManager' | 'abasManager' | 'infosys' | 'mapping' | 'dms' | 'artikel' | 'belegnummer' | 'search' | 'grant' | 'graph' | 'archivieren' | 'testfakedata'
   to: string
   /**
    * Die AR, von denen eine reicht, um das Modul zu betreten: Wer im Modul etwas darf, sieht die Kachel. Was er darin
@@ -50,6 +52,10 @@ const HOME_TILES: HomeTile[] = [
   { icon: 'share', titleKey: 'grant', to: '/share', entryAccessRoleKeys: [ADMIN_ACCESS_ROLE_KEY, DMS_PUBLIC_ACCESS_ROLE_KEY] },
   // GraphManager: Mailvorlagen, später Postfächer. Nur ADMIN, solange es nur Admin-Endpunkte gibt.
   { icon: 'graph', titleKey: 'graph', to: '/graph', entryAccessRoleKeys: [ADMIN_ACCESS_ROLE_KEY] },
+  // Archivieren: Mails aus den eigenen Postfächern ins Archiv, für die Rolle des Archivierens und ADMIN (User 2026-10-14)
+  { icon: 'archivieren', titleKey: 'archivieren', to: ARCHIVIEREN_PATH, entryAccessRoleKeys: [...ARCHIVIEREN_ENTRY_ACCESS_ROLE_KEYS] },
+  // Testdaten: Dummy-Daten für die Solr-Kerne, um früh die Performance einzuschätzen. Nur ADMIN (User 2026-10-14)
+  { icon: 'testfakedata', titleKey: 'testfakedata', to: TESTFAKEDATA_PATH, entryAccessRoleKeys: [ADMIN_ACCESS_ROLE_KEY] },
 ]
 
 /**

@@ -5,6 +5,7 @@ import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
 import { MultilingualInput } from '../../components/MultilingualInput.tsx'
 import { SolrFieldNameInput } from '../../components/SolrFieldNameInput.tsx'
+import { ValuesInput } from '../../components/ValuesInput.tsx'
 import { SOLR_HOOK_VALUE_BADGE_LINK_TARGETS, type SolrHook } from './SolrHook.ts'
 import { SolrHookChip } from './SolrHookChip.tsx'
 import { SolrHookValues } from './SolrHookValues.tsx'
@@ -17,6 +18,7 @@ const NEW_SOLR_HOOK: SolrHook = {
   hookGroupKey: null,
   valueBadgeLinkTarget: 'SEARCH',
   listingPosition: 0,
+  abasObjectTypes: [],
 }
 
 /** Beispielwerte, damit die Vorschau wie ein gesetzter Filter und wie ein Hook am Dokument aussieht */
@@ -133,6 +135,17 @@ export function SolrHookForm({ formId, initialSolrHook, language, disabled, onSu
             ))}
           </select>
           <div className="form-text">{t('solrmanager.hooks.form.valueBadgeLinkTargetHint')}</div>
+        </div>
+        <div className="col-md-6">
+          <span className="form-label d-block">{t('solrmanager.hooks.form.abasObjectTypes')}</span>
+          <ValuesInput
+            values={solrHook.abasObjectTypes ?? []}
+            disabled={disabled}
+            placeholder={t('solrmanager.hooks.form.abasObjectTypesPlaceholder')}
+            ariaLabel={t('solrmanager.hooks.form.abasObjectTypes')}
+            onChange={(abasObjectTypes) => change('abasObjectTypes', abasObjectTypes)}
+          />
+          <div className="form-text">{t('solrmanager.hooks.form.abasObjectTypesHint')}</div>
         </div>
         <div className="col-md-3">
           <label className="form-label" htmlFor={`${formId}-position`}>

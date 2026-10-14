@@ -101,8 +101,8 @@ public class SolrFieldService {
 	/**
 	 * Neues normales Feld. 400 bei ungültigem name, bei unbekanntem Kern, unbekannter AR, suggest bei einem Typ ohne
 	 * Zwilling, required an einem Feld, das der Client nicht setzt, oder Suchgewicht an einem Feld ohne Wortanfang. 409
-	 * wenn es den Namen schon gibt, in welchem Kern auch immer, auch als Hook. coreKey leer heißt in jedem Kern.
-	 * clientWriteRule null heißt BACKEND_ONLY.
+	 * wenn es den Namen in diesem Kern schon gibt, als Feld, als Hook oder als Feld jedes Kerns (Kern plus Name ist
+	 * eindeutig, User 2026-10-14). coreKey leer heißt in jedem Kern. clientWriteRule null heißt BACKEND_ONLY.
 	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
@@ -111,7 +111,7 @@ public class SolrFieldService {
 			SolrFieldClientWriteRule clientWriteRule, int searchWeight, String displayName, String description,
 			int listingPosition, String command) {
 		String checkedCoreKey = checkedCoreKey(coreKey);
-		requireNewName(name);
+		requireNewName(checkedCoreKey, name);
 		requireType(type);
 		requireSuggestAllowed(type, suggest);
 		requireRequiredOnlyWhenClientSets(clientWriteRule, required);
@@ -291,8 +291,8 @@ public class SolrFieldService {
 	}
 
 	/**
-	 * Eine Zeile mit diesem Namen aus dem Speicher, null wenn es keine gibt. Bei einem Hook die erste seiner Zeilen, die
-	 * Technik ist in jedem Kern dieselbe.
+	 * Eine Zeile mit diesem Namen aus dem Speicher, null wenn es keine gibt. Bei einem Namen, den mehrere Kerne haben
+	 * (ein Hook, readAcl, writeAcl, searchableWords), die erste seiner Zeilen.
 	 */
 	public SolrField findSolrFieldByName(String name) {
 		return solrFieldsById.values().stream().filter(solrField -> solrField.getName().equals(name)).findFirst()
@@ -318,15 +318,26 @@ public class SolrFieldService {
 		return coreKey;
 	}
 
-	/** Ein neuer Name: gültig (Solrs eigene Felder sind es nicht), in keinem Kern vergeben, auch nicht als Hook */
-	private void requireNewName(String name) {
+	/**
+	 * Ein neuer Name: gültig (Solrs eigene Felder sind es nicht) und je Kern eindeutig, Kern plus Name wie der
+	 * Unique-Index (User 2026-10-14). So gibt es readAcl, writeAcl und searchableWords in jedem Kern, der sie braucht.
+	 * Ein Feld jedes Kerns (coreKey null) steht in jedem Kern, sein Name darf deshalb nirgends vergeben sein. Ein Feld
+	 * eines Kerns darf weder dort noch als Feld jedes Kerns schon stehen; Hooks haben in jedem Kern ihre Zeile und fallen
+	 * damit unter dieselbe Prüfung.
+	 */
+	private void requireNewName(String coreKey, String name) {
 		if (!SolrFieldName.isValid(name)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name ist kein gültiger Solr-Feldname");
 		}
+		boolean taken = coreKey == null
+				? solrFieldRepository.existsByName(name)
+				: solrFieldRepository.findByCoreKeyAndName(coreKey, name).isPresent()
+						|| solrFieldRepository.existsByCoreKeyIsNullAndName(name);
 		// Pflicht: der Unique-Index würde sonst erst beim Commit knallen, ohne lesbare Meldung
-		if (solrFieldRepository.existsByName(name)) {
-			throw new ResponseStatusException(HttpStatus.CONFLICT,
-					"den Namen " + name + " gibt es schon, als Feld oder Hook; ein Name bedeutet im ganzen System eines");
+		if (taken) {
+			throw new ResponseStatusException(HttpStatus.CONFLICT, coreKey == null
+					? "den Namen " + name + " gibt es schon in einem Kern; ein Feld jedes Kerns braucht einen freien Namen"
+					: "den Namen " + name + " gibt es in diesem Kern schon, als Feld, Hook oder Feld jedes Kerns");
 		}
 	}
 

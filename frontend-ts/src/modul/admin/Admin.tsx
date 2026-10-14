@@ -28,6 +28,8 @@ export function Admin() {
           { label: 'ARC-AR', icon: 'accessRoleCollectionAccessRoles', to: '/admin/arc-ar' },
           { label: 'FSC', icon: 'fileSubClasses', to: '/admin/filesubclasses' },
           { label: t('admin.tabs.fileSubClassDestinations'), icon: 'fileSubClassDestinations', to: '/admin/filesubclassdestinations' },
+          { label: t('admin.tabs.messageSubClasses'), icon: 'messageSubClasses', to: '/admin/messagesubclasses' },
+          { label: t('admin.tabs.mailboxes'), icon: 'mailboxes', to: '/admin/mailboxes' },
           { label: 'Endungen', icon: 'fileExtensions', to: '/admin/fileextensions' },
           { label: t('admin.tabs.fileSubClassMatrix'), icon: 'fileMatrix', to: '/admin/fsc-matrix' },
           { label: 'FSC-ACL', icon: 'fileSubClassAcl', to: '/admin/fsc-acl' },

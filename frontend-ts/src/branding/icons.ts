@@ -13,6 +13,18 @@ export const icons = {
   fileSubClasses: { pack: 'bootstrap', id: 'files' },
   /** die Anzeigeorte der Dateiarten: wo eine Dateiart als Abschnitt steht */
   fileSubClassDestinations: { pack: 'bootstrap', id: 'signpost-split' },
+  /** die Nachrichtenarten (MSC): wer eine archivierte Nachricht lesen und ihre Hooks pflegen darf */
+  messageSubClasses: { pack: 'bootstrap', id: 'envelope-paper' },
+  /** die Postfächer, aus denen archiviert wird */
+  mailboxes: { pack: 'bootstrap', id: 'mailbox' },
+  // Kachel und Modul Archivieren: Mails aus den Postfächern ins Archiv
+  archivieren: { pack: 'bootstrap', id: 'archive-fill' },
+  // Kachel und Modul Testdaten: Dummy-Daten für die Solr-Kerne
+  testfakedata: { pack: 'bootstrap', id: 'database-fill-add' },
+  // der Ordner Posteingang eines Postfachs
+  inbox: { pack: 'bootstrap', id: 'inbox-fill' },
+  // eine Mail hat Anhänge
+  attachment: { pack: 'bootstrap', id: 'paperclip' },
   fileExtensions: { pack: 'bootstrap', id: 'file-earmark-code' },
   fileMatrix: { pack: 'bootstrap', id: 'grid-3x3' },
   fileSubClassAcl: { pack: 'bootstrap', id: 'file-earmark-lock' },

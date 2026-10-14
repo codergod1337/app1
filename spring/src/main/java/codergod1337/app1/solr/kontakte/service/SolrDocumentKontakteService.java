@@ -182,8 +182,8 @@ public class SolrDocumentKontakteService {
 	}
 
 	/**
-	 * Wird aufgerufen, wenn ein User im Suchmodul tippt oder Chips setzt: die besten Treffer mit Score und Gründen für
-	 * die Trefferbox, keine Seiten, Anzahl aus app1.solr.search.hits. Derselbe Ablauf wie die Suche im Kern ARTIKEL, der
+	 * Wird aufgerufen, wenn ein User im Suchmodul tippt oder Chips setzt: die Treffer mit Score und Gründen für die
+	 * Trefferbox, eine Seite ab 0 mit app1.solr.search.hits Treffern. Derselbe Ablauf wie die Suche im Kern ARTIKEL, der
 	 * Kern hat weder readAcl noch Status. Tür ist KONTAKTE_SUCHE oder ADMIN, beide geben alle Felder und Hooks frei.
 	 * Dazu nach der Vorlage: die Firma steht vor ihren Ansprechpartnern, mit Text über einen Zusatz zum Score, ohne Text
 	 * über die Sortierung nach kontaktorig („Adresse“ vor „Kontakt“).
@@ -197,10 +197,14 @@ public class SolrDocumentKontakteService {
 	 * Suche über die Nummern.
 	 */
 	public KontakteSearchedDocumentsPage searchKontakteDocuments(String searchText,
-			Map<String, List<String>> exactFilterValuesByFieldName) {
+			Map<String, List<String>> exactFilterValuesByFieldName, int page) {
 		String text = searchText == null ? "" : searchText.trim();
 		if (text.isEmpty() && exactFilterValuesByFieldName.isEmpty()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "weder Suchtext noch Filter");
+		}
+		long start = (long) page * searchHits;
+		if (page < 0 || start > Integer.MAX_VALUE) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page muss zwischen 0 und " + Integer.MAX_VALUE / searchHits + " liegen");
 		}
 		utils.requireSearchAccessRole();
 		ModifiableSolrParams params = new ModifiableSolrParams();
@@ -264,7 +268,8 @@ public class SolrDocumentKontakteService {
 			// das Treffergewicht entscheidet, die Sternzeit nur bei gleichem Score
 			params.set("sort", "score desc, id asc");
 		}
-		params.set("start", 0);
+		// die Seite: „weitere laden“ in der Maske (User 2026-10-14)
+		params.set("start", (int) start);
 		params.set("rows", searchHits);
 		Set<String> fieldList = new LinkedHashSet<>(DISPLAY_FIELD_NAMES);
 		for (SolrField solrField : searchedFields) {
@@ -304,7 +309,7 @@ public class SolrDocumentKontakteService {
 				hits.add(new KontakteSearchHit(fieldValues, reasons));
 			}
 			addCompanyNamesToContactPersons(hits);
-			return new KontakteSearchedDocumentsPage(response.getResults().getNumFound(), hits);
+			return new KontakteSearchedDocumentsPage(response.getResults().getNumFound(), page, searchHits, hits);
 		} catch (SolrServerException | IOException e) {
 			throw unavailable(e);
 		}

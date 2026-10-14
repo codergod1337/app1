@@ -42,7 +42,8 @@ public class FileSubClassAdminController {
 				newFileSubClassData.getDescription(), newFileSubClassData.getListingPosition(),
 				newFileSubClassData.getSymbol(), newFileSubClassData.getColor(),
 				newFileSubClassData.getReadAccessRoleKeys(), newFileSubClassData.getWriteAccessRoleKeys(),
-				newFileSubClassData.getDisplayContextKeys());
+				newFileSubClassData.getDisplayContextKeys(), newFileSubClassData.getTriggerWords(),
+				newFileSubClassData.getTriggerHookKeys());
 	}
 
 	/** Alle Felder außer extensions. Der key im Body bestimmt, welche Dateiart geändert wird, er selbst ändert sich nie. */
@@ -52,7 +53,8 @@ public class FileSubClassAdminController {
 				changedFileSubClassData.getDisplayName(), changedFileSubClassData.getDescription(),
 				changedFileSubClassData.getListingPosition(), changedFileSubClassData.getSymbol(),
 				changedFileSubClassData.getColor(), changedFileSubClassData.getReadAccessRoleKeys(),
-				changedFileSubClassData.getWriteAccessRoleKeys(), changedFileSubClassData.getDisplayContextKeys());
+				changedFileSubClassData.getWriteAccessRoleKeys(), changedFileSubClassData.getDisplayContextKeys(),
+				changedFileSubClassData.getTriggerWords(), changedFileSubClassData.getTriggerHookKeys());
 	}
 
 	/**

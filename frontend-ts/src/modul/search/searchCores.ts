@@ -2,13 +2,37 @@ import type { ComponentType } from 'react'
 import type { RequestResult } from '../../api/client.ts'
 import type { OriginState } from '../../components/Origin.ts'
 import { ADMIN_ACCESS_ROLE_KEY } from '../accessrole/AccessRole.ts'
-import { ARTIKEL_CORE_KEY, ARTIKEL_SEARCH_ACCESS_ROLE_KEY, artikelPath, searchArtikelDocuments } from '../artikel/Artikel.ts'
+import { ARTIKEL_CORE_KEY, ARTIKEL_SEARCH_ACCESS_ROLE_KEY, artikelOffersOfHit, artikelPath, searchArtikelDocuments } from '../artikel/Artikel.ts'
 import { ArtikelSearchResultList } from '../artikel/ArtikelSearchResultList.tsx'
 import { DMS_CORE_KEY, DMS_SEARCH_ACCESS_ROLE_KEY, dmsSolrDocumentPath, searchDmsDocuments } from '../dms/Dms.ts'
 import { DmsSearchResultList } from '../dms/DmsSearchResultList.tsx'
-import { KONTAKTE_CORE_KEY, KONTAKTE_SEARCH_ACCESS_ROLE_KEY, kontakteMappePathOf, searchKontakteDocuments } from '../kontakte/Kontakte.ts'
+import {
+  KONTAKTE_CORE_KEY,
+  KONTAKTE_SEARCH_ACCESS_ROLE_KEY,
+  kontakteCompletionsOfHit,
+  kontakteMappePathOf,
+  kontakteOffersOfHit,
+  searchKontakteDocuments,
+} from '../kontakte/Kontakte.ts'
 import { KontakteSearchResultList } from '../kontakte/KontakteSearchResultList.tsx'
-import type { SearchFilter, SearchHit, SearchRequest, SearchResultPage } from './Search.ts'
+import {
+  NACHRICHTEN_CORE_KEY,
+  NACHRICHTEN_SEARCH_ACCESS_ROLE_KEY,
+  nachrichtenCompletionsOfHit,
+  nachrichtenOffersOfHit,
+  searchNachrichtenDocuments,
+} from '../nachrichten/Nachrichten.ts'
+import { NachrichtenSearchResultList } from '../nachrichten/NachrichtenSearchResultList.tsx'
+import type { SolrHook } from '../solrmanager/SolrHook.ts'
+import {
+  hookOffersOfHit,
+  type SearchFilter,
+  type SearchHit,
+  type SearchOffer,
+  type SearchRequest,
+  type SearchResultPage,
+  type SearchTextCompletion,
+} from './Search.ts'
 
 /** Was die Trefferliste eines Kerns bekommt: seine Treffer, die Herkunft für die Wege aus der Suche, das Einloggen eines Werts als Filter */
 export interface SearchResultListProps {
@@ -19,7 +43,7 @@ export interface SearchResultListProps {
 }
 
 /** Die Schlüssel der Kernnamen im Sprachkatalog, search.cores.<key> */
-export type SearchCoreLabelKey = 'DMS' | 'ARTIKEL' | 'KONTAKTE'
+export type SearchCoreLabelKey = 'DMS' | 'ARTIKEL' | 'KONTAKTE' | 'NACHRICHTEN'
 
 /**
  * Die Anbindung eines Kerns an die Suchmaske, nach dem Katalog suchkerne.js und der Kern-Anbindung der Vorlage: ein
@@ -33,12 +57,22 @@ export interface SearchCore {
   search: (request: SearchRequest) => Promise<RequestResult<SearchResultPage>>
   /** der Schlüssel eines Treffers, für den Direktsprung */
   idOf: (fieldValues: Record<string, unknown>) => string | null
-  /** die Seite eines Treffers, wenn der Schlüssel exakt eingetippt wurde. null: kein Direktsprung in diesem Kern */
+  /**
+   * die Seite eines Treffers, wenn der Schlüssel exakt eingetippt wurde: Die Maske zeigt ihn deutlich, Enter öffnet sie
+   * (User 2026-10-14, kein automatischer Sprung mehr). null: in diesem Kern nie
+   */
   directPathOf: ((fieldValues: Record<string, unknown>) => string | null) | null
+  /**
+   * Die Filter-Angebote eines Treffers über der Eingabe (User 2026-10-13): Feld, Wert und woran man ihn erkennt. Die
+   * Suchwörter sind klein, ohne + davor und ab drei Zeichen (searchWordsForOffersOf), die Hooks kommen aus den Stammdaten.
+   */
+  offersOf: (hit: SearchHit, searchWords: readonly string[], solrHooks: readonly SolrHook[]) => SearchOffer[]
+  /** Die Vervollständigungen des gerade getippten Worts aus einem Treffer, z. B. eine E-Mail-Adresse; leer, wo es keine gibt */
+  completionsOf: (hit: SearchHit, typedWord: string) => SearchTextCompletion[]
   ResultList: ComponentType<SearchResultListProps>
 }
 
-/** Die Kerne der Suche in der Reihenfolge der Treffergruppen: DMS, ARTIKEL und KONTAKTE */
+/** Die Kerne der Suche in der Reihenfolge der Treffergruppen: DMS, ARTIKEL, KONTAKTE und NACHRICHTEN */
 export const SEARCH_CORES: readonly SearchCore[] = [
   {
     key: DMS_CORE_KEY,
@@ -48,6 +82,9 @@ export const SEARCH_CORES: readonly SearchCore[] = [
     idOf: (fieldValues) => (typeof fieldValues.id === 'string' ? fieldValues.id : null),
     // die id ist der SHA-256 der Bytes: Wer ihn tippt, meint genau dieses Dokument, ein halber Hash trifft nie
     directPathOf: (fieldValues) => (typeof fieldValues.id === 'string' ? dmsSolrDocumentPath(fieldValues.id) : null),
+    // die Hook-Werte, die mit einem Suchwort beginnen, ohne Zusatz
+    offersOf: (hit, searchWords, solrHooks) => hookOffersOfHit(DMS_CORE_KEY, hit, searchWords, solrHooks),
+    completionsOf: () => [],
     ResultList: DmsSearchResultList,
   },
   {
@@ -58,6 +95,8 @@ export const SEARCH_CORES: readonly SearchCore[] = [
     idOf: (fieldValues) => (typeof fieldValues.id === 'string' ? fieldValues.id : null),
     // die id ist die Artikelnummer: Wer sie exakt tippt, meint diese Mappe
     directPathOf: (fieldValues) => (typeof fieldValues.id === 'string' ? artikelPath(fieldValues.id) : null),
+    offersOf: artikelOffersOfHit,
+    completionsOf: () => [],
     ResultList: ArtikelSearchResultList,
   },
   {
@@ -69,9 +108,30 @@ export const SEARCH_CORES: readonly SearchCore[] = [
     // die id ist die Sternzeit des 19ers: Wer sie exakt tippt, meint diese Firma oder ihren Ansprechpartner, also die
     // Kundenmappe, ohne Kundennummer die Lieferantenmappe
     directPathOf: kontakteMappePathOf,
+    offersOf: kontakteOffersOfHit,
+    completionsOf: kontakteCompletionsOfHit,
     ResultList: KontakteSearchResultList,
   },
+  {
+    key: NACHRICHTEN_CORE_KEY,
+    labelKey: 'NACHRICHTEN',
+    searchAccessRoleKey: NACHRICHTEN_SEARCH_ACCESS_ROLE_KEY,
+    search: searchNachrichtenDocuments,
+    idOf: (fieldValues) => (typeof fieldValues.id === 'string' ? fieldValues.id : null),
+    // kein Direktsprung: Die id ist eine kleine laufende Nummer und träfe jede getippte Belegnummer
+    directPathOf: null,
+    offersOf: nachrichtenOffersOfHit,
+    completionsOf: nachrichtenCompletionsOfHit,
+    ResultList: NachrichtenSearchResultList,
+  },
 ]
+
+/**
+ * Der Kern, der als Auflöser auch abgewählt mitsucht (nach der Vorlage, User 2026-10-13): Seine Treffer bleiben
+ * unsichtbar, nur seine Angebote und Vervollständigungen erscheinen. Wer „Vermes“ tippt und nur Artikel sucht, bekommt
+ * so die Kundennummer mit Firmennamen als Filter.
+ */
+export const SEARCH_RESOLVER_CORE_KEY = KONTAKTE_CORE_KEY
 
 /** Die Kerne, die dieser User durchsuchen darf: die Such-Rolle des Kerns, ADMIN darf jeden */
 export function searchCoresOf(hasAccessRole: (accessRoleKey: string) => boolean): SearchCore[] {

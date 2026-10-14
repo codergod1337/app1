@@ -8,6 +8,8 @@ export type MasterDataSection =
   | 'FILE_EXTENSIONS'
   | 'FILE_SUB_CLASS_DESTINATIONS'
   | 'FILE_SUB_CLASSES'
+  | 'MESSAGE_SUB_CLASSES'
+  | 'MAILBOXES'
   | 'ENTITY_STATES'
   | 'GRAPH_MAIL_TEMPLATES'
   | 'ABAS_INFOSYS'
@@ -29,6 +31,8 @@ export const MASTER_DATA_SECTIONS: { section: MasterDataSection; label: string }
   { section: 'FILE_EXTENSIONS', label: 'Endungen' },
   { section: 'FILE_SUB_CLASS_DESTINATIONS', label: 'Anzeigeorte der Dateiarten (Destinations)' },
   { section: 'FILE_SUB_CLASSES', label: 'Dateiarten (FSC) mit Rechten, Endungen und Anzeigeorten' },
+  { section: 'MESSAGE_SUB_CLASSES', label: 'Nachrichtenarten (MSC) mit Rechten, Anzeigeorten und Postfächern' },
+  { section: 'MAILBOXES', label: 'Postfächer mit ARC-Positionen' },
   { section: 'SOLR_HOOK_GROUPS', label: 'Solr-Hook-Gruppen' },
   { section: 'SOLR_HOOKS', label: 'Solr-Hooks' },
   { section: 'SOLR_CORES', label: 'Solr-Kerne' },

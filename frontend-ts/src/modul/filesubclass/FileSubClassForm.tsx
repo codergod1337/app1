@@ -8,7 +8,9 @@ import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
 import { MultilingualInput } from '../../components/MultilingualInput.tsx'
 import { SymbolPicker } from '../../components/SymbolPicker.tsx'
+import { ValuesInput } from '../../components/ValuesInput.tsx'
 import { BadgeToggleList } from '../accessrole/BadgeToggleList.tsx'
+import { SolrHookKeysInput } from '../solrmanager/SolrHookKeysInput.tsx'
 import { type FileSubClass, type FileSubClassData } from './FileSubClass.ts'
 import { fileSubClassDestinationNameOf } from './FileSubClassDestination.ts'
 import { FileSubClassSymbol } from './FileSubClassSymbol.tsx'
@@ -24,6 +26,8 @@ const NEW_FILE_SUB_CLASS: FileSubClassData = {
   readAccessRoleKeys: [],
   writeAccessRoleKeys: [],
   displayContextKeys: [],
+  triggerWords: [],
+  triggerHookKeys: [],
 }
 
 interface FileSubClassFormProps {
@@ -52,9 +56,9 @@ export function FileSubClassForm({ formId, initialFileSubClass, language, disabl
       return NEW_FILE_SUB_CLASS
     }
     // ohne die Endungen, sie gehören nicht zum Speichern
-    const { key, displayName, description, listingPosition, symbol, color, readAccessRoleKeys, writeAccessRoleKeys, displayContextKeys } =
+    const { key, displayName, description, listingPosition, symbol, color, readAccessRoleKeys, writeAccessRoleKeys, displayContextKeys, triggerWords, triggerHookKeys } =
       initialFileSubClass
-    return { key, displayName, description, listingPosition, symbol, color, readAccessRoleKeys, writeAccessRoleKeys, displayContextKeys }
+    return { key, displayName, description, listingPosition, symbol, color, readAccessRoleKeys, writeAccessRoleKeys, displayContextKeys, triggerWords, triggerHookKeys }
   })
 
   const readAccessRoleKeys = fileSubClass.readAccessRoleKeys ?? []
@@ -202,6 +206,27 @@ export function FileSubClassForm({ formId, initialFileSubClass, language, disabl
             </div>
           )}
           <div className="form-text">{t('filesubclass.form.displayContextKeysHint')}</div>
+        </div>
+        <div className="col-12">
+          <span className="form-label d-block">{t('filesubclass.form.triggerWords')}</span>
+          <ValuesInput
+            values={fileSubClass.triggerWords ?? []}
+            disabled={disabled}
+            placeholder={t('filesubclass.form.triggerWordsPlaceholder')}
+            ariaLabel={t('filesubclass.form.triggerWords')}
+            onChange={(triggerWords) => change('triggerWords', triggerWords)}
+          />
+          <div className="form-text">{t('filesubclass.form.triggerWordsHint')}</div>
+        </div>
+        <div className="col-12">
+          <span className="form-label d-block">{t('filesubclass.form.triggerHookKeys')}</span>
+          <SolrHookKeysInput
+            value={fileSubClass.triggerHookKeys ?? []}
+            language={language}
+            disabled={disabled}
+            onChange={(triggerHookKeys) => change('triggerHookKeys', triggerHookKeys)}
+          />
+          <div className="form-text">{t('filesubclass.form.triggerHookKeysHint')}</div>
         </div>
         <div className="col-12">
           <span className="form-label d-block">Lesen</span>

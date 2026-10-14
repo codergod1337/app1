@@ -38,7 +38,8 @@ public class SolrHookAdminController {
 	public SolrHook createSolrHook(@Valid @RequestBody SolrHook newSolrHookData) {
 		return solrHookService.createSolrHook(newSolrHookData.getKey(), newSolrHookData.getDisplayName(),
 				newSolrHookData.getDescription(), newSolrHookData.getHookGroupKey(),
-				newSolrHookData.getValueBadgeLinkTarget(), newSolrHookData.getListingPosition());
+				newSolrHookData.getValueBadgeLinkTarget(), newSolrHookData.getListingPosition(),
+				newSolrHookData.getAbasObjectTypes());
 	}
 
 	/** Alle Felder. Der key im Body bestimmt, welcher Hook geändert wird, er selbst ändert sich nie. */
@@ -46,7 +47,8 @@ public class SolrHookAdminController {
 	public SolrHook updateSolrHook(@Valid @RequestBody SolrHook changedSolrHookData) {
 		return solrHookService.updateSolrHook(changedSolrHookData.getKey(), changedSolrHookData.getDisplayName(),
 				changedSolrHookData.getDescription(), changedSolrHookData.getHookGroupKey(),
-				changedSolrHookData.getValueBadgeLinkTarget(), changedSolrHookData.getListingPosition());
+				changedSolrHookData.getValueBadgeLinkTarget(), changedSolrHookData.getListingPosition(),
+				changedSolrHookData.getAbasObjectTypes());
 	}
 
 	/**

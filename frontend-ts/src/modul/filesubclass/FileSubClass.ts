@@ -26,6 +26,14 @@ export interface FileSubClass {
    * Dateiart in welche Mappe gehört.
    */
   displayContextKeys: string[] | null
+  /**
+   * Die Triggerwörter (User 2026-10-14): Daran wird ein Anhang beim Archivieren einer Mail als diese Dateiart erkannt.
+   * Treffer in Betreff und Mailtext zählen einfach, in Dateiname und Text des Anhangs doppelt; die Dateiart mit den
+   * meisten wird vorgeschlagen. Getrimmt und ohne Doppelte, das setzt das Backend durch.
+   */
+  triggerWords: string[] | null
+  /** Hooks, deren Wert für diese Dateiart spricht, z. B. auftragsNummer: je Hook mit Wert an der Nachricht zwei Punkte */
+  triggerHookKeys: string[] | null
   /** freigeschaltete Endungen, die pflegt die FSC-Matrix */
   extensions: string[] | null
 }

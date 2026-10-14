@@ -7,9 +7,12 @@ import { translate } from '../../components/multilingual.ts'
 import type { FileSubClass } from './FileSubClass.ts'
 import { FileSubClassSymbol } from './FileSubClassSymbol.tsx'
 
+/** Was eine Kachel braucht: Dateiart und Nachrichtenart haben beide diese Felder (User 2026-10-14: MSC wie FSC wählen) */
+type PickableSubClass = Pick<FileSubClass, 'key' | 'displayName' | 'listingPosition' | 'symbol' | 'color'>
+
 interface FileSubClassPickerProps {
-  /** die angebotenen Dateiarten. Wer filtert, entscheidet der Aufrufer */
-  fileSubClasses: readonly FileSubClass[]
+  /** die angebotenen Dateiarten oder Nachrichtenarten. Wer filtert, entscheidet der Aufrufer */
+  fileSubClasses: readonly PickableSubClass[]
   /** der gewählte key, null: noch keine Wahl */
   value: string | null
   onChange: (key: string) => void
@@ -26,7 +29,8 @@ interface FileSubClassPickerProps {
 /**
  * Die Dateiart-Auswahl nach der FileSubClassAuswahl der Vorlage: klickbare Kacheln mit Symbol, Positionsnummer und
  * Anzeigename. Eine Komponente für jede Stelle, an der eine Dateiart gewählt wird (Upload, später das Bearbeiten eines
- * Dokuments), damit die Wahl überall gleich aussieht.
+ * Dokuments), damit die Wahl überall gleich aussieht. Die Nachrichtenart beim Archivieren wählt man über dieselben
+ * Kacheln, mit eigenem title.
  *
  * Immer nach listingPosition sortiert, bei gleicher Position nach key: So liegt jede Kachel bei jedem Aufruf an
  * derselben Stelle. Ist gewählt, bleibt nur die gewählte Kachel stehen, dieselbe Optik an derselben Stelle, ein Klick
@@ -56,7 +60,7 @@ export function FileSubClassPicker({
   const collapsed = chosen !== null && !expanded
   const searchable = !collapsed && !disabled && sorted.length > 1
   const needle = searchable ? query.trim().toLowerCase() : ''
-  const nameOf = (fileSubClass: FileSubClass) => translate(fileSubClass.displayName, language) || fileSubClass.key
+  const nameOf = (fileSubClass: PickableSubClass) => translate(fileSubClass.displayName, language) || fileSubClass.key
   const matches = needle === '' ? sorted : sorted.filter((fileSubClass) => nameOf(fileSubClass).toLowerCase().includes(needle))
   const visible = collapsed ? [chosen] : matches
 

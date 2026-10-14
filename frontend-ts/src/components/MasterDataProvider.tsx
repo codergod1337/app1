@@ -16,6 +16,7 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
       accessRoleCollections: data?.accessRoleCollections ?? null,
       fileSubClassDestinations: data?.fileSubClassDestinations ?? null,
       fileSubClasses: data?.fileSubClasses ?? null,
+      messageSubClasses: data?.messageSubClasses ?? null,
       fileExtensions: data?.fileExtensions ?? null,
       fileExtensionCollections: data?.fileExtensionCollections ?? null,
       solrHookGroups: data?.solrHookGroups ?? null,

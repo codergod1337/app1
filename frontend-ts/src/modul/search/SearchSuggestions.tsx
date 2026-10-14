@@ -1,24 +1,27 @@
 import { useTranslation } from 'react-i18next'
 import type { LanguageCode } from '../../branding/languages.ts'
-import { useMasterData } from '../../components/masterDataContext.ts'
-import { SolrHookChip } from '../solrmanager/SolrHookChip.tsx'
+import type { OriginState } from '../../components/Origin.ts'
 import type { SearchOffer } from './Search.ts'
+import { SearchFilterBadge } from './SearchFilterBadge.tsx'
 
 interface SearchSuggestionsProps {
-  /** die Angebote aus den Gründen der Treffer aller angewählten Kerne, ohne schon gesetzte Filter, ohne Doppelte */
+  /** die Filter-Angebote aller angewählten Kerne und des Auflösers, ohne schon gesetzte Filter, ohne Doppelte */
   offers: readonly SearchOffer[]
+  /** das erste Angebot ist das, was Tab einloggt; nicht, solange unter der Eingabe Vervollständigungen offen sind */
+  firstOfferActive: boolean
+  /** die Herkunft für eine Mappe als Ziel eines Werts */
+  origin: OriginState
   language: LanguageCode
-  onPick: (offer: SearchOffer) => void
+  onPickOffer: (offer: SearchOffer) => void
 }
 
 /**
- * Die Angebote über der Eingabe (User 2026-10-09): je Hook-Wert, den ein Suchwort in einem Treffer getroffen hat, ein
- * Hook-Chip. Klick loggt ihn als Filter ein und nimmt das Suchwort aus dem Suchtext, Tab im Suchfeld den ersten. Die
- * Angebote stecken schon in der Antwort der Suche (die Gründe), es gibt keinen eigenen Request dafür.
+ * Die Filter-Angebote über der Eingabe (User 2026-10-09, nach der Vorlage 2026-10-13) als dicke SearchFilterBadges.
+ * Klick oder Tab loggt eines als Filter ein. Die Vervollständigungen des getippten Worts stehen nicht hier, sondern
+ * wie in jeder Oberfläche als Liste direkt unter dem Suchfeld (Search.tsx). Alles kommt aus den Antworten der Suche.
  */
-export function SearchSuggestions({ offers, language, onPick }: SearchSuggestionsProps) {
+export function SearchSuggestions({ offers, firstOfferActive, origin, language, onPickOffer }: SearchSuggestionsProps) {
   const { t } = useTranslation()
-  const { solrHooks } = useMasterData()
 
   if (offers.length === 0) {
     return null
@@ -27,21 +30,20 @@ export function SearchSuggestions({ offers, language, onPick }: SearchSuggestion
   return (
     <div className="search-offers">
       <span className="small text-muted">{t('search.offers.title')}</span>
-      {offers.map((offer) => {
-        const hook = solrHooks?.find((candidate) => candidate.key === offer.fieldName)
-        if (!hook) {
-          return null
-        }
-        return (
-          <SolrHookChip
-            key={`${offer.coreKey}:${offer.fieldName}=${offer.value}`}
-            solrHook={hook}
-            value={offer.value}
-            language={language}
-            onClick={() => onPick(offer)}
-          />
-        )
-      })}
+      {offers.map((offer, index) => (
+        <SearchFilterBadge
+          key={`${offer.fieldName}=${offer.value}`}
+          fieldName={offer.fieldName}
+          value={offer.value}
+          additionText={offer.additionText}
+          previewBase64Png={offer.previewBase64Png}
+          variant="offer"
+          active={firstOfferActive && index === 0}
+          onPick={() => onPickOffer(offer)}
+          origin={origin}
+          language={language}
+        />
+      ))}
       <span className="small text-muted">{t('search.offers.tabHint')}</span>
     </div>
   )

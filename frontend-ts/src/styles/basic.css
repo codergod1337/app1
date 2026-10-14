@@ -2872,6 +2872,20 @@
     opacity: 1;
   }
 
+  /* Ein exakt getippter Schlüssel (User 2026-10-14): kein Sprung, ein deutlicher Hinweis unter dem Suchfeld, Enter öffnet */
+  .search-direct-hit {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 2px solid var(--bs-primary);
+    border-radius: 0.5rem;
+    background-color: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+    font-weight: 600;
+  }
+
   .search-chips {
     display: flex;
     flex-wrap: wrap;
@@ -2879,44 +2893,128 @@
     gap: 0.4rem;
   }
 
-  /* Ein Filter auf ein normales Feld: Pille in den Farben des Boxkopfs, Hooks haben ihren eigenen Chip */
-  .search-filter-chip {
+  /*
+   * Die Filter-Badge der Suche (User 2026-10-13, nach der FilterBadge der Vorlage): gesetzter Filter und Angebot in
+   * einer Darstellung, Kern, Feld und Wert. Die Kernfarbe kommt als --core-color aus dem look des Kerns
+   * (solrCoreColorStyle), als Rand, Tönung und volle Farbe nur am Kern-Präfix, damit die Zugehörigkeit auf einen Blick da
+   * ist; die Fläche nie vollflächig, sonst müsste je Farbe über helle oder dunkle Schrift entschieden werden.
+   */
+  .search-filter-badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.2rem 0.6rem;
-    border-radius: 999px;
-    background: var(--contentbox-header-bg);
-    color: var(--contentbox-header-text);
-    font-size: 0.8rem;
-    font-weight: 600;
-    line-height: 1.2;
-  }
-
-  .search-filter-chip-field {
-    opacity: 0.7;
-  }
-
-  /*
-   * Die Kernfarbe (User 2026-10-07, wie kern-<key> der Vorlage, nur aus dem look des Kerns in den Stammdaten): ein
-   * Element mit --core-color färbt alles darunter. Ein Chip auf ein Feld des Kerns trägt sie als Rand und Tönung, nie
-   * vollflächig, sonst müsste je Farbe über helle oder dunkle Schrift entschieden werden.
-   */
-  .search-filter-chip-core {
+    gap: 0.4rem;
+    max-width: 100%;
+    padding: 0.15rem 0.5rem;
     border: 1px solid var(--core-color);
-    background: color-mix(in srgb, var(--core-color) 30%, var(--contentbox-bg));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--core-color) 22%, var(--contentbox-bg));
     color: var(--contentbox-text);
+    font: inherit;
+    font-size: 0.8rem;
+    line-height: 1.25;
+    text-align: left;
   }
 
-  .search-offer.search-filter-chip-core {
+  /* das Angebot: gestrichelt, denn es ist noch nicht gesetzt; das, was Tab einloggt, und der Hover durchgezogen */
+  .search-filter-badge-offer {
     border-style: dashed;
+    background: transparent;
+    cursor: pointer;
   }
 
-  .search-offer.search-filter-chip-core:hover {
-    background: color-mix(in srgb, var(--core-color) 50%, var(--contentbox-bg));
+  .search-filter-badge-offer:hover,
+  .search-filter-badge-offer.search-filter-badge-active {
+    border-style: solid;
+    background: color-mix(in srgb, var(--core-color) 30%, var(--contentbox-bg));
   }
 
-  /* Die Filterangebote der Vervollständigung: wie die Chips, aber gestrichelt, denn sie sind noch nicht gesetzt */
+  .search-filter-badge-offer.search-filter-badge-active {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--core-color) 55%, transparent);
+  }
+
+  /* das dicke Angebot mit Zusatz oder Bild: zweizeilig, das Bild vorn */
+  .search-filter-badge-wide {
+    gap: 0.5rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 10px;
+  }
+
+  .search-filter-badge-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .search-filter-badge-line {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  /* das Kern-Präfix, der einzige Vollton */
+  .search-filter-badge-core {
+    flex-shrink: 0;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: var(--core-color);
+    color: var(--core-text);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .search-filter-badge-field {
+    flex-shrink: 0;
+    opacity: 0.7;
+    font-size: 0.75rem;
+  }
+
+  .search-filter-badge-field::after {
+    content: ':';
+  }
+
+  .search-filter-badge-value {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .search-filter-badge-value-link {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--core-color);
+    text-underline-offset: 2px;
+  }
+
+  /* der Zusatz ordnet nur ein: gedämpft und einzeilig, er darf die Badge nicht in die Höhe ziehen */
+  .search-filter-badge-addition {
+    overflow: hidden;
+    opacity: 0.75;
+    font-size: 0.75rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .search-filter-badge-preview {
+    flex-shrink: 0;
+    width: 2.1rem;
+    height: 2.1rem;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+
+  .search-filter-badge-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .search-filter-badge-hint .search-filter-badge-preview {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  /* Die Filter-Angebote über der Eingabe */
   .search-offers {
     display: flex;
     flex-wrap: wrap;
@@ -2924,25 +3022,35 @@
     gap: 0.4rem;
   }
 
-  .search-offer {
-    border: 1px dashed var(--contentbox-border);
-    background: var(--contentbox-bg);
-    color: var(--contentbox-text);
-    cursor: pointer;
+  /*
+   * Die Vervollständigungen des gerade getippten Worts (User 2026-10-13), z. B. E-Mail-Adressen, wie in jeder
+   * Oberfläche: das Dropdown von Bootstrap (dropdown-menu, dropdown-item, active) direkt unter dem Suchfeld. Es hängt am
+   * Seitenkörper und steht fest an der Stelle des Felds, denn die ContentBox schneidet Überstehendes ab.
+   */
+  .search-completion-list {
+    position: fixed;
+    z-index: 1080;
+    max-height: 18rem;
+    margin: 0;
+    overflow-y: auto;
   }
 
-  .search-offer:hover {
-    background: var(--contentbox-header-bg);
+  .search-completion-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.75rem;
+    white-space: normal;
   }
 
-  .search-offer-preview {
-    width: 1.4rem;
-    height: 1.4rem;
-    object-fit: contain;
+  .search-completion-text {
+    font-weight: 600;
+    overflow-wrap: anywhere;
   }
 
-  .search-offer-extra {
-    opacity: 0.7;
+  .search-completion-addition {
+    opacity: 0.75;
+    font-size: 0.85em;
   }
 
   .search-fsc {
@@ -3099,5 +3207,49 @@
 
   .search-hit-actions {
     flex: none;
+  }
+
+  /* ===== Mail als iframe (MailHtmlFrame): so breit wie die Box, so hoch wie der Text, ohne Rahmen ===== */
+  .mail-html-frame {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+  }
+
+  /* ===== Kopf einer Mail: Von, An, Cc, Datum, Betreff als Liste von Begriff und Wert ===== */
+  .mail-header {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: 1rem;
+    row-gap: 0.25rem;
+    margin: 0 0 1rem;
+  }
+
+  .mail-header dt {
+    font-weight: 600;
+  }
+
+  .mail-header dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* ===== Anhang auf der Aufbereiten-Seite: eine Zeile je Datei, ein ignorierter ausgegraut ===== */
+  .archivieren-attachment {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--contentbox-border);
+  }
+
+  .archivieren-attachment:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .archivieren-attachment-ignored {
+    opacity: 0.5;
   }
 }

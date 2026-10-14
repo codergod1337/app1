@@ -85,6 +85,25 @@ public class FileSubClass {
 	@Column(columnDefinition = "text[]")
 	private List<String> displayContextKeys;
 
+	/**
+	 * Die Triggerwörter (User 2026-10-14): Wörter, an denen ein Anhang beim Archivieren einer Mail als diese Dateiart zu
+	 * erkennen ist, z. B. „Auftragsbestätigung“. Je Anhang zählen Treffer in Betreff und Mailtext einfach, Treffer in
+	 * Dateiname und Text des Anhangs doppelt; vorgeschlagen wird die Dateiart mit den meisten. Getrimmt, ohne Doppelte
+	 * (Groß- und Kleinschreibung egal), das setzt der Service durch. Leer heißt: wird nie vorgeschlagen.
+	 */
+	@JdbcTypeCode(SqlTypes.ARRAY)
+	@Column(columnDefinition = "text[]")
+	private List<String> triggerWords;
+
+	/**
+	 * Die Trigger-Hooks (User 2026-10-14): Hooks, deren Wert für diese Dateiart spricht, z. B. auftragsNummer für
+	 * AUFTRAGSBESTAETIGUNG. Jeder dieser Hooks mit Wert an der Nachricht zählt für jeden ihrer Anhänge zwei Punkte.
+	 * Angelegte Hooks prüft der Service; wird ein Hook gelöscht, bleibt sein Key hier stehen und wirkt nicht mehr.
+	 */
+	@JdbcTypeCode(SqlTypes.ARRAY)
+	@Column(columnDefinition = "text[]")
+	private List<String> triggerHookKeys;
+
 	/** Für JPA und Jackson. */
 	protected FileSubClass() {
 	}
@@ -92,7 +111,8 @@ public class FileSubClass {
 	/** Admin und Import: jedes Feld. */
 	public FileSubClass(String key, String displayName, String description, int listingPosition,
 			AccessRoleSymbol symbol, String color, List<String> readAccessRoleKeys, List<String> writeAccessRoleKeys,
-			List<String> displayContextKeys, List<String> extensions) {
+			List<String> displayContextKeys, List<String> triggerWords, List<String> triggerHookKeys,
+			List<String> extensions) {
 		this.key = key;
 		this.displayName = displayName;
 		this.description = description;
@@ -102,6 +122,8 @@ public class FileSubClass {
 		this.readAccessRoleKeys = readAccessRoleKeys;
 		this.writeAccessRoleKeys = writeAccessRoleKeys;
 		this.displayContextKeys = displayContextKeys;
+		this.triggerWords = triggerWords;
+		this.triggerHookKeys = triggerHookKeys;
 		this.extensions = extensions;
 	}
 
@@ -172,6 +194,24 @@ public class FileSubClass {
 
 	public void setDisplayContextKeys(List<String> displayContextKeys) {
 		this.displayContextKeys = displayContextKeys;
+	}
+
+	/** Nie null: eine alte Zeile ohne Wert oder ein Import ohne das Feld hat keine Triggerwörter. */
+	public List<String> getTriggerWords() {
+		return triggerWords != null ? triggerWords : List.of();
+	}
+
+	public void setTriggerWords(List<String> triggerWords) {
+		this.triggerWords = triggerWords;
+	}
+
+	/** Nie null: ohne Wert keine Trigger-Hooks. */
+	public List<String> getTriggerHookKeys() {
+		return triggerHookKeys != null ? triggerHookKeys : List.of();
+	}
+
+	public void setTriggerHookKeys(List<String> triggerHookKeys) {
+		this.triggerHookKeys = triggerHookKeys;
 	}
 
 	public List<String> getExtensions() {

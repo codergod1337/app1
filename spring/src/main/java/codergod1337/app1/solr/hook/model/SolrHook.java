@@ -8,7 +8,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Ein Hook: eine Adresse, über die ein Solr-Dokument auf ein Fachobjekt zeigt, z. B. artikelNummer. Jeder Kern bekommt
@@ -68,19 +71,29 @@ public class SolrHook {
 	@ColumnDefault("0")
 	private int listingPosition;
 
+	/**
+	 * Die ABAS-Typen, deren Nummern in diesen Hook gehören (User 2026-10-14), wie ABAS sie in meta.objectType nennt, z. B.
+	 * obj:data:3:1. Findet das Archivieren in einer Mail eine Nummer, die die Belegnummer als einen dieser Typen erkennt,
+	 * steht sie vorbelegt in diesem Hook. Getrimmt, ohne Doppelte, das setzt der Service durch. Leer: nie vorbelegt.
+	 */
+	@JdbcTypeCode(SqlTypes.ARRAY)
+	@Column(name = "abas_object_types", columnDefinition = "text[]")
+	private List<String> abasObjectTypes;
+
 	/** Für JPA und Jackson. */
 	protected SolrHook() {
 	}
 
 	/** Admin und Import: jedes Feld. Ein fehlendes Ziel der Badges heißt Suche. */
 	public SolrHook(String key, String displayName, String description, String hookGroupKey,
-			SolrHookValueBadgeLinkTarget valueBadgeLinkTarget, int listingPosition) {
+			SolrHookValueBadgeLinkTarget valueBadgeLinkTarget, int listingPosition, List<String> abasObjectTypes) {
 		this.key = key;
 		this.displayName = displayName;
 		this.description = description;
 		this.hookGroupKey = hookGroupKey;
 		this.valueBadgeLinkTarget = valueBadgeLinkTarget != null ? valueBadgeLinkTarget : SolrHookValueBadgeLinkTarget.SEARCH;
 		this.listingPosition = listingPosition;
+		this.abasObjectTypes = abasObjectTypes;
 	}
 
 	public String getKey() {
@@ -125,6 +138,15 @@ public class SolrHook {
 
 	public void setListingPosition(int listingPosition) {
 		this.listingPosition = listingPosition;
+	}
+
+	/** Nie null: ohne Wert gehört keine Nummer automatisch in diesen Hook. */
+	public List<String> getAbasObjectTypes() {
+		return abasObjectTypes != null ? abasObjectTypes : List.of();
+	}
+
+	public void setAbasObjectTypes(List<String> abasObjectTypes) {
+		this.abasObjectTypes = abasObjectTypes;
 	}
 
 }

@@ -1,4 +1,5 @@
 import { useLocation } from 'react-router'
+import type { SolrHook } from '../solrmanager/SolrHook.ts'
 
 /** Die Suchmaske, ein Modul über alle Kerne wie in der Vorlage */
 export const SEARCH_PATH = '/search'
@@ -40,6 +41,8 @@ export interface SearchRequest {
   searchText: string
   /** die Chips je Feld gebündelt, gleiches Feld heißt ODER */
   exactFilterValuesByFieldName: Record<string, string[]>
+  /** die Seite ab 0; „weitere laden“ fragt die nächste (User 2026-10-14) */
+  page: number
 }
 
 /**
@@ -53,33 +56,102 @@ export interface SearchHitReason {
 }
 
 /**
- * Ein Angebot über dem Eingabefeld (User 2026-10-09): ein Hook-Wert aus einem Grund der Treffer, den ein Suchwort
- * getroffen hat. Klick macht ihn zum Filter (fq) und nimmt das Suchwort aus dem Suchtext.
+ * Ein Filter-Angebot über dem Eingabefeld (User 2026-10-09, mit Zusatz und Bild seit 2026-10-13 nach der Vorlage):
+ * Feld und Wert aus einem Treffer, dazu woran man den Wert erkennt. Klick oder Tab macht ihn zum Filter (fq). Jeder Kern
+ * baut seine Angebote selbst (SearchCore.offersOf).
  */
 export interface SearchOffer {
+  /** der Kern, aus dessen Treffer das Angebot stammt */
   coreKey: string
   fieldName: string
   value: string
-  /** das Suchwort, das den Wert traf, wie es im Wert steht */
-  word: string
+  /** das Suchwort, das den Wert traf: Es geht beim Übernehmen aus dem Suchtext. null: Der Wert kam ohne Suchwort, die Eingabe wird geleert wie in der Vorlage. */
+  word: string | null
+  /** woran man den Wert erkennt, z. B. der Firmenname zur Kundennummer, der Artikelname zur Artikelnummer; null ohne */
+  additionText: string | null
+  /** ein Vorschaubild als Base64-PNG ohne Präfix, z. B. das des Artikels; null ohne */
+  previewBase64Png: string | null
 }
 
-/** Das Angebot aus einem Grund: nur Hooks, der Wert ohne Marken, das Wort zwischen den Marken; sonst null */
-export function searchOfferOfReason(coreKey: string, reason: SearchHitReason, isHook: (fieldName: string) => boolean): SearchOffer | null {
-  if (reason.snippet === null || !isHook(reason.fieldName)) {
-    return null
+/**
+ * Eine Vervollständigung des Suchtexts (User 2026-10-13): Das gerade getippte Wort ist der Anfang eines Werts, z. B.
+ * einer E-Mail-Adresse. Klick oder Tab ersetzt das Wort durch den ganzen Wert, die Suche läuft damit. Kein Filter.
+ */
+export interface SearchTextCompletion {
+  coreKey: string
+  /** das getippte Wort, das ersetzt wird */
+  typedWord: string
+  /** der ganze Wert, der es ersetzt */
+  completedText: string
+  /** woran man den Wert erkennt, z. B. Name und Firma zur Adresse; null ohne */
+  additionText: string | null
+}
+
+/** Höchstens so viele Angebote je Kern, wie in der Vorlage */
+export const SEARCH_MAX_OFFERS_PER_CORE = 10
+
+/** Höchstens so viele Vervollständigungen insgesamt */
+export const SEARCH_MAX_TEXT_COMPLETIONS = 5
+
+/** Die Suchwörter, mit denen ein Wert beginnen kann: klein, ohne + davor, ohne ausgeschlossene, ab SEARCH_MIN_CHARACTERS Zeichen */
+export function searchWordsForOffersOf(searchText: string): string[] {
+  return searchWordsOf(searchText)
+    .filter((word) => !word.startsWith('-'))
+    .map((word) => word.replace(/^\+/, '').toLowerCase())
+    .filter((word) => word.length >= SEARCH_MIN_CHARACTERS)
+}
+
+/**
+ * Die Hook-Angebote eines Treffers, für jeden Kern gleich: jeder Hook-Wert, der mit einem Suchwort beginnt (so trifft
+ * der Zwilling), wie die Gründe des Backends. additionOf gibt je Hook den Zusatz, z. B. Name und Bild eines Artikels;
+ * null heißt ohne.
+ */
+export function hookOffersOfHit(
+  coreKey: string,
+  hit: SearchHit,
+  searchWords: readonly string[],
+  solrHooks: readonly Pick<SolrHook, 'key' | 'valueBadgeLinkTarget'>[],
+  additionOf: (solrHook: Pick<SolrHook, 'key' | 'valueBadgeLinkTarget'>) => { additionText: string | null; previewBase64Png: string | null } | null = () => null,
+): SearchOffer[] {
+  const offers: SearchOffer[] = []
+  for (const solrHook of solrHooks) {
+    const raw = hit.fieldValues[solrHook.key]
+    const values = raw === null || raw === undefined ? [] : (Array.isArray(raw) ? raw : [raw]).map(String)
+    for (const value of values) {
+      const word = searchWords.find((candidate) => value.toLowerCase().startsWith(candidate))
+      if (word === undefined) {
+        continue
+      }
+      const addition = additionOf(solrHook)
+      offers.push({
+        coreKey,
+        fieldName: solrHook.key,
+        value,
+        word,
+        additionText: addition?.additionText ?? null,
+        previewBase64Png: addition?.previewBase64Png ?? null,
+      })
+    }
   }
-  const start = reason.snippet.indexOf(SEARCH_MARK_OPEN)
-  const end = reason.snippet.indexOf(SEARCH_MARK_CLOSE)
-  if (start < 0 || end <= start) {
-    return null
+  return offers
+}
+
+/** Das Wort, das gerade getippt wird: das letzte, solange kein Leerzeichen folgt, ohne + davor; leer sonst und bei einem ausgeschlossenen */
+export function typedWordOf(searchText: string): string {
+  if (searchText === '' || /\s$/.test(searchText)) {
+    return ''
   }
-  return {
-    coreKey,
-    fieldName: reason.fieldName,
-    value: reason.snippet.slice(0, start) + reason.snippet.slice(start + 1, end) + reason.snippet.slice(end + 1),
-    word: reason.snippet.slice(start + 1, end),
-  }
+  const words = searchText.trim().split(/\s+/)
+  const last = words[words.length - 1] ?? ''
+  return last.startsWith('-') ? '' : last.replace(/^\+/, '')
+}
+
+/** Der Suchtext mit dem getippten letzten Wort durch den ganzen Wert ersetzt, ein + davor bleibt */
+export function withTypedWordCompleted(searchText: string, completedText: string): string {
+  const words = searchText.trim().split(/\s+/)
+  const last = words.pop() ?? ''
+  words.push(last.startsWith('+') ? `+${completedText}` : completedText)
+  return words.join(' ')
 }
 
 /** Der Suchtext ohne dieses Wort, Groß/Klein egal, ein + davor zählt nicht; was bleibt, mit einem Leerzeichen gefügt */
@@ -101,9 +173,15 @@ export interface SearchHit {
   reasons: SearchHitReason[]
 }
 
-/** Das Ergebnis eines Kerns (DmsSearchedDocumentsPage.java): Treffer insgesamt und die besten davon, keine Seiten */
+/**
+ * Das Ergebnis eines Kerns (DmsSearchedDocumentsPage.java): Treffer insgesamt und eine Seite davon nach Score. In der
+ * Maske stehen die bis dahin geladenen Seiten aneinander, page ist dann die letzte geladene.
+ */
 export interface SearchResultPage {
   totalFound: number
+  page: number
+  /** Treffer je Seite, app1.solr.search.hits im Backend */
+  pageSize: number
   hits: SearchHit[]
 }
 
@@ -163,8 +241,8 @@ export function hasSearchWord(searchText: string): boolean {
   return searchWordsOf(searchText).some((word) => !word.startsWith('-') && word.replace(/^\+/, '').length >= SEARCH_MIN_CHARACTERS)
 }
 
-/** Die Abfrage an einen Kern: Chips je Feld gebündelt (gleiches Feld ODER) */
-export function searchRequestOf(searchText: string, filters: readonly SearchFilter[]): SearchRequest {
+/** Die Abfrage an einen Kern: Chips je Feld gebündelt (gleiches Feld ODER), ohne Seite die erste */
+export function searchRequestOf(searchText: string, filters: readonly SearchFilter[], page = 0): SearchRequest {
   const exactFilterValuesByFieldName: Record<string, string[]> = {}
   for (const filter of filters) {
     const values = (exactFilterValuesByFieldName[filter.fieldName] ??= [])
@@ -172,7 +250,7 @@ export function searchRequestOf(searchText: string, filters: readonly SearchFilt
       values.push(filter.value)
     }
   }
-  return { searchText, exactFilterValuesByFieldName }
+  return { searchText, exactFilterValuesByFieldName, page }
 }
 
 /** Zwei Chips sind derselbe Filter, wenn Feld und Wert gleich sind */

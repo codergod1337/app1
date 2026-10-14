@@ -80,9 +80,9 @@ app1:
     resolve:
       page-size: 50
       max-results: 2000
-    # Suche (solr/dms): nur die besten Treffer, keine Seiten
+    # Suche aller Kerne: Treffer je Seite; die Maske hängt mit „weitere laden“ die nächste Seite an (User 2026-10-14)
     search:
-      hits: 30
+      hits: 100
     # Kern ARTIKEL (solr/artikel), die aufaggregierten Referenzen je Flag (User 2026-10-13): bis zu wie vielen
     # Alternativschritten die Mappe suchen darf, und höchstens wie viele Treffer je Flag abgelegt werden; darüber
     # gilt das Ergebnis als gekürzt
@@ -139,6 +139,8 @@ app1:
       system-sender-address: ${graph_mail_sender:}
       # so lange darf ein Aufruf von Graph dauern, danach 503
       request-timeout: 10s
+      # die Domäne der Postfächer ohne @: Nur eine eigene E-Mail auf diese Domäne darf der User als Postfach wählen
+      domain: ${graph_mail_domain:}
 
   # Dateispeicher per SFTP (system/sftp). Alles, was den Server betrifft, kommt aus der .env: Für den Wechsel auf ein
   # NAS ändern sich nur sftp_host und sftp_host_key. Der Server muss dem User denselben root-dir zeigen.

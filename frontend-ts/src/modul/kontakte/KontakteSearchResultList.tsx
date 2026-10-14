@@ -10,6 +10,7 @@ import { SearchHitReasons } from '../search/SearchHitReasons.tsx'
 import { SolrHookValueBadge } from '../solrmanager/SolrHookValueBadge.tsx'
 import { SolrHookValues } from '../solrmanager/SolrHookValues.tsx'
 import {
+  KONTAKTE_COMPANY_NAME_OF_CONTACT_PERSON_FIELD_NAME,
   KONTAKTE_CONTACT_KIND_COMPANY,
   KONTAKTE_CONTACT_KIND_FIELD_NAME,
   KONTAKTE_CORE_KEY,
@@ -24,9 +25,10 @@ import {
 /**
  * Die Fakten einer Trefferzeile in dieser Reihenfolge, nach KontakteTreffer der Vorlage: die Kunden- und
  * Lieferantennummer immer zuerst, denn an den Nummern erkennt das Haus einen Kontakt. Die beiden sind Hooks, ihre Werte
- * sind Badges mit dem Ziel ihres Hooks und stehen deshalb nicht noch einmal unter den Hooks.
+ * sind Badges mit dem Ziel ihres Hooks und stehen deshalb nicht noch einmal unter den Hooks. Danach am Ansprechpartner
+ * immer der Name seiner Firma (User-Vorgabe der Vorlage), den das Backend zur Lesezeit mitgibt.
  */
-const FACT_FIELD_NAMES: readonly string[] = ['kundenNummer', 'lieferantenNummer', 'nort', 'funktion', 'tele', 'email']
+const FACT_FIELD_NAMES: readonly string[] = ['kundenNummer', 'lieferantenNummer', KONTAKTE_COMPANY_NAME_OF_CONTACT_PERSON_FIELD_NAME, 'nort', 'funktion', 'tele', 'email']
 
 /**
  * Die Treffer des Kerns KONTAKTE in der Suche, nach KontakteTreffer der Vorlage: je Treffer das Symbol für Firma oder
@@ -81,7 +83,12 @@ export function KontakteSearchResultList({ hits, origin, onFilter }: SearchResul
                     const hook = (solrHooks ?? []).find((candidate) => candidate.key === fact.fieldName)
                     return (
                       <span key={fact.fieldName} className="search-hit-fact">
-                        <span className="text-muted">{kontakteFieldLabel(solrFields, solrHooks, fact.fieldName, language)}:</span>{' '}
+                        <span className="text-muted">
+                          {fact.fieldName === KONTAKTE_COMPANY_NAME_OF_CONTACT_PERSON_FIELD_NAME
+                            ? t('kontakte.search.company')
+                            : kontakteFieldLabel(solrFields, solrHooks, fact.fieldName, language)}
+                          :
+                        </span>{' '}
                         {hook
                           ? fact.values.map((value) => (
                               <SolrHookValueBadge

@@ -7,8 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SolrFieldRepository extends JpaRepository<SolrField, Long> {
 
-	/** Gibt es den Namen in irgendeinem Kern, als Feld oder als Hook? Ein neues Feld darf keinen vergebenen Namen tragen. */
+	/** Gibt es den Namen in irgendeinem Kern, als Feld oder als Hook? Ein neues Feld jedes Kerns darf keinen vergebenen Namen tragen. */
 	boolean existsByName(String name);
+
+	/** Gibt es den Namen als Feld jedes Kerns (coreKey null)? Dann steht er in jedem Kern und ist dort vergeben. */
+	boolean existsByCoreKeyIsNullAndName(String name);
 
 	Optional<SolrField> findByCoreKeyAndName(String coreKey, String name);
 

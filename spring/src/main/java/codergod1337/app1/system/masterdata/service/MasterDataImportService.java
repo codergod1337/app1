@@ -12,6 +12,10 @@ import codergod1337.app1.abas.model.AbasInfosys;
 import codergod1337.app1.abas.service.AbasInfosysService;
 import codergod1337.app1.graph.mail.model.GraphMailTemplate;
 import codergod1337.app1.graph.mail.service.GraphMailTemplateService;
+import codergod1337.app1.graph.mailbox.model.Mailbox;
+import codergod1337.app1.graph.mailbox.service.MailboxService;
+import codergod1337.app1.message.messagesubclass.model.MessageSubClass;
+import codergod1337.app1.message.messagesubclass.service.MessageSubClassService;
 import codergod1337.app1.solr.SolrFieldName;
 import codergod1337.app1.solr.core.model.SolrCore;
 import codergod1337.app1.solr.core.service.SolrCoreService;
@@ -127,6 +131,8 @@ public class MasterDataImportService {
 	private final FileExtensionService fileExtensionService;
 	private final FileSubClassService fileSubClassService;
 	private final FileSubClassDestinationService fileSubClassDestinationService;
+	private final MessageSubClassService messageSubClassService;
+	private final MailboxService mailboxService;
 	private final SolrHookGroupService solrHookGroupService;
 	private final SolrHookService solrHookService;
 	private final SolrCoreService solrCoreService;
@@ -149,6 +155,7 @@ public class MasterDataImportService {
 			AccessRoleCollectionService accessRoleCollectionService,
 			FileExtensionCollectionService fileExtensionCollectionService, FileExtensionService fileExtensionService,
 			FileSubClassService fileSubClassService, FileSubClassDestinationService fileSubClassDestinationService,
+			MessageSubClassService messageSubClassService, MailboxService mailboxService,
 			SolrHookGroupService solrHookGroupService, SolrHookService solrHookService, SolrCoreService solrCoreService,
 			SolrFieldService solrFieldService, EntityStateService entityStateService,
 			GraphMailTemplateService graphMailTemplateService, AbasInfosysService abasInfosysService,
@@ -157,6 +164,8 @@ public class MasterDataImportService {
 			AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
 			AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService,
 			MasterDataExportService masterDataExportService, JsonMapper jsonMapper, Validator validator) {
+		this.messageSubClassService = messageSubClassService;
+		this.mailboxService = mailboxService;
 		this.abasInfosysService = abasInfosysService;
 		this.accessRoleService = accessRoleService;
 		this.accessRoleCollectionService = accessRoleCollectionService;
@@ -234,9 +243,12 @@ public class MasterDataImportService {
 		planFileExtensionCollections(plan, linesBySection.get(MasterDataSection.FILE_EXTENSION_COLLECTIONS));
 		planFileExtensions(plan, linesBySection.get(MasterDataSection.FILE_EXTENSIONS));
 		planFileSubClassDestinations(plan, linesBySection.get(MasterDataSection.FILE_SUB_CLASS_DESTINATIONS));
-		planFileSubClasses(plan, linesBySection.get(MasterDataSection.FILE_SUB_CLASSES));
+		// die Hooks vor Dateiart und Nachrichtenart: deren Trigger-Hooks prüfen gegen plan.solrHookKeys
 		planSolrHookGroups(plan, linesBySection.get(MasterDataSection.SOLR_HOOK_GROUPS));
 		planSolrHooks(plan, linesBySection.get(MasterDataSection.SOLR_HOOKS));
+		planFileSubClasses(plan, linesBySection.get(MasterDataSection.FILE_SUB_CLASSES));
+		planMessageSubClasses(plan, linesBySection.get(MasterDataSection.MESSAGE_SUB_CLASSES));
+		planMailboxes(plan, linesBySection.get(MasterDataSection.MAILBOXES));
 		planSolrCores(plan, linesBySection.get(MasterDataSection.SOLR_CORES));
 		planSolrFields(plan, linesBySection.get(MasterDataSection.SOLR_FIELDS));
 		planEntityStates(plan, linesBySection.get(MasterDataSection.ENTITY_STATES));
@@ -369,7 +381,81 @@ public class MasterDataImportService {
 			fileSubClass.setWriteAccessRoleKeys(writeAccessRoleKeys);
 			fileSubClass.setDisplayContextKeys(
 					keepKnown(row, fileSubClass.getDisplayContextKeys(), plan.fileSubClassDestinationKeys, "Anzeigeort"));
+			fileSubClass.setTriggerHookKeys(keepKnown(row, fileSubClass.getTriggerHookKeys(), plan.solrHookKeys, "Hook"));
 			fileSubClass.setExtensions(keepKnown(row, fileSubClass.getExtensions(), plan.extensions, "Endung"));
+		}
+	}
+
+	/**
+	 * MSC (User 2026-10-13): unbekannte AR und Anzeigeorte fallen weg, Hookpflege schließt Lesen ein. Eine Postfachadresse,
+	 * die bei uns oder weiter oben im Import schon an einer anderen Nachrichtenart hängt, fällt weg, denn ein Postfach
+	 * zeigt auf höchstens eine Art.
+	 */
+	private void planMessageSubClasses(ImportPlan plan, List<Line> lines) {
+		Map<String, MessageSubClass> existing = byKey(messageSubClassService.getAllMessageSubClasses(),
+				MessageSubClass::getKey);
+		List<PlannedRow> rows = planKeyedRows(lines, MessageSubClass.class, MessageSubClass::getKey,
+				MessageSubClass::getDisplayName, existing, HelperInputs::isValidKey, "key fehlt oder ist ungültig");
+		plan.rowsBySection.put(MasterDataSection.MESSAGE_SUB_CLASSES, rows);
+		Map<String, String> messageSubClassKeyByMailboxAddress = new LinkedHashMap<>();
+		for (MessageSubClass messageSubClass : existing.values()) {
+			messageSubClass.getMailboxEmailAddresses()
+					.forEach(address -> messageSubClassKeyByMailboxAddress.put(address, messageSubClass.getKey()));
+		}
+		for (PlannedRow row : rows) {
+			if (!row.isNew()) {
+				continue;
+			}
+			MessageSubClass messageSubClass = (MessageSubClass) row.data;
+			List<String> writeAccessRoleKeys = keepKnown(row, messageSubClass.getWriteAccessRoleKeys(),
+					plan.accessRoleKeys, "AR");
+			List<String> readAccessRoleKeys = keepKnown(row, messageSubClass.getReadAccessRoleKeys(), plan.accessRoleKeys,
+					"AR");
+			for (String writeAccessRoleKey : writeAccessRoleKeys) {
+				if (!readAccessRoleKeys.contains(writeAccessRoleKey)) {
+					readAccessRoleKeys.add(writeAccessRoleKey);
+				}
+			}
+			messageSubClass.setReadAccessRoleKeys(readAccessRoleKeys);
+			messageSubClass.setWriteAccessRoleKeys(writeAccessRoleKeys);
+			messageSubClass.setDisplayContextKeys(
+					keepKnown(row, messageSubClass.getDisplayContextKeys(), plan.fileSubClassDestinationKeys, "Anzeigeort"));
+			messageSubClass.setTriggerHookKeys(
+					keepKnown(row, messageSubClass.getTriggerHookKeys(), plan.solrHookKeys, "Hook"));
+			List<String> mailboxAddresses = new ArrayList<>();
+			for (String address : messageSubClass.getMailboxEmailAddresses()) {
+				String normalized = address.trim().toLowerCase(Locale.ROOT);
+				String carrier = messageSubClassKeyByMailboxAddress.get(normalized);
+				if (carrier != null && !carrier.equals(messageSubClass.getKey())) {
+					row.addMessage("Postfach " + normalized + " hängt schon an " + carrier + ", fällt weg");
+				} else if (!mailboxAddresses.contains(normalized)) {
+					mailboxAddresses.add(normalized);
+					messageSubClassKeyByMailboxAddress.put(normalized, messageSubClass.getKey());
+				}
+			}
+			messageSubClass.setMailboxEmailAddresses(mailboxAddresses);
+		}
+	}
+
+	/**
+	 * Postfächer (User 2026-10-13): Schlüssel ist die Adresse, klein geschrieben mit genau einem @. Unbekannte
+	 * ARC-Positionen fallen weg.
+	 */
+	private void planMailboxes(ImportPlan plan, List<Line> lines) {
+		Map<String, Mailbox> existing = byKey(mailboxService.getAllMailboxes(), Mailbox::getEmailAddress);
+		List<PlannedRow> rows = planKeyedRows(lines, Mailbox.class, Mailbox::getEmailAddress, Mailbox::getDisplayName,
+				existing,
+				emailAddress -> MailboxService.isValidMailboxEmailAddress(emailAddress)
+						&& emailAddress.equals(emailAddress.trim().toLowerCase(Locale.ROOT)),
+				"emailAddress fehlt oder ist keine klein geschriebene E-Mail-Adresse");
+		plan.rowsBySection.put(MasterDataSection.MAILBOXES, rows);
+		for (PlannedRow row : rows) {
+			if (!row.isNew()) {
+				continue;
+			}
+			Mailbox mailbox = (Mailbox) row.data;
+			mailbox.setAccessRoleCollectionKeys(
+					keepKnown(row, mailbox.getAccessRoleCollectionKeys(), plan.accessRoleCollectionKeys, "ARC"));
 		}
 	}
 
@@ -466,11 +552,16 @@ public class MasterDataImportService {
 	 */
 	private void planSolrFields(ImportPlan plan, List<Line> lines) {
 		Map<String, SolrField> existingByCoreAndName = new HashMap<>();
-		Map<String, SolrField> existingPlainByName = new HashMap<>();
+		// Kern plus Name ist eindeutig (User 2026-10-14): ein Feld jedes Kerns steht aber in jedem Kern
+		Set<String> existingPlainNames = new HashSet<>();
+		Set<String> existingEveryCoreNames = new HashSet<>();
 		for (SolrField solrField : solrFieldService.getAllSolrFields()) {
 			existingByCoreAndName.put(coreAndName(solrField), solrField);
 			if (!solrField.isHookField()) {
-				existingPlainByName.put(solrField.getName(), solrField);
+				existingPlainNames.add(solrField.getName());
+			}
+			if (solrField.isInEveryCore()) {
+				existingEveryCoreNames.add(solrField.getName());
 			}
 		}
 		ObjectReader reader = jsonMapper.readerFor(SolrField.class).without(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
@@ -537,8 +628,10 @@ public class MasterDataImportService {
 			} else if (existingByCoreAndName.containsKey(coreAndName(solrField))) {
 				row.status = RowStatus.EXISTING;
 				addDifferences(row, existingByCoreAndName.get(coreAndName(solrField)));
-			} else if (!hookRow && existingPlainByName.containsKey(solrField.getName())) {
-				row.reject(RowStatus.INVALID, "name ist in einem anderen Kern schon ein Feld, ein Name bedeutet eines");
+			} else if (!hookRow && solrField.getCoreKey() == null && existingPlainNames.contains(solrField.getName())) {
+				row.reject(RowStatus.INVALID, "name ist in einem Kern schon ein Feld, ein Feld jedes Kerns braucht einen freien Namen");
+			} else if (!hookRow && existingEveryCoreNames.contains(solrField.getName())) {
+				row.reject(RowStatus.INVALID, "name ist schon ein Feld jedes Kerns");
 			} else {
 				solrField.setReadAccessRoleKeys(keepKnown(row, solrField.getReadAccessRoleKeys(), plan.accessRoleKeys, "AR"));
 				rejectViolations(row, solrField);
@@ -1203,17 +1296,7 @@ public class MasterDataImportService {
 					destination.getDisplayName(), destination.getDescription(), destination.getListingPosition());
 		}
 
-		for (PlannedRow row : plan.writtenRows(MasterDataSection.FILE_SUB_CLASSES)) {
-			FileSubClass fileSubClass = (FileSubClass) row.data;
-			fileSubClassService.createFileSubClass(fileSubClass.getKey(), fileSubClass.getDisplayName(),
-					fileSubClass.getDescription(), fileSubClass.getListingPosition(), fileSubClass.getSymbol(),
-					fileSubClass.getColor(), fileSubClass.getReadAccessRoleKeys(), fileSubClass.getWriteAccessRoleKeys(),
-					fileSubClass.getDisplayContextKeys());
-			if (!fileSubClass.getExtensions().isEmpty()) {
-				fileSubClassService.changeFileSubClassExtensions(fileSubClass.getKey(), fileSubClass.getExtensions());
-			}
-		}
-
+		// Hook-Gruppen und Hooks vor Dateiart und Nachrichtenart (User 2026-10-14): deren Trigger-Hooks müssen angelegt sein
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.SOLR_HOOK_GROUPS)) {
 			SolrHookGroup solrHookGroup = (SolrHookGroup) row.data;
 			solrHookGroupService.createSolrHookGroup(solrHookGroup.getKey(), solrHookGroup.getDisplayName(),
@@ -1223,7 +1306,35 @@ public class MasterDataImportService {
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.SOLR_HOOKS)) {
 			SolrHook solrHook = (SolrHook) row.data;
 			solrHookService.createSolrHook(solrHook.getKey(), solrHook.getDisplayName(), solrHook.getDescription(),
-					solrHook.getHookGroupKey(), solrHook.getValueBadgeLinkTarget(), solrHook.getListingPosition());
+					solrHook.getHookGroupKey(), solrHook.getValueBadgeLinkTarget(), solrHook.getListingPosition(),
+					solrHook.getAbasObjectTypes());
+		}
+
+		for (PlannedRow row : plan.writtenRows(MasterDataSection.FILE_SUB_CLASSES)) {
+			FileSubClass fileSubClass = (FileSubClass) row.data;
+			fileSubClassService.createFileSubClass(fileSubClass.getKey(), fileSubClass.getDisplayName(),
+					fileSubClass.getDescription(), fileSubClass.getListingPosition(), fileSubClass.getSymbol(),
+					fileSubClass.getColor(), fileSubClass.getReadAccessRoleKeys(), fileSubClass.getWriteAccessRoleKeys(),
+					fileSubClass.getDisplayContextKeys(), fileSubClass.getTriggerWords(), fileSubClass.getTriggerHookKeys());
+			if (!fileSubClass.getExtensions().isEmpty()) {
+				fileSubClassService.changeFileSubClassExtensions(fileSubClass.getKey(), fileSubClass.getExtensions());
+			}
+		}
+
+		for (PlannedRow row : plan.writtenRows(MasterDataSection.MESSAGE_SUB_CLASSES)) {
+			MessageSubClass messageSubClass = (MessageSubClass) row.data;
+			messageSubClassService.createMessageSubClass(messageSubClass.getKey(), messageSubClass.getDisplayName(),
+					messageSubClass.getDescription(), messageSubClass.getListingPosition(), messageSubClass.getSymbol(),
+					messageSubClass.getColor(), messageSubClass.getReadAccessRoleKeys(),
+					messageSubClass.getWriteAccessRoleKeys(), messageSubClass.getDisplayContextKeys(),
+					messageSubClass.getMailboxEmailAddresses(), messageSubClass.getTriggerWords(),
+					messageSubClass.getTriggerHookKeys());
+		}
+
+		for (PlannedRow row : plan.writtenRows(MasterDataSection.MAILBOXES)) {
+			Mailbox mailbox = (Mailbox) row.data;
+			mailboxService.createMailbox(mailbox.getEmailAddress(), mailbox.getDisplayName(), mailbox.getDescription(),
+					mailbox.getListingPosition(), mailbox.getAccessRoleCollectionKeys());
 		}
 
 		for (PlannedRow row : plan.writtenRows(MasterDataSection.SOLR_CORES)) {

@@ -28,7 +28,7 @@ codergod1337.app1
     state/        EntityState: Status für alle Entities, die einen brauchen, mit Bereich (scope)
     sftp/         Dateispeicher
   file/           Dateiarten und Endungen (FileSubClass, FileExtension)
-  graph/          Microsoft Graph: entra (Token mit Zertifikat), mail (Vorlagen, Versand), später mailbox (Postfächer)
+  graph/          Microsoft Graph: entra (Token mit Zertifikat), mail (Vorlagen, Versand), mailbox (Postfächer und Zugriff)
   solr/           SolrManager: Hooks, Hook-Gruppen, Kerne, Felder. Tabellen heißen solr_*; document/ ist nur die rohe Solr-Schicht, access/ rechnet die Rechte aus dem Token, grant/ Feld- und Hook-Freigaben und das Register der Dateifreigaben, alles Postgres
   dms/            DMS: drei Lese-Services (Existenzcheck, Auflösen, Suche), ein Schreibservice, ein Freigabe-Service, ein Revisionsservice (ZIP vor jeder Änderung, Register in Postgres), ein eigener Checker; jeder baut seine Solr-Abfragen selbst. Upload mit Tika und Vorschaubild, Download. Register: docs/backend/solr-zugriff.md
 ```

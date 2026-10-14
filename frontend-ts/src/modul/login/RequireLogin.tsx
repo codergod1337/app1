@@ -7,6 +7,8 @@ import { useSession } from './sessionContext.ts'
 interface RequireLoginProps {
   /** Ohne: angemeldet genügt. Mit: der User braucht diese AR, z. B. ADMIN. */
   accessRoleKey?: string
+  /** Mehrere AR, von denen eine reicht, z. B. NACHRICHTEN_ARCHIVIEREN oder ADMIN. Zusammen mit accessRoleKey reicht eine von allen. */
+  accessRoleKeys?: readonly string[]
   children: ReactNode
 }
 
@@ -17,9 +19,10 @@ interface RequireLoginProps {
  *
  * Nur die Anzeige: Was jemand wirklich darf, entscheidet das Backend.
  */
-export function RequireLogin({ accessRoleKey, children }: RequireLoginProps) {
+export function RequireLogin({ accessRoleKey, accessRoleKeys = [], children }: RequireLoginProps) {
   const { sessionInfo, hasAccessRole } = useSession()
   const location = useLocation()
+  const requiredAccessRoleKeys = accessRoleKey !== undefined ? [accessRoleKey, ...accessRoleKeys] : [...accessRoleKeys]
 
   if (sessionInfo === null) {
     return (
@@ -32,11 +35,11 @@ export function RequireLogin({ accessRoleKey, children }: RequireLoginProps) {
     const loginState: LoginState = { from: location.pathname }
     return <Navigate to="/login" replace state={loginState} />
   }
-  if (accessRoleKey !== undefined && !hasAccessRole(accessRoleKey)) {
+  if (requiredAccessRoleKeys.length > 0 && !requiredAccessRoleKeys.some(hasAccessRole)) {
     return (
       <div className="main-content">
         <ContentBox title="Kein Zugriff">
-          Dafür fehlt die AccessRole <strong>{accessRoleKey}</strong>.
+          Dafür fehlt die AccessRole <strong>{requiredAccessRoleKeys.join(' / ')}</strong>.
         </ContentBox>
       </div>
     )

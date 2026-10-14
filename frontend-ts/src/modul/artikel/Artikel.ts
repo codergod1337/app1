@@ -4,8 +4,8 @@ import { jsonRowsOf } from '../../components/jsonRows.ts'
 import type { ResponseMappingExecutionResult } from '../abasmanager/AbasSternzeit.ts'
 import type { AbasBelegnummerLookupResult } from '../belegnummer/Belegnummer.ts'
 import type { AbasInfosys } from '../infosys/AbasInfosys.ts'
-import type { SearchRequest, SearchResultPage } from '../search/Search.ts'
-import { ARTICLE_NUMBER_HOOK_KEYS } from '../solrmanager/SolrHook.ts'
+import { hookOffersOfHit, type SearchHit, type SearchOffer, type SearchRequest, type SearchResultPage } from '../search/Search.ts'
+import { ARTICLE_NUMBER_HOOK_KEYS, type SolrHook } from '../solrmanager/SolrHook.ts'
 import { type SolrField, solrFieldDisplayNameOf } from '../solrmanager/SolrField.ts'
 
 /** Die AR, die das Artikel-Modul öffnet und die Mappe lesen lässt. Das Backend prüft dieselbe. */
@@ -288,8 +288,24 @@ export function fetchArtikelIntoCore(artikelNummer: string) {
   return request<AbasBelegnummerLookupResult>('POST', `${ARTIKELMAPPE_NACHLADEN_PATH}/artikel`, { artikelNummer })
 }
 
+/**
+ * Die Filter-Angebote eines Artikel-Treffers (User 2026-10-13, nach biete() der Vorlage): jeder Hook-Wert, der mit einem
+ * Suchwort beginnt, mit Name und Vorschaubild des Artikels als Zusatz, denn eine Artikel-, Kunden- oder
+ * Lieferantenartikelnummer benennt genau diesen Artikel. Ohne Zusatz die Nummern, deren Hook in eine Kunden- oder
+ * Lieferantenmappe führt: Sie meinen den Geschäftspartner, nicht den Artikel, und dessen Namen kennt dieser Kern nicht.
+ */
+export function artikelOffersOfHit(hit: SearchHit, searchWords: readonly string[], solrHooks: readonly SolrHook[]): SearchOffer[] {
+  const name = artikelValueOf(hit.fieldValues, ARTIKEL_NAME_FIELD_NAME)
+  const preview = artikelValueOf(hit.fieldValues, ARTIKEL_PREVIEW_FIELD_NAME)
+  return hookOffersOfHit(ARTIKEL_CORE_KEY, hit, searchWords, solrHooks, (solrHook) =>
+    solrHook.valueBadgeLinkTarget === 'KUNDENMAPPE' || solrHook.valueBadgeLinkTarget === 'LIEFERANTENMAPPE'
+      ? null
+      : { additionText: name === '' ? null : name, previewBase64Png: preview === '' ? null : preview },
+  )
+}
+
 export function searchArtikelDocuments(searchRequest: SearchRequest) {
-  return request<{ totalFound: number; hits: { fieldValues: Record<string, unknown>; reasons: { fieldName: string; snippet: string | null }[] }[] }>(
+  return request<{ totalFound: number; page: number; pageSize: number; hits: { fieldValues: Record<string, unknown>; reasons: { fieldName: string; snippet: string | null }[] }[] }>(
     'POST',
     '/api/rest/v1/solr/artikel/search',
     searchRequest,
@@ -297,6 +313,8 @@ export function searchArtikelDocuments(searchRequest: SearchRequest) {
     ...result,
     data: {
       totalFound: result.data.totalFound,
+      page: result.data.page,
+      pageSize: result.data.pageSize,
       hits: result.data.hits.map((hit) => ({ fieldValues: hit.fieldValues, writable: false, reasons: hit.reasons })),
     } satisfies SearchResultPage,
   }))

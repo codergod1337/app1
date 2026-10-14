@@ -240,12 +240,17 @@ public class SolrDocumentArtikelService {
 	}
 
 	public ArtikelSearchedDocumentsPage searchArtikelDocuments(String searchText,
-			Map<String, List<String>> exactFilterValuesByFieldName) {
-		// Wird aufgerufen, wenn ein User im Suchmodul tippt oder Chips setzt: die besten Treffer mit Score, Gründen und
-		// Vorschau für die Trefferbox, keine Seiten, Anzahl aus app1.solr.search.hits. Tür ist ARTIKEL_SUCHE oder ADMIN.
+			Map<String, List<String>> exactFilterValuesByFieldName, int page) {
+		// Wird aufgerufen, wenn ein User im Suchmodul tippt oder Chips setzt: die Treffer mit Score, Gründen und Vorschau
+		// für die Trefferbox, eine Seite ab 0 mit app1.solr.search.hits Treffern; „weitere laden“ in der Maske fragt die
+		// nächste Seite (User 2026-10-14). Tür ist ARTIKEL_SUCHE oder ADMIN.
 		String text = searchText == null ? "" : searchText.trim();
 		if (text.isEmpty() && exactFilterValuesByFieldName.isEmpty()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "weder Suchtext noch Filter");
+		}
+		long start = (long) page * searchHits;
+		if (page < 0 || start > Integer.MAX_VALUE) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page muss zwischen 0 und " + Integer.MAX_VALUE / searchHits + " liegen");
 		}
 		utils.requireSearchAccessRole();
 		ModifiableSolrParams params = new ModifiableSolrParams();
@@ -290,7 +295,8 @@ public class SolrDocumentArtikelService {
 		}
 		// das Treffergewicht entscheidet, die Artikelnummer nur bei gleichem Score
 		params.set("sort", "score desc, id asc");
-		params.set("start", 0);
+		// die Seite: spätere Seiten kosten Solr kaum mehr als die erste (gemessen 2026-10-14)
+		params.set("start", (int) start);
 		params.set("rows", searchHits);
 		Set<String> fieldList = new LinkedHashSet<>(DISPLAY_FIELD_NAMES);
 		for (SolrField solrField : searchedFields) {
@@ -329,7 +335,7 @@ public class SolrDocumentArtikelService {
 				}
 				hits.add(new ArtikelSearchHit(fieldValues, reasons));
 			}
-			return new ArtikelSearchedDocumentsPage(response.getResults().getNumFound(), hits);
+			return new ArtikelSearchedDocumentsPage(response.getResults().getNumFound(), page, searchHits, hits);
 		} catch (SolrServerException | IOException e) {
 			throw unavailable(e);
 		}

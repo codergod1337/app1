@@ -98,7 +98,9 @@
       "search": "Search",
       "artikel": "Articles",
       "infosys": "Infosystems",
-      "belegnummer": "Document number"
+      "belegnummer": "Document number",
+      "archivieren": "Archive",
+      "testfakedata": "Test data"
     },
     "entryAccessRoles": {
       "symbolLabel": "Which ARs open this module",
@@ -115,7 +117,9 @@
     "tabs": {
       "entityStates": "States",
       "fileSubClassDestinations": "Destinations",
-      "fileSubClassMatrix": "FSC matrix"
+      "fileSubClassMatrix": "FSC matrix",
+      "messageSubClasses": "Message types",
+      "mailboxes": "Mailboxes"
     },
     "debuffs": {
       "title": "Debuffs",
@@ -202,7 +206,12 @@
     "form": {
       "displayContextKeys": "Destinations",
       "displayContextKeysHint": "Where this file subclass appears as a section and is offered for upload. The admin creates the places under Destinations.",
-      "noDestinations": "No destination yet: create one in the admin under Destinations."
+      "noDestinations": "No destination yet: create one in the admin under Destinations.",
+      "triggerWords": "Trigger words",
+      "triggerWordsPlaceholder": "Enter a word, Enter takes it",
+      "triggerWordsHint": "When a mail is archived, its attachments are recognised as this file subclass by these words. Hits in the subject and mail text count once, in the file name and text of the attachment twice; the file subclass with the most hits is suggested, without hits TEMP.",
+      "triggerHookKeys": "Trigger hooks",
+      "triggerHookKeysHint": "Each of these hooks with a value on the message adds two points per attachment to the suggestion of this file subclass."
     }
   },
   "fileextension": {
@@ -576,9 +585,14 @@
     "cores": {
       "DMS": "DMS",
       "ARTIKEL": "Articles",
-      "KONTAKTE": "Contacts"
+      "KONTAKTE": "Contacts",
+      "NACHRICHTEN": "Messages"
     },
     "allCores": "all cores",
+    "directHit": {
+      "text": "{{core}} {{key}} is an exact match: Enter opens it, another digit keeps searching.",
+      "open": "Open"
+    },
     "missingRole": "You are missing the AccessRole {{role}} for this.",
     "noCores": "There is no core you may search.",
     "running": "searching",
@@ -588,17 +602,30 @@
     },
     "filters": {
       "addValue": "Set {{field}} {{value}} as filter",
-      "remove": "Remove filter {{field}} {{value}}"
+      "remove": "Remove filter {{field}} {{value}}",
+      "linkHint": {
+        "SEARCH": "The value leads into the search.",
+        "ARTIKELMAPPE": "The value opens the article file.",
+        "KUNDENMAPPE": "The value opens the customer file.",
+        "LIEFERANTENMAPPE": "The value opens the supplier file."
+      }
+    },
+    "completions": {
+      "title": "Completions"
     },
     "fsc": {
       "hint": "Pick a file sub class: click or Enter sets it as a filter, Escape cancels."
     },
     "results": {
-      "onlyBest": "Only the best {{count}} hits are shown, narrow the search."
+      "shown": "{{count}} of them loaded",
+      "loadMore": "Load {{count}} more",
+      "loadingMore": "Loading …",
+      "loadMoreFailed": "Could not load more hits",
+      "noHits": "None of the selected cores has hits."
     },
     "offers": {
-      "title": "Suggestions:",
-      "tabHint": "Tab sets the first suggestion, the search word then leaves the text"
+      "title": "As filter:",
+      "tabHint": "Tab sets the highlighted suggestion as filter, the search word then leaves the text"
     }
   },
   "graph": {
@@ -706,13 +733,20 @@
         "asFilter": "as filter",
         "onDocument": "on the document",
         "valueBadgeLinkTarget": "Target of the value badges",
-        "valueBadgeLinkTargetHint": "Where a click on a value of this hook leads, everywhere in the app. Only for the interface, the cores and Solr do not know it."
+        "valueBadgeLinkTargetHint": "Where a click on a value of this hook leads, everywhere in the app. Only for the interface, the cores and Solr do not know it.",
+        "abasObjectTypes": "ABAS types",
+        "abasObjectTypesPlaceholder": "Enter a type, e.g. obj:data:3:1, Enter takes it",
+        "abasObjectTypesHint": "Numbers of these types that archiving finds in a mail are preset in this hook. The document number lookup tells the type of a number."
       },
       "valueBadgeLinkTargets": {
         "SEARCH": "Search with the value as filter",
         "ARTIKELMAPPE": "Article file",
         "KUNDENMAPPE": "Customer file",
         "LIEFERANTENMAPPE": "Supplier file"
+      },
+      "keysInput": {
+        "remove": "remove {{key}}",
+        "none": "none"
       },
       "picker": {
         "placeholder": "field name or display name",
@@ -1575,6 +1609,246 @@
         "count_one": "{{count}} document",
         "count_other": "{{count}} documents"
       }
+    }
+  },
+  "messagesubclass": {
+    "title": "Message types (MSC)",
+    "count_one": "{{count}} message type",
+    "count_other": "{{count}} message types",
+    "empty": "No message type yet, without one no message can be archived.",
+    "edit": "edit",
+    "delete": "delete",
+    "deleteTitle": "Delete message type",
+    "deleteQuestion": "Really delete the message type {{key}}? Messages of this type then have no name and no symbol and keep their read rights.",
+    "editTitle": "Edit message type: {{key}}",
+    "editTitleEmpty": "Edit message type",
+    "notFound": "no message type chosen or not found",
+    "columns": {
+      "symbol": "Symbol",
+      "key": "Key",
+      "name": "Name",
+      "read": "Read roles",
+      "write": "Hook care",
+      "displayContextKeys": "Destinations",
+      "mailboxEmailAddresses": "Mailboxes",
+      "onlyAdmin": "none, only the admin",
+      "none": "none"
+    },
+    "form": {
+      "key": "Key",
+      "symbol": "Symbol",
+      "color": "Color of the symbol",
+      "displayContextKeys": "Destinations",
+      "displayContextKeysHint": "Where messages of this type appear as a section. The same places as for the file sub classes, created in the admin under Destinations.",
+      "mailboxEmailAddresses": "Mailboxes",
+      "mailboxEmailAddressesPlaceholder": "Enter an address, Enter takes it",
+      "mailboxEmailAddressesHint": "A trial: later a message is assigned to this type by its mailbox, or the type is preselected by the mailbox. A mailbox can belong to only one message type.",
+      "triggerWords": "Trigger words",
+      "triggerWordsPlaceholder": "Enter a word, Enter takes it",
+      "triggerHookKeys": "Trigger hooks",
+      "triggerHint": "Suggestion when archiving: mailbox on this type 3 points, each trigger word hit in subject or mail text 1 point, each trigger hook with a value 2 points. The type with the most points is preselected.",
+      "read": "Read",
+      "write": "Hook care (includes read, never the message itself)"
+    }
+  },
+  "archivieren": {
+    "title": "Archive",
+    "tabs": {
+      "mailboxes": "Mailboxes"
+    },
+    "folders": {
+      "INBOX": "Inbox",
+      "SENT_ITEMS": "Sent"
+    },
+    "ownMailboxHint": "Your own mailbox {{emailAddress}}",
+    "settingNotSaved": "The selection was not saved",
+    "noMailboxes": "No mailbox is assigned to you.",
+    "noActiveMailbox": "No mailbox switched on: click a mailbox above.",
+    "empty": "No mails in this folder.",
+    "noSubject": "(no subject)",
+    "reload": "Reload",
+    "count_one": "{{count}} mail",
+    "count_other": "{{count}} mails",
+    "archivedHint": "In the archive as message {{id}}: click to open it",
+    "archivedFailed": "Could not check whether the mails are already archived: {{message}}",
+    "columns": {
+      "receivedAt": "Received",
+      "sentAt": "Sent",
+      "mailbox": "Mailbox",
+      "from": "From",
+      "to": "To",
+      "subject": "Subject",
+      "attachments": "Attachments",
+      "archived": "Archive"
+    },
+    "mail": {
+      "title": "Mail",
+      "notChosen": "No mail chosen: click a mail in the mailbox list.",
+      "from": "From",
+      "to": "To",
+      "cc": "Cc",
+      "bcc": "Bcc",
+      "date": "Date",
+      "wholeMail": "Archive the whole mail including the thread (FULL)",
+      "wholeMailHint": "Default: only the new part up to the red line is archived. If the content is in the quote below, e.g. for a forward, archive the whole mail.",
+      "newPartNotFound": "Where the new part ends could not be detected. If in doubt, archive the whole mail.",
+      "noBody": "The mail has no text.",
+      "attachments": "Attachments",
+      "attachmentCount_one": "{{count}} attachment",
+      "attachmentCount_other": "{{count}} attachments",
+      "attachmentName": "Name",
+      "attachmentType": "Type",
+      "attachmentSize": "Size",
+      "attachmentInline": "In the text",
+      "inlineYes": "embedded",
+      "noAttachments": "No attachments."
+    },
+    "prepare": {
+      "loading": "Preparing the mail: checking attachments in the DMS, looking up numbers in ABAS, finding contacts …",
+      "inspectorTitle": "Archive",
+      "archive": "Archive",
+      "archiving": "Archiving …",
+      "archiveMissingMessageSubClass": "Choose a message type first.",
+      "archiveMissingFileSubClass": "Choose a file subclass for every new attachment that is archived.",
+      "archived": "Message {{id}} archived",
+      "archivedSummary": "{{newAttachments}} new and {{mergedAttachments}} existing attachments, {{signatures}} signatures, {{ignored}} not archived",
+      "archiveFailed": "Archiving failed",
+      "archiveBlockedNoAccess": "An attachment is already in the DMS, but you cannot get the document: the mail cannot be archived like this.",
+      "messageSubClass": "Message type",
+      "noMessageSubClasses": "There is no message type yet: create one in the admin under message types.",
+      "suggestedMessageSubClass": "Suggested from mailbox, trigger words and hooks: click the tile to choose another type.",
+      "participants": "Participants",
+      "contactsNotAllowed": "Without the AR KONTAKTE no contacts are looked up.",
+      "roles": {
+        "FROM": "From",
+        "SENDER": "Sent by",
+        "TO": "To",
+        "CC": "Cc",
+        "BCC": "Bcc"
+      },
+      "numbers": "Numbers from subject and text",
+      "noNumbers": "ABAS knows no number from subject and text.",
+      "takeIntoHook": "Take into hook",
+      "hooks": "Hooks for message and attachments",
+      "states": {
+        "NEW": "new",
+        "MERGE": "already in the DMS",
+        "SIGNATURE": "signature",
+        "IGNORED": "ignored",
+        "NO_FILE": "no file attachment",
+        "NO_ACCESS": "no access"
+      },
+      "noAccessHint": "The file is already in the DMS, but you cannot get the document.",
+      "noFileHint": "An attached mail or a reference: it does not go into the DMS.",
+      "existingFileSubClass": "File subclass in the DMS",
+      "archiveAnyway": "archive anyway",
+      "markSignature": "Signature",
+      "markIgnore": "ignore",
+      "signaturesHidden_one": "{{count}} signature is recorded silently",
+      "signaturesHidden_other": "{{count}} signatures are recorded silently",
+      "onlySignatures": "Only signatures, they are recorded silently."
+    }
+  },
+  "testfakedata": {
+    "title": "Test data",
+    "intro": "Creates test data through the normal write paths of the backend to estimate the later performance early: customers and suppliers in the core KONTAKTE, articles in the core ARTIKEL, data sheets as TXT in the DMS. The fields used by the search of each core are filled. Anything that already exists is skipped.",
+    "form": {
+      "title": "What is created"
+    },
+    "fields": {
+      "articleCount": "Articles",
+      "customerCount": "Customers",
+      "supplierCount": "Suppliers",
+      "documentCount": "Data sheets",
+      "documentsPerArticleMean": "Data sheets per article on average",
+      "documentsPerArticleDeviation": "Deviation of the normal distribution"
+    },
+    "hints": {
+      "articleCount": "Numbers consecutive from 10000000; numbers starting with 997 are tools. Every article has one customer and 1 to 3 suppliers.",
+      "customerCount": "Each customer is a company with 1 to 15 contact persons, 5 on average. Customer numbers from 2000001.",
+      "supplierCount": "Each supplier is a company with 1 to 15 contact persons, 5 on average. Supplier numbers from 7000001.",
+      "documentCount": "TXT as data sheet: content is the running number 0 to count − 1 and 1 to 5 sentences about its articles.",
+      "documentsPerArticleMean": "How many data sheets an article has on average.",
+      "documentsPerArticleDeviation": "How widely the number of data sheets per article spreads around the average."
+    },
+    "derived": "A data sheet is thus linked to {{value}} articles on average.",
+    "derivedNone": "Without articles or data sheets there are no links.",
+    "testDataFlag": "Every created document carries the value TEST_DATA in the hook wtf.",
+    "start": "Create",
+    "starting": "Starting …",
+    "startFailed": "Start failed",
+    "cancel": "Cancel",
+    "cancelFailed": "Cancel failed",
+    "perSecond": "{{value}}/s",
+    "columns": {
+      "phase": "Phase",
+      "progress": "Progress",
+      "written": "Solr documents",
+      "writtenHint": "Written Solr documents; for customers and suppliers the company and its contact persons.",
+      "rate": "per second",
+      "duration": "Duration",
+      "skipped": "Skipped",
+      "skippedHint": "Already existed: the same id in the core or the same bytes in the DMS.",
+      "failed": "Errors"
+    },
+    "phases": {
+      "CUSTOMERS": "Customers",
+      "SUPPLIERS": "Suppliers",
+      "ARTICLES": "Articles",
+      "DOCUMENTS": "Data sheets"
+    },
+    "status": {
+      "title": "Status",
+      "never": "No run since the backend started.",
+      "running": "Running: {{phase}}",
+      "cancelling": "Cancelling after the current entry …",
+      "cancelled": "Cancelled.",
+      "finished": "Done.",
+      "failed": "Stopped because of an error: {{message}}",
+      "startedAt": "Started {{time}}",
+      "finishedAt": "finished {{time}}"
+    }
+  },
+  "nachricht": {
+    "title": "Message {{id}}",
+    "number": "Message {{id}}",
+    "sender": "Sent by",
+    "archived": "Archived",
+    "wholeMailArchived": "whole mail with thread archived",
+    "thisMessage": "this message",
+    "conversation_one": "Thread: {{count}} message",
+    "conversation_other": "Thread: {{count}} messages",
+    "attachmentsHidden_one": "You may not see {{count}} attachment",
+    "attachmentsHidden_other": "You may not see {{count}} attachments",
+    "noVisibleAttachments": "You may not see any of the attachments."
+  },
+  "mailHtmlFrame": {
+    "restWarnTitle": "▲ UP TO HERE is archived",
+    "restWarnText": "Below is a quote or forward: it only goes into the archive with “archive the whole mail”."
+  },
+  "mailbox": {
+    "title": "Mailboxes",
+    "count_one": "{{count}} mailbox",
+    "count_other": "{{count}} mailboxes",
+    "empty": "No mailbox created yet.",
+    "edit": "edit",
+    "delete": "delete",
+    "deleteTitle": "Delete mailbox",
+    "deleteQuestion": "Really delete the mailbox {{emailAddress}}?",
+    "editTitle": "Edit mailbox: {{emailAddress}}",
+    "editTitleEmpty": "Edit mailbox",
+    "notFound": "no mailbox chosen or not found",
+    "columns": {
+      "emailAddress": "Address",
+      "accessRoleCollectionKeys": "May archive",
+      "messageSubClass": "Message type",
+      "onlyAdmin": "no position, only the admin",
+      "none": "none"
+    },
+    "form": {
+      "emailAddress": "Address of the mailbox",
+      "accessRoleCollectionKeys": "ARC positions that may archive from this mailbox",
+      "accessRoleCollectionKeysHint": "Archiving also requires its own role. Who may read an archived message is decided by its message type."
     }
   }
 }

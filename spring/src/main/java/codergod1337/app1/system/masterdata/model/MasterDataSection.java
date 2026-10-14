@@ -14,6 +14,8 @@ public enum MasterDataSection {
 	FILE_EXTENSIONS("file-extensions.jsonl"),
 	FILE_SUB_CLASS_DESTINATIONS("file-sub-class-destinations.jsonl"),
 	FILE_SUB_CLASSES("file-sub-classes.jsonl"),
+	MESSAGE_SUB_CLASSES("message-sub-classes.jsonl"),
+	MAILBOXES("mailboxes.jsonl"),
 	SOLR_HOOK_GROUPS("solr-hook-groups.jsonl"),
 	SOLR_HOOKS("solr-hooks.jsonl"),
 	SOLR_CORES("solr-cores.jsonl"),

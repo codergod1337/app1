@@ -8,7 +8,7 @@ Alles, was über Microsoft Graph läuft, liegt im Feature-Paket `graph`. Heute v
 graph/
   entra/     Identität gegenüber Microsoft: Zertifikat, Assertion, Token
   mail/      Vorlagen, Platzhalter, Rendern, Senden
-  mailbox/   später: Postfächer und ihre Zuweisung an User
+  mailbox/   Postfächer, aus denen archiviert wird, und wer auf welches zugreifen darf
 ```
 
 ## entra: wie sich das Backend ausweist
@@ -32,6 +32,35 @@ Kein Client-Secret, sondern ein Zertifikat. Der private Schlüssel liegt nur auf
 Endpunkte (AR ADMIN): `GET/POST/PUT/DELETE /api/rest/v1/admin/graph/mailtemplate`, `POST …/position`, `POST …/preview` (Typ, Sprache, Betreff und Text aus dem Formular, zurück kommt das Muster mit Beispielwerten), `GET /api/rest/v1/admin/graph/mailtemplatetype` (die Typen mit ihren Gruppen). Die Vorlagen sind Stammdaten (Bereich `GRAPH_MAIL_TEMPLATES`), aber nicht Teil des öffentlichen Stammdaten-Endpunkts: Ihre Texte sind nicht öffentlich.
 
 Test-Mail: `POST /api/rest/v1/admin/graph/testmail` mit `senderAddress`, `recipientEmail`, `subject`, `htmlBody` schickt eine Mail ohne Vorlage über den `GraphMailSendService`. Damit prüft der Admin Zertifikat, Berechtigung und ein Absenderpostfach, ohne einen Login zu starten.
+
+## mailbox: Postfächer und Zugriff
+
+- `Mailbox` (Tabelle `mailbox`): `emailAddress` (Schlüssel, klein), `displayName`, `description`, `listingPosition`, `accessRoleCollectionKeys` (die ARC-Positionen, die aus dem Postfach archivieren dürfen). Nur Dienstpostfächer, keine persönlichen Adressen. Von Hand gepflegt, nicht aus Graph geholt.
+- Nicht in den öffentlichen Stammdaten. Die ganze Liste gibt es nur für den Admin: `GET/POST/PUT/DELETE /api/rest/v1/admin/graph/mailbox`, `POST …/position`.
+- Jeder andere User: `GET /api/rest/v1/graph/mailbox/mine` liefert `MailboxesOfCurrentUser` mit `assignedMailboxes` und `ownEmailAddress`.
+- Die Regel steht einmal in `MailboxService` und gilt für die Liste wie für jede Prüfung:
+  1. Immer die AR `NACHRICHTEN_ARCHIVIEREN` (`@PreAuthorize`), sonst 403, auch für das eigene Postfach. ADMIN darf alles.
+  2. Dienstpostfächer: die, an denen seine ARC aus dem Token oder eine ihrer direkt eingetragenen `slaveArcKeys` steht.
+  3. Eigenes Postfach: seine E-Mail aus der DB, wenn sie auf `@` plus `app1.graph.mail.domain` endet (.env `graph_mail_domain`, ohne @). Leer: Kein eigenes Postfach zählt.
+- `requireArchiveAccessToMailbox(emailAddress)` prüft genau diese Regel für eine Adresse, sonst 403. Jeder Archiv-Endpunkt ruft es als Erstes, bevor Graph gefragt wird. Die Auswahl im Frontend schützt nichts.
+- AR und ARC kommen aus dem Token und wirken mit dem nächsten Token. Die ARC-Einträge am Postfach und die E-Mail des Users liest jeder Aufruf frisch aus der DB.
+- Mails lesen: `GraphMailboxReadService` (Voraussetzung in Entra: `Mail.Read` als Anwendungsberechtigung mit Administratoreinwilligung). Jede Methode ruft zuerst `requireArchiveAccessToMailbox`. Alle ids sind feste ids (`Prefer: IdType="ImmutableId"`), sie ändern sich beim Verschieben nicht.
+  - `getMailHeaders(mailbox, folder)`: die neuesten 50 aus `INBOX` oder `SENT_ITEMS` (`GraphMailFolder`), als `GraphMailHeader`, seit 2026-10-14 mit `internetMessageId`: Darüber fragt die Liste `POST /api/rest/v1/message/archive/archived`, welche Mails schon im Kern NACHRICHTEN liegen (siehe solr-zugriff.md). Endpunkt `POST /api/rest/v1/graph/mailbox/headers` mit `{mailbox, folder}`.
+  - `getMail(mailbox, exchangeMailId)`: alle Felder samt `internetMessageHeaders`, `uniqueBody` und `body`, das Graph-JSON unverändert, die Quelle fürs Mapping. Endpunkt `POST /api/rest/v1/graph/mailbox/mail` mit `{mailbox, exchangeMailId}`.
+  - `getMailAttachments(mailbox, exchangeMailId)`: die Anhänge samt Bytes, je Anhang mit Bytes dazu `sha256` = DMS-id. Nur im Backend, ohne Endpunkt.
+  - `getMailView(mailbox, exchangeMailId)`: die Mail zum Anzeigen (`GraphMailView`): Kopf mit Name und Adresse getrennt, die ganze Mail (`bodyHtml`) und der neue Teil (`uniqueBodyHtml`), in beiden die `cid:`-Bilder gegen `data:`-Bilder der Anhänge getauscht, die Anhänge ohne Bytes (`GraphMailAttachmentInfo`). Endpunkt `POST /api/rest/v1/graph/mailbox/mail/view`. Der Text kommt immer als HTML (`Prefer: outlook.body-content-type="html"`).
+  - Graph 404 wird 404, jede andere Ablehnung 503 mit Status und Antwort nur im Log. POST statt GET, weil die Postfachadresse nicht in die URL darf.
+- An welcher Nachrichtenart ein Postfach hängt, steht lose an der Nachrichtenart (`MessageSubClass.mailboxEmailAddresses`, ein Postfach an höchstens einer Art). Später wird damit eine Nachricht nach ihrem Postfach zugeordnet oder die Art vorausgewählt.
+
+## Archivieren: Aufbereiten (Paket message.archive)
+
+`POST /api/rest/v1/message/archive/prepare` mit `{mailbox, exchangeMailId}` liefert `MessageArchivePreparation`, alles für die Aufbereiten-Seite in einer Antwort. Gespeichert wird nichts, alles läuft mit den Rechten des Archivierenden (AR `NACHRICHTEN_ARCHIVIEREN` oder ADMIN, Postfachzugriff, DMS, Kontakte).
+
+- Anhänge: erst nur der Hash (`getExistence`). Gibt es die Bytes schon, wird das ganze DMS-Dokument mit den Rechten des Users geholt: `wtf` = `ATTACHMENT_SIGNATURE` heißt `SIGNATURE` (still eintragen, nie listen), `ATTACHMENT_IGNORE` heißt `IGNORED` (ausgegraut, trotzdem wählbar), sonst `MERGE`. Bekommt er es nicht: `NO_ACCESS`, Archivieren gesperrt. Neue (`NEW`) bekommen je beschreibbarer Dateiart den festen Teil des Vorschlags: Triggerwörter in Betreff und Mailtext einfach, in Dateiname und Tika-Text doppelt.
+- Nachrichtenart: fester Teil je Art, Postfach an der Art 3 Punkte, je Triggerwort-Treffer 1 Punkt. Die Seite rechnet je Trigger-Hook mit Wert 2 Punkte dazu (Art und Dateiart), so springt der Vorschlag mit den Hooks mit; ohne Treffer bei der Dateiart TEMP.
+- Nummern: Ziffernfolgen ab 4 Stellen aus Betreff und neuem Teil (Regel der Vorlage), jede über die Belegnummer bei ABAS, 3 gleichzeitig, höchstens 30. Zurück nur die gefundenen, mit dem Hook, dessen `abasObjectTypes` den Typ nennen (`obj:data:` darf fehlen).
+- Kontakte: jede Adresse aus Von, Gesendet von, An, Cc, Bcc exakt im Kern KONTAKTE, außer der eigenen Domäne. Ohne AR KONTAKTE leer. Vorgeschlagene Hooks: Kunden- und Lieferantennummern der Kontakte des Absenders (sonst der Empfänger) und die Nummern mit erkanntem Hook.
+- Trigger stehen als Daten an `MessageSubClass` (`triggerWords`, `triggerHookKeys`), `FileSubClass` (`triggerWords`, `triggerHookKeys`) und `SolrHook` (`abasObjectTypes`), gepflegt in den Admin-Formularen.
 
 ## Die 2FA-Mail beim Login
 

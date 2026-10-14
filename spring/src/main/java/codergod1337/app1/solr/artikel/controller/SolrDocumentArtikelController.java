@@ -84,7 +84,19 @@ public class SolrDocumentArtikelController {
 	public ArtikelSearchedDocumentsPage searchArtikelDocuments(@RequestBody Map<String, Object> searchRequest) {
 		String searchText = searchRequest.get("searchText") instanceof String text ? text : "";
 		return solrDocumentArtikelService.searchArtikelDocuments(searchText,
-				readValuesByFieldName(searchRequest, "exactFilterValuesByFieldName"));
+				readValuesByFieldName(searchRequest, "exactFilterValuesByFieldName"), readSearchPage(searchRequest));
+	}
+
+	/** Die Seite der Suche, ab 0; fehlt sie, die erste (User 2026-10-14: „weitere laden“ in der Maske) */
+	private static int readSearchPage(Map<String, Object> searchRequest) {
+		Object rawPage = searchRequest.get("page");
+		if (rawPage == null) {
+			return 0;
+		}
+		if (!(rawPage instanceof Number number)) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page ist keine Zahl");
+		}
+		return number.intValue();
 	}
 
 	/**

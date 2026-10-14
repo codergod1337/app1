@@ -1,7 +1,7 @@
 import { request } from '../../api/client.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { translate } from '../../components/multilingual.ts'
-import type { SearchRequest, SearchResultPage } from '../search/Search.ts'
+import { hookOffersOfHit, type SearchHit, type SearchOffer, type SearchRequest, type SearchResultPage, type SearchTextCompletion } from '../search/Search.ts'
 import { solrFieldDisplayNameOf, type SolrField } from '../solrmanager/SolrField.ts'
 import type { SolrHook } from '../solrmanager/SolrHook.ts'
 
@@ -130,6 +130,15 @@ export const KONTAKTE_NAME_FIELD_NAME = 'kontaktName'
 /** Der Sync-Status des Backends */
 export const KONTAKTE_SYNC_STATUS_FIELD_NAME = 'kontaktSyncStatus'
 
+/**
+ * Kein Feld des Kerns, nur in der Antwort der Suche (SolrDocumentKontakteService.COMPANY_NAME_OF_CONTACT_PERSON_FIELD_NAME):
+ * an jedem Ansprechpartner der Name seiner Firma, zur Lesezeit über die Nummern geholt
+ */
+export const KONTAKTE_COMPANY_NAME_OF_CONTACT_PERSON_FIELD_NAME = 'kontaktFirmenName'
+
+/** Die E-Mail-Adresse, die die Suche beim Tippen vervollständigt */
+export const KONTAKTE_EMAIL_FIELD_NAME = 'email'
+
 /** Eine Liste, egal ob Solr einen Wert oder mehrere liefert; leer bei nichts */
 export function kontakteValuesOf(value: unknown): string[] {
   if (value === null || value === undefined) {
@@ -144,9 +153,52 @@ export function kontakteValueOf(document: Record<string, unknown>, fieldName: st
   return values.length === 0 ? '' : values[0]
 }
 
+/** Der Name der Firma eines Kontakts: an einer Firma ihr eigener, an einem Ansprechpartner der aufgelöste; leer ohne */
+export function kontakteCompanyNameOf(document: Record<string, unknown>): string {
+  return kontakteValueOf(document, KONTAKTE_CONTACT_KIND_FIELD_NAME) === KONTAKTE_CONTACT_KIND_COMPANY
+    ? kontakteValueOf(document, KONTAKTE_NAME_FIELD_NAME)
+    : kontakteValueOf(document, KONTAKTE_COMPANY_NAME_OF_CONTACT_PERSON_FIELD_NAME)
+}
+
+/**
+ * Die Filter-Angebote eines Kontakte-Treffers (User 2026-10-13, nach dem Suggest der Vorlage): Jeder Treffer bietet
+ * seine Kunden- und Lieferantennummer an, auch wenn keine Nummer getippt wurde, denn wer „Vermes“ tippt, will die Nummer
+ * der Firma als Filter für die anderen Kerne. Zusatz ist der Firmenname, an einem Ansprechpartner der seiner Firma,
+ * ohne auflösbare Firma keiner. Diese Angebote leeren beim Übernehmen die Eingabe (word null). Dazu wie in jedem Kern
+ * die Hook-Werte, die mit einem Suchwort beginnen.
+ */
+export function kontakteOffersOfHit(hit: SearchHit, searchWords: readonly string[], solrHooks: readonly SolrHook[]): SearchOffer[] {
+  const companyName = kontakteCompanyNameOf(hit.fieldValues)
+  const offers: SearchOffer[] = []
+  for (const role of [KONTAKTE_PARTNER_ROLES.KUNDE, KONTAKTE_PARTNER_ROLES.LIEFERANT]) {
+    for (const value of kontakteValuesOf(hit.fieldValues[role.numberHookName])) {
+      offers.push({ coreKey: KONTAKTE_CORE_KEY, fieldName: role.numberHookName, value, word: null, additionText: companyName === '' ? null : companyName, previewBase64Png: null })
+    }
+  }
+  return [...offers, ...hookOffersOfHit(KONTAKTE_CORE_KEY, hit, searchWords, solrHooks)]
+}
+
+/**
+ * Die Vervollständigungen eines Kontakte-Treffers (User 2026-10-13): jede E-Mail-Adresse, die mit dem gerade getippten
+ * Wort beginnt und länger ist, ab drei Zeichen. Zusatz sind Name und Firma. Übernommen ersetzt sie das Wort im Suchtext,
+ * die Suche läuft dann im E-Mail-Modus; ein Filter wird sie nie.
+ */
+export function kontakteCompletionsOfHit(hit: SearchHit, typedWord: string): SearchTextCompletion[] {
+  const typed = typedWord.toLowerCase()
+  if (typed.length < 3) {
+    return []
+  }
+  const name = kontakteValueOf(hit.fieldValues, KONTAKTE_NAME_FIELD_NAME)
+  const companyName = kontakteCompanyNameOf(hit.fieldValues)
+  const additionText = [name, companyName !== name ? companyName : ''].filter((part) => part !== '').join(' · ')
+  return kontakteValuesOf(hit.fieldValues[KONTAKTE_EMAIL_FIELD_NAME])
+    .filter((address) => address.length > typed.length && address.toLowerCase().startsWith(typed))
+    .map((address) => ({ coreKey: KONTAKTE_CORE_KEY, typedWord, completedText: address, additionText: additionText === '' ? null : additionText }))
+}
+
 /** Die Suche im Kern KONTAKTE (SolrDocumentKontakteController.searchKontakteDocuments), derselbe Body wie bei DMS und ARTIKEL */
 export function searchKontakteDocuments(searchRequest: SearchRequest) {
-  return request<{ totalFound: number; hits: { fieldValues: Record<string, unknown>; reasons: { fieldName: string; snippet: string | null }[] }[] }>(
+  return request<{ totalFound: number; page: number; pageSize: number; hits: { fieldValues: Record<string, unknown>; reasons: { fieldName: string; snippet: string | null }[] }[] }>(
     'POST',
     '/api/rest/v1/solr/kontakte/search',
     searchRequest,
@@ -154,6 +206,8 @@ export function searchKontakteDocuments(searchRequest: SearchRequest) {
     ...result,
     data: {
       totalFound: result.data.totalFound,
+      page: result.data.page,
+      pageSize: result.data.pageSize,
       // kein Schreibflag: Im Spiegelkern schreibt kein Mensch
       hits: result.data.hits.map((hit) => ({ fieldValues: hit.fieldValues, writable: false, reasons: hit.reasons })),
     } satisfies SearchResultPage,

@@ -7,6 +7,8 @@ import codergod1337.app1.file.filesubclass.service.FileSubClassService;
 import codergod1337.app1.abas.service.AbasInfosysService;
 import codergod1337.app1.graph.mail.model.GraphMailTemplate;
 import codergod1337.app1.graph.mail.service.GraphMailTemplateService;
+import codergod1337.app1.graph.mailbox.service.MailboxService;
+import codergod1337.app1.message.messagesubclass.service.MessageSubClassService;
 import codergod1337.app1.solr.core.service.SolrCoreService;
 import codergod1337.app1.solr.field.model.SolrField;
 import codergod1337.app1.solr.field.service.SolrFieldService;
@@ -81,6 +83,8 @@ public class MasterDataExportService {
 	private final FileExtensionService fileExtensionService;
 	private final FileSubClassService fileSubClassService;
 	private final FileSubClassDestinationService fileSubClassDestinationService;
+	private final MessageSubClassService messageSubClassService;
+	private final MailboxService mailboxService;
 	private final SolrHookGroupService solrHookGroupService;
 	private final SolrHookService solrHookService;
 	private final SolrCoreService solrCoreService;
@@ -100,6 +104,7 @@ public class MasterDataExportService {
 			AccessRoleCollectionService accessRoleCollectionService,
 			FileExtensionCollectionService fileExtensionCollectionService, FileExtensionService fileExtensionService,
 			FileSubClassService fileSubClassService, FileSubClassDestinationService fileSubClassDestinationService,
+			MessageSubClassService messageSubClassService, MailboxService mailboxService,
 			SolrHookGroupService solrHookGroupService, SolrHookService solrHookService, SolrCoreService solrCoreService,
 			SolrFieldService solrFieldService, EntityStateService entityStateService,
 			GraphMailTemplateService graphMailTemplateService, AbasInfosysService abasInfosysService,
@@ -108,6 +113,8 @@ public class MasterDataExportService {
 			AccessRoleUsersAssignmentService accessRoleUsersAssignmentService,
 			AccessRoleCollectionUsersAssignmentService accessRoleCollectionUsersAssignmentService,
 			CurrentUsersProvider currentUsersProvider, JsonMapper jsonMapper) {
+		this.messageSubClassService = messageSubClassService;
+		this.mailboxService = mailboxService;
 		this.abasInfosysService = abasInfosysService;
 		this.accessRoleService = accessRoleService;
 		this.accessRoleCollectionService = accessRoleCollectionService;
@@ -201,6 +208,8 @@ public class MasterDataExportService {
 		case FILE_EXTENSIONS -> fileExtensionService.getAllFileExtensions();
 		case FILE_SUB_CLASS_DESTINATIONS -> fileSubClassDestinationService.getAllFileSubClassDestinations();
 		case FILE_SUB_CLASSES -> fileSubClassService.getAllFileSubClasses();
+		case MESSAGE_SUB_CLASSES -> messageSubClassService.getAllMessageSubClasses();
+		case MAILBOXES -> mailboxService.getAllMailboxes();
 		case SOLR_HOOK_GROUPS -> solrHookGroupService.getAllSolrHookGroups();
 		case SOLR_HOOKS -> solrHookService.getAllSolrHooks();
 		case SOLR_CORES -> solrCoreService.getAllSolrCores();

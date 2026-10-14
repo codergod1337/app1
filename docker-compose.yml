@@ -60,8 +60,9 @@ services:
     container_name: app1_solr
     restart: unless-stopped
     environment:
-      # Heap der JVM, nicht der Speicher des Containers. Reicht für den Anfang, bei großen Kernen erhöhen.
-      SOLR_HEAP: 1g
+      # Heap der JVM, nicht der Speicher des Containers. 2026-10-14 von 1g auf 2g: Beim Schreiben von 555.000
+      # Testartikeln lief der Heap voll (jvm_crash_43.log: OutOfMemory, Java heap space); der Pi hat 8 GB.
+      SOLR_HEAP: 2g
       # Obergrenze der Klauseln je Abfrage für den ganzen Knoten. Die solrconfig.xml eines Kerns kann sie nicht
       # überschreiten, deshalb stehen beide auf 3000 (User 2026-10-07, docs/backend/solr.md).
       SOLR_OPTS: -Dsolr.max.booleanClauses=3000

@@ -11,8 +11,10 @@ import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -78,7 +80,7 @@ public class SolrHookService {
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public SolrHook createSolrHook(String key, String displayName, String description, String hookGroupKey,
-			SolrHookValueBadgeLinkTarget valueBadgeLinkTarget, int listingPosition) {
+			SolrHookValueBadgeLinkTarget valueBadgeLinkTarget, int listingPosition, List<String> abasObjectTypes) {
 		if (!SolrFieldName.isValid(key)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "key ist kein gültiger Solr-Feldname");
 		}
@@ -91,7 +93,7 @@ public class SolrHookService {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "key ist schon ein Feld in einem Kern");
 		}
 		SolrHook solrHook = solrHookRepository.save(new SolrHook(key, displayName, description,
-				checkedHookGroupKey(hookGroupKey), valueBadgeLinkTarget, listingPosition));
+				checkedHookGroupKey(hookGroupKey), valueBadgeLinkTarget, listingPosition, checkedAbasObjectTypes(abasObjectTypes)));
 		solrFieldService.createHookFields(key, listingPosition);
 		reloadSolrHooksAfterCommit();
 		return solrHook;
@@ -104,7 +106,7 @@ public class SolrHookService {
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public SolrHook updateSolrHook(String key, String displayName, String description, String hookGroupKey,
-			SolrHookValueBadgeLinkTarget valueBadgeLinkTarget, int listingPosition) {
+			SolrHookValueBadgeLinkTarget valueBadgeLinkTarget, int listingPosition, List<String> abasObjectTypes) {
 		SolrHook solrHook = findSolrHookForWrite(key);
 		solrHook.setDisplayName(displayName);
 		solrHook.setDescription(description);
@@ -112,6 +114,7 @@ public class SolrHookService {
 		solrHook.setValueBadgeLinkTarget(
 				valueBadgeLinkTarget != null ? valueBadgeLinkTarget : SolrHookValueBadgeLinkTarget.SEARCH);
 		solrHook.setListingPosition(listingPosition);
+		solrHook.setAbasObjectTypes(checkedAbasObjectTypes(abasObjectTypes));
 		SolrHook saved = solrHookRepository.save(solrHook);
 		reloadSolrHooksAfterCommit();
 		return saved;
@@ -169,6 +172,21 @@ public class SolrHookService {
 	@PreAuthorize("hasRole('ADMIN')")
 	public boolean isSolrHookKeyAvailable(String key) {
 		return !solrHooksByKey.containsKey(key);
+	}
+
+	/** Die ABAS-Typen: getrimmt, leere fallen weg, ohne Doppelte; null heißt keine */
+	private static List<String> checkedAbasObjectTypes(List<String> abasObjectTypes) {
+		if (abasObjectTypes == null) {
+			return List.of();
+		}
+		Set<String> checked = new LinkedHashSet<>();
+		for (String abasObjectType : abasObjectTypes) {
+			String trimmed = abasObjectType == null ? "" : abasObjectType.trim();
+			if (!trimmed.isEmpty()) {
+				checked.add(trimmed);
+			}
+		}
+		return new ArrayList<>(checked);
 	}
 
 	/** Die Gruppe: leer heißt keine (null), sonst muss es sie geben (400). */

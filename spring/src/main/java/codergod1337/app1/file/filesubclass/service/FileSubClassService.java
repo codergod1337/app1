@@ -3,13 +3,17 @@ package codergod1337.app1.file.filesubclass.service;
 import codergod1337.app1.file.fileextension.repository.FileExtensionRepository;
 import codergod1337.app1.file.filesubclass.model.FileSubClass;
 import codergod1337.app1.file.filesubclass.repository.FileSubClassRepository;
+import codergod1337.app1.solr.hook.model.SolrHook;
+import codergod1337.app1.solr.hook.service.SolrHookService;
 import codergod1337.app1.system.HelperInputs;
 import codergod1337.app1.system.access.model.AccessRole;
 import codergod1337.app1.system.access.model.AccessRoleSymbol;
 import codergod1337.app1.system.access.service.AccessRoleService;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -33,6 +37,7 @@ public class FileSubClassService {
 	private final FileSubClassRepository fileSubClassRepository;
 	private final AccessRoleService accessRoleService;
 	private final FileSubClassDestinationService fileSubClassDestinationService;
+	private final SolrHookService solrHookService;
 
 	/**
 	 * ZIRKELSCHLUSS: Eigentlich käme die Prüfung „gibt es diese Endung?“ über den FileExtensionService. Der braucht aber
@@ -43,11 +48,12 @@ public class FileSubClassService {
 
 	public FileSubClassService(FileSubClassRepository fileSubClassRepository, AccessRoleService accessRoleService,
 			FileSubClassDestinationService fileSubClassDestinationService,
-			FileExtensionRepository fileExtensionRepository) {
+			FileExtensionRepository fileExtensionRepository, SolrHookService solrHookService) {
 		this.fileSubClassRepository = fileSubClassRepository;
 		this.accessRoleService = accessRoleService;
 		this.fileSubClassDestinationService = fileSubClassDestinationService;
 		this.fileExtensionRepository = fileExtensionRepository;
+		this.solrHookService = solrHookService;
 	}
 
 	/** Neue Dateiart, noch ohne freigeschaltete Endungen. 400 bei ungültigem key, 409 wenn er vergeben ist. */
@@ -55,7 +61,7 @@ public class FileSubClassService {
 	@Transactional
 	public FileSubClass createFileSubClass(String key, String displayName, String description, int listingPosition,
 			AccessRoleSymbol symbol, String color, List<String> readAccessRoleKeys, List<String> writeAccessRoleKeys,
-			List<String> displayContextKeys) {
+			List<String> displayContextKeys, List<String> triggerWords, List<String> triggerHookKeys) {
 		if (!HelperInputs.isValidKey(key)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "key ist ungültig");
 		}
@@ -69,7 +75,7 @@ public class FileSubClassService {
 				keepKnownAccessRoleKeys(readAccessRoleKeys, knownAccessRoleKeys), checkedWriteAccessRoleKeys);
 		return fileSubClassRepository.save(new FileSubClass(key, displayName, description, listingPosition, symbol,
 				color, checkedReadAccessRoleKeys, checkedWriteAccessRoleKeys, checkedDisplayContextKeys(displayContextKeys),
-				List.of()));
+				checkedTriggerWords(triggerWords), checkedTriggerHookKeys(triggerHookKeys), List.of()));
 	}
 
 	/**
@@ -80,7 +86,7 @@ public class FileSubClassService {
 	@Transactional
 	public FileSubClass updateFileSubClass(String key, String displayName, String description, int listingPosition,
 			AccessRoleSymbol symbol, String color, List<String> readAccessRoleKeys, List<String> writeAccessRoleKeys,
-			List<String> displayContextKeys) {
+			List<String> displayContextKeys, List<String> triggerWords, List<String> triggerHookKeys) {
 		FileSubClass fileSubClass = getFileSubClassByKey(key);
 		Set<String> knownAccessRoleKeys = knownAccessRoleKeys();
 		List<String> checkedWriteAccessRoleKeys = keepKnownAccessRoleKeys(writeAccessRoleKeys, knownAccessRoleKeys);
@@ -94,7 +100,42 @@ public class FileSubClassService {
 				keepKnownAccessRoleKeys(readAccessRoleKeys, knownAccessRoleKeys), checkedWriteAccessRoleKeys));
 		fileSubClass.setWriteAccessRoleKeys(checkedWriteAccessRoleKeys);
 		fileSubClass.setDisplayContextKeys(checkedDisplayContextKeys(displayContextKeys));
+		fileSubClass.setTriggerWords(checkedTriggerWords(triggerWords));
+		fileSubClass.setTriggerHookKeys(checkedTriggerHookKeys(triggerHookKeys));
 		return fileSubClassRepository.save(fileSubClass);
+	}
+
+	/** Die Trigger-Hooks: jeder ein angelegter Hook (400 sonst), ohne Doppelte; null heißt keine */
+	private List<String> checkedTriggerHookKeys(List<String> triggerHookKeys) {
+		if (triggerHookKeys == null) {
+			return List.of();
+		}
+		Set<String> knownHookKeys = solrHookService.getAllSolrHooks().stream().map(SolrHook::getKey)
+				.collect(Collectors.toSet());
+		Set<String> checked = new LinkedHashSet<>();
+		for (String triggerHookKey : triggerHookKeys) {
+			if (!knownHookKeys.contains(triggerHookKey)) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hook " + triggerHookKey + " ist nicht angelegt");
+			}
+			checked.add(triggerHookKey);
+		}
+		return new ArrayList<>(checked);
+	}
+
+	/** Die Triggerwörter: getrimmt, leere fallen weg, Doppelte ohne Rücksicht auf Groß- und Kleinschreibung; null heißt keine */
+	private static List<String> checkedTriggerWords(List<String> triggerWords) {
+		if (triggerWords == null) {
+			return List.of();
+		}
+		Set<String> seen = new HashSet<>();
+		List<String> checked = new ArrayList<>();
+		for (String triggerWord : triggerWords) {
+			String trimmed = triggerWord == null ? "" : triggerWord.trim();
+			if (!trimmed.isEmpty() && seen.add(trimmed.toLowerCase(Locale.ROOT))) {
+				checked.add(trimmed);
+			}
+		}
+		return checked;
 	}
 
 	/** Die Anzeigeorte: jeder ein angelegter Anzeigeort (FileSubClassDestination, 400 sonst), ohne Doppelte, null heißt keine */

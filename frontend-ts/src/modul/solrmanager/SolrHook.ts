@@ -26,6 +26,11 @@ export interface SolrHook {
   /** wohin ein Badge mit einem Wert dieses Hooks führt (SolrHookValueBadgeLinkTarget.java), nur für das Frontend */
   valueBadgeLinkTarget: SolrHookValueBadgeLinkTarget
   listingPosition: number
+  /**
+   * die ABAS-Typen, deren Nummern in diesen Hook gehören (User 2026-10-14), z. B. obj:data:3:1: Findet das Archivieren
+   * eine Nummer dieses Typs, steht sie vorbelegt in diesem Hook
+   */
+  abasObjectTypes: string[] | null
 }
 
 /**

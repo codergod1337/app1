@@ -98,7 +98,9 @@
       "search": "Suche",
       "artikel": "Artikel",
       "infosys": "Infosysteme",
-      "belegnummer": "Belegnummer"
+      "belegnummer": "Belegnummer",
+      "archivieren": "Archivieren",
+      "testfakedata": "Testdaten"
     },
     "entryAccessRoles": {
       "symbolLabel": "Welche AR dieses Modul öffnen",
@@ -115,7 +117,9 @@
     "tabs": {
       "entityStates": "Status",
       "fileSubClassDestinations": "Anzeigeorte",
-      "fileSubClassMatrix": "FSC-Matrix"
+      "fileSubClassMatrix": "FSC-Matrix",
+      "messageSubClasses": "Nachrichtenarten",
+      "mailboxes": "Postfächer"
     },
     "debuffs": {
       "title": "Debuffs",
@@ -202,7 +206,12 @@
     "form": {
       "displayContextKeys": "Anzeigeorte",
       "displayContextKeysHint": "Wo diese Dateiart als Abschnitt steht und zum Hochladen angeboten wird. Die Orte legt der Admin unter Anzeigeorte an.",
-      "noDestinations": "Noch kein Anzeigeort angelegt: im Admin unter Anzeigeorte anlegen."
+      "noDestinations": "Noch kein Anzeigeort angelegt: im Admin unter Anzeigeorte anlegen.",
+      "triggerWords": "Triggerwörter",
+      "triggerWordsPlaceholder": "Wort eingeben, Enter übernimmt",
+      "triggerWordsHint": "Daran wird ein Mail-Anhang beim Archivieren als diese Dateiart erkannt. Treffer in Betreff und Mailtext zählen einfach, in Dateiname und Text des Anhangs doppelt; vorgeschlagen wird die Dateiart mit den meisten Treffern, ohne Treffer TEMP.",
+      "triggerHookKeys": "Trigger-Hooks",
+      "triggerHookKeysHint": "Je dieser Hooks mit Wert an der Nachricht zählt für jeden Anhang zwei Punkte zum Vorschlag dieser Dateiart."
     }
   },
   "fileextension": {
@@ -576,9 +585,14 @@
     "cores": {
       "DMS": "DMS",
       "ARTIKEL": "Artikel",
-      "KONTAKTE": "Kontakte"
+      "KONTAKTE": "Kontakte",
+      "NACHRICHTEN": "Nachrichten"
     },
     "allCores": "alle Kerne",
+    "directHit": {
+      "text": "{{core}} {{key}} ist ein eindeutiger Treffer: Enter öffnet ihn, eine weitere Ziffer sucht weiter.",
+      "open": "Öffnen"
+    },
     "missingRole": "Dafür fehlt dir die AccessRole {{role}}.",
     "noCores": "Für dich gibt es keinen Kern mit Suchrecht.",
     "running": "sucht",
@@ -588,17 +602,30 @@
     },
     "filters": {
       "addValue": "{{field}} {{value}} als Filter setzen",
-      "remove": "Filter {{field}} {{value}} entfernen"
+      "remove": "Filter {{field}} {{value}} entfernen",
+      "linkHint": {
+        "SEARCH": "Der Wert führt in die Suche.",
+        "ARTIKELMAPPE": "Der Wert öffnet die Artikelmappe.",
+        "KUNDENMAPPE": "Der Wert öffnet die Kundenmappe.",
+        "LIEFERANTENMAPPE": "Der Wert öffnet die Lieferantenmappe."
+      }
+    },
+    "completions": {
+      "title": "Vervollständigungen"
     },
     "fsc": {
       "hint": "Dateiart wählen: Klick oder Enter setzt sie als Filter, Escape bricht ab."
     },
     "results": {
-      "onlyBest": "Nur die besten {{count}} Treffer werden gezeigt, die Suche enger fassen."
+      "shown": "{{count}} davon geladen",
+      "loadMore": "Weitere {{count}} laden",
+      "loadingMore": "Lädt …",
+      "loadMoreFailed": "Weitere Treffer ließen sich nicht laden",
+      "noHits": "In keinem der angewählten Kerne gibt es Treffer."
     },
     "offers": {
-      "title": "Vorschläge:",
-      "tabHint": "Tab setzt den ersten Vorschlag, das Suchwort geht dann aus dem Text"
+      "title": "Als Filter:",
+      "tabHint": "Tab setzt das betonte Angebot als Filter, das Suchwort geht dann aus dem Text"
     }
   },
   "graph": {
@@ -706,13 +733,20 @@
         "asFilter": "als Filter",
         "onDocument": "am Dokument",
         "valueBadgeLinkTarget": "Ziel der Wert-Badges",
-        "valueBadgeLinkTargetHint": "Wohin ein Klick auf einen Wert dieses Hooks führt, überall in der App. Nur für die Oberfläche, die Kerne und Solr kennen es nicht."
+        "valueBadgeLinkTargetHint": "Wohin ein Klick auf einen Wert dieses Hooks führt, überall in der App. Nur für die Oberfläche, die Kerne und Solr kennen es nicht.",
+        "abasObjectTypes": "ABAS-Typen",
+        "abasObjectTypesPlaceholder": "Typ eingeben, z. B. obj:data:3:1, Enter übernimmt",
+        "abasObjectTypesHint": "Nummern dieser Typen, die das Archivieren in einer Mail findet, stehen vorbelegt in diesem Hook. Den Typ einer Nummer nennt die Belegnummer."
       },
       "valueBadgeLinkTargets": {
         "SEARCH": "Suche mit dem Wert als Filter",
         "ARTIKELMAPPE": "Artikelmappe",
         "KUNDENMAPPE": "Kundenmappe",
         "LIEFERANTENMAPPE": "Lieferantenmappe"
+      },
+      "keysInput": {
+        "remove": "{{key}} entfernen",
+        "none": "keine"
       },
       "picker": {
         "placeholder": "Feldname oder Anzeigename",
@@ -1575,6 +1609,246 @@
         "count_one": "{{count}} Dokument",
         "count_other": "{{count}} Dokumente"
       }
+    }
+  },
+  "messagesubclass": {
+    "title": "Nachrichtenarten (MSC)",
+    "count_one": "{{count}} Nachrichtenart",
+    "count_other": "{{count}} Nachrichtenarten",
+    "empty": "Noch keine Nachrichtenart, ohne sie lässt sich keine Nachricht archivieren.",
+    "edit": "bearbeiten",
+    "delete": "löschen",
+    "deleteTitle": "Nachrichtenart löschen",
+    "deleteQuestion": "Soll die Nachrichtenart {{key}} wirklich gelöscht werden? Nachrichten dieser Art haben danach keinen Namen und kein Symbol mehr und behalten ihre Leserechte.",
+    "editTitle": "Nachrichtenart bearbeiten: {{key}}",
+    "editTitleEmpty": "Nachrichtenart bearbeiten",
+    "notFound": "keine Nachrichtenart gewählt oder nicht gefunden",
+    "columns": {
+      "symbol": "Symbol",
+      "key": "Key",
+      "name": "Name",
+      "read": "Leserollen",
+      "write": "Hookpflege",
+      "displayContextKeys": "Anzeigeorte",
+      "mailboxEmailAddresses": "Postfächer",
+      "onlyAdmin": "keine, nur der Admin",
+      "none": "keine"
+    },
+    "form": {
+      "key": "Key",
+      "symbol": "Symbol",
+      "color": "Farbe des Symbols",
+      "displayContextKeys": "Anzeigeorte",
+      "displayContextKeysHint": "Wo Nachrichten dieser Art als Abschnitt stehen. Dieselben Orte wie bei den Dateiarten, angelegt im Admin unter Anzeigeorte.",
+      "mailboxEmailAddresses": "Postfächer",
+      "mailboxEmailAddressesPlaceholder": "Adresse eingeben, Enter übernimmt",
+      "mailboxEmailAddressesHint": "Ein Versuch: Später wird eine Nachricht anhand ihres Postfachs dieser Art zugeordnet oder die Art anhand des Postfachs vorausgewählt. Ein Postfach kann nur an einer Nachrichtenart hängen.",
+      "triggerWords": "Triggerwörter",
+      "triggerWordsPlaceholder": "Wort eingeben, Enter übernimmt",
+      "triggerHookKeys": "Trigger-Hooks",
+      "triggerHint": "Vorschlag beim Archivieren: Postfach an dieser Art 3 Punkte, je Treffer eines Triggerworts in Betreff oder Mailtext 1 Punkt, je Trigger-Hook mit Wert 2 Punkte. Die Art mit den meisten Punkten wird vorbelegt.",
+      "read": "Lesen",
+      "write": "Hookpflege (schließt Lesen ein, nie die Nachricht selbst)"
+    }
+  },
+  "archivieren": {
+    "title": "Archivieren",
+    "tabs": {
+      "mailboxes": "Postfächer"
+    },
+    "folders": {
+      "INBOX": "Posteingang",
+      "SENT_ITEMS": "Gesendet"
+    },
+    "ownMailboxHint": "Dein eigenes Postfach {{emailAddress}}",
+    "settingNotSaved": "Die Auswahl wurde nicht gespeichert",
+    "noMailboxes": "Dir ist kein Postfach zugewiesen.",
+    "noActiveMailbox": "Kein Postfach eingeschaltet: oben ein Postfach anklicken.",
+    "empty": "Keine Mails in diesem Ordner.",
+    "noSubject": "(ohne Betreff)",
+    "reload": "Neu laden",
+    "count_one": "{{count}} Mail",
+    "count_other": "{{count}} Mails",
+    "archivedHint": "Liegt im Archiv als Nachricht {{id}}: Klick öffnet sie",
+    "archivedFailed": "Ob die Mails schon archiviert sind, war nicht zu klären: {{message}}",
+    "columns": {
+      "receivedAt": "Empfangen",
+      "sentAt": "Gesendet",
+      "mailbox": "Postfach",
+      "from": "Von",
+      "to": "An",
+      "subject": "Betreff",
+      "attachments": "Anhänge",
+      "archived": "Archiv"
+    },
+    "mail": {
+      "title": "Mail",
+      "notChosen": "Keine Mail gewählt: in der Liste der Postfächer eine Mail anklicken.",
+      "from": "Von",
+      "to": "An",
+      "cc": "Cc",
+      "bcc": "Bcc",
+      "date": "Datum",
+      "wholeMail": "Ganze Mail samt Verlauf archivieren (FULL)",
+      "wholeMailHint": "Vorgabe: Archiviert wird nur der neue Teil bis zur roten Grenze. Steckt der Inhalt im Zitat darunter, etwa bei einer Weiterleitung, die ganze Mail archivieren.",
+      "newPartNotFound": "Wo der neue Teil endet, war nicht zu erkennen. Im Zweifel die ganze Mail archivieren.",
+      "noBody": "Die Mail hat keinen Text.",
+      "attachments": "Anhänge",
+      "attachmentCount_one": "{{count}} Anhang",
+      "attachmentCount_other": "{{count}} Anhänge",
+      "attachmentName": "Name",
+      "attachmentType": "Typ",
+      "attachmentSize": "Größe",
+      "attachmentInline": "Im Text",
+      "inlineYes": "eingebettet",
+      "noAttachments": "Keine Anhänge."
+    },
+    "prepare": {
+      "loading": "Die Mail wird aufbereitet: Anhänge im DMS prüfen, Nummern bei ABAS nachschlagen, Kontakte suchen …",
+      "inspectorTitle": "Archivieren",
+      "archive": "Archivieren",
+      "archiving": "Wird archiviert …",
+      "archiveMissingMessageSubClass": "Erst eine Nachrichtenart wählen.",
+      "archiveMissingFileSubClass": "Für jeden neuen Anhang, der archiviert wird, eine Dateiart wählen.",
+      "archived": "Nachricht {{id}} archiviert",
+      "archivedSummary": "{{newAttachments}} neue und {{mergedAttachments}} vorhandene Anhänge, {{signatures}} Signaturen, {{ignored}} nicht archiviert",
+      "archiveFailed": "Archivieren fehlgeschlagen",
+      "archiveBlockedNoAccess": "Ein Anhang liegt schon im DMS, aber du bekommst das Dokument nicht: So kann die Mail nicht archiviert werden.",
+      "messageSubClass": "Nachrichtenart",
+      "noMessageSubClasses": "Es gibt noch keine Nachrichtenart: im Admin unter Nachrichtenarten anlegen.",
+      "suggestedMessageSubClass": "Vorschlag aus Postfach, Triggerwörtern und Hooks: Klick auf die Kachel wählt eine andere Art.",
+      "participants": "Beteiligte",
+      "contactsNotAllowed": "Ohne die AR KONTAKTE werden keine Kontakte gesucht.",
+      "roles": {
+        "FROM": "Von",
+        "SENDER": "Gesendet von",
+        "TO": "An",
+        "CC": "Cc",
+        "BCC": "Bcc"
+      },
+      "numbers": "Nummern aus Betreff und Text",
+      "noNumbers": "ABAS kennt keine Nummer aus Betreff und Text.",
+      "takeIntoHook": "In Hook übernehmen",
+      "hooks": "Hooks für Nachricht und Anhänge",
+      "states": {
+        "NEW": "neu",
+        "MERGE": "schon im DMS",
+        "SIGNATURE": "Signatur",
+        "IGNORED": "ignoriert",
+        "NO_FILE": "kein Datei-Anhang",
+        "NO_ACCESS": "kein Zugriff"
+      },
+      "noAccessHint": "Die Datei liegt schon im DMS, aber du bekommst das Dokument nicht.",
+      "noFileHint": "Eine angehängte Mail oder ein Verweis: Das kommt nicht ins DMS.",
+      "existingFileSubClass": "Dateiart im DMS",
+      "archiveAnyway": "trotzdem archivieren",
+      "markSignature": "Signatur",
+      "markIgnore": "ignorieren",
+      "signaturesHidden_one": "{{count}} Signatur wird still eingetragen",
+      "signaturesHidden_other": "{{count}} Signaturen werden still eingetragen",
+      "onlySignatures": "Nur Signaturen, sie werden still eingetragen."
+    }
+  },
+  "testfakedata": {
+    "title": "Testdaten",
+    "intro": "Erzeugt Testdaten über die normalen Schreibwege des Backends, um früh die spätere Performance einzuschätzen: Kunden und Lieferanten im Kern KONTAKTE, Artikel im Kern ARTIKEL, Datenblätter als TXT im DMS. Gefüllt werden die Felder, die die Suche des Kerns nutzt. Was es schon gibt, wird übersprungen.",
+    "form": {
+      "title": "Was erzeugt wird"
+    },
+    "fields": {
+      "articleCount": "Artikel",
+      "customerCount": "Kunden",
+      "supplierCount": "Lieferanten",
+      "documentCount": "Datenblätter",
+      "documentsPerArticleMean": "Datenblätter je Artikel im Mittel",
+      "documentsPerArticleDeviation": "Streuung der Normalverteilung"
+    },
+    "hints": {
+      "articleCount": "Nummern fortlaufend ab 10000000; Nummern mit 997 vorn sind Werkzeuge. Jeder Artikel hat einen Kunden und 1 bis 3 Lieferanten.",
+      "customerCount": "Je Kunde eine Firma mit 1 bis 15 Ansprechpartnern, im Mittel 5. Kundennummern ab 2000001.",
+      "supplierCount": "Je Lieferant eine Firma mit 1 bis 15 Ansprechpartnern, im Mittel 5. Lieferantennummern ab 7000001.",
+      "documentCount": "TXT als Datenblatt: Inhalt die laufende Nummer 0 bis Anzahl − 1 und 1 bis 5 Sätze zu seinen Artikeln.",
+      "documentsPerArticleMean": "Wie viele Datenblätter ein Artikel im Mittel hat.",
+      "documentsPerArticleDeviation": "Wie stark die Zahl der Datenblätter je Artikel um das Mittel streut."
+    },
+    "derived": "Ein Datenblatt hängt damit im Mittel an {{value}} Artikeln.",
+    "derivedNone": "Ohne Artikel oder Datenblätter gibt es keine Verknüpfung.",
+    "testDataFlag": "Jedes erzeugte Dokument trägt im Hook wtf den Wert TEST_DATA.",
+    "start": "Erzeugen",
+    "starting": "Wird gestartet …",
+    "startFailed": "Start fehlgeschlagen",
+    "cancel": "Abbrechen",
+    "cancelFailed": "Abbrechen fehlgeschlagen",
+    "perSecond": "{{value}}/s",
+    "columns": {
+      "phase": "Phase",
+      "progress": "Fortschritt",
+      "written": "Solr-Dokumente",
+      "writtenHint": "Geschriebene Solr-Dokumente; bei Kunden und Lieferanten die Firma und ihre Ansprechpartner.",
+      "rate": "je Sekunde",
+      "duration": "Dauer",
+      "skipped": "Übersprungen",
+      "skippedHint": "Gab es schon: dieselbe id im Kern oder dieselben Bytes im DMS.",
+      "failed": "Fehler"
+    },
+    "phases": {
+      "CUSTOMERS": "Kunden",
+      "SUPPLIERS": "Lieferanten",
+      "ARTICLES": "Artikel",
+      "DOCUMENTS": "Datenblätter"
+    },
+    "status": {
+      "title": "Stand",
+      "never": "Seit dem Start des Backends lief kein Lauf.",
+      "running": "Läuft: {{phase}}",
+      "cancelling": "Wird nach dem aktuellen Eintrag abgebrochen …",
+      "cancelled": "Abgebrochen.",
+      "finished": "Fertig.",
+      "failed": "Abgebrochen wegen Fehler: {{message}}",
+      "startedAt": "Gestartet {{time}}",
+      "finishedAt": "beendet {{time}}"
+    }
+  },
+  "nachricht": {
+    "title": "Nachricht {{id}}",
+    "number": "Nachricht {{id}}",
+    "sender": "Gesendet von",
+    "archived": "Archiviert",
+    "wholeMailArchived": "ganze Mail samt Verlauf archiviert",
+    "thisMessage": "diese Nachricht",
+    "conversation_one": "Verlauf: {{count}} Nachricht",
+    "conversation_other": "Verlauf: {{count}} Nachrichten",
+    "attachmentsHidden_one": "{{count}} Anhang darfst du nicht sehen",
+    "attachmentsHidden_other": "{{count}} Anhänge darfst du nicht sehen",
+    "noVisibleAttachments": "Keinen der Anhänge darfst du sehen."
+  },
+  "mailHtmlFrame": {
+    "restWarnTitle": "▲ BIS HIER wird archiviert",
+    "restWarnText": "Darunter Zitat oder Weiterleitung: Das kommt nur mit „ganze Mail archivieren“ ins Archiv."
+  },
+  "mailbox": {
+    "title": "Postfächer",
+    "count_one": "{{count}} Postfach",
+    "count_other": "{{count}} Postfächer",
+    "empty": "Noch kein Postfach angelegt.",
+    "edit": "bearbeiten",
+    "delete": "löschen",
+    "deleteTitle": "Postfach löschen",
+    "deleteQuestion": "Soll das Postfach {{emailAddress}} wirklich gelöscht werden?",
+    "editTitle": "Postfach bearbeiten: {{emailAddress}}",
+    "editTitleEmpty": "Postfach bearbeiten",
+    "notFound": "kein Postfach gewählt oder nicht gefunden",
+    "columns": {
+      "emailAddress": "Adresse",
+      "accessRoleCollectionKeys": "Archivieren dürfen",
+      "messageSubClass": "Nachrichtenart",
+      "onlyAdmin": "keine Position, nur der Admin",
+      "none": "keine"
+    },
+    "form": {
+      "emailAddress": "Adresse des Postfachs",
+      "accessRoleCollectionKeys": "ARC-Positionen, die aus diesem Postfach archivieren dürfen",
+      "accessRoleCollectionKeysHint": "Archivieren verlangt zusätzlich die eigene Rolle dafür. Wer eine archivierte Nachricht lesen darf, entscheidet ihre Nachrichtenart."
     }
   }
 }

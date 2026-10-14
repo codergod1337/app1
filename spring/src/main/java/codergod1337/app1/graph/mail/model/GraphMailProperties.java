@@ -10,7 +10,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *                            Später kann eine Mail auch im Namen eines Users gehen, dann steht sein Postfach in der
  *                            Nachricht, nicht hier.
  * @param requestTimeout      so lange darf ein Aufruf von Graph dauern
+ * @param domain              die Domäne der Postfächer im Tenant ohne @, z. B. pahling.de. Endet die E-Mail eines Users
+ *                            darauf, darf er mit der Rolle des Archivierens auch aus seinem eigenen Postfach archivieren.
+ *                            Leer: Kein eigenes Postfach zählt.
  */
 @ConfigurationProperties(prefix = "app1.graph.mail")
-public record GraphMailProperties(String systemSenderAddress, Duration requestTimeout) {
+public record GraphMailProperties(String systemSenderAddress, Duration requestTimeout, String domain) {
 }

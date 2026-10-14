@@ -33,11 +33,21 @@ import { NewFileExtensionCollectionTab } from './modul/admin/NewFileExtensionCol
 import { NewFileExtensionTab } from './modul/admin/NewFileExtensionTab.tsx'
 import { FileSubClassesTab } from './modul/admin/FileSubClassesTab.tsx'
 import { NewFileSubClassTab } from './modul/admin/NewFileSubClassTab.tsx'
+import { EditMailboxTab } from './modul/admin/EditMailboxTab.tsx'
+import { MailboxesTab } from './modul/admin/MailboxesTab.tsx'
+import { NewMailboxTab } from './modul/admin/NewMailboxTab.tsx'
+import { EditMessageSubClassTab } from './modul/admin/EditMessageSubClassTab.tsx'
+import { MessageSubClassesTab } from './modul/admin/MessageSubClassesTab.tsx'
+import { NewMessageSubClassTab } from './modul/admin/NewMessageSubClassTab.tsx'
 import { EditUsersTab } from './modul/admin/EditUsersTab.tsx'
 import { NewAccessRoleTab } from './modul/admin/NewAccessRoleTab.tsx'
 import { NewUsersTab } from './modul/admin/NewUsersTab.tsx'
 import { UsersAccessRoleCollectionMatrixTab } from './modul/admin/UsersAccessRoleCollectionMatrixTab.tsx'
 import { UsersTab } from './modul/admin/UsersTab.tsx'
+import { ARCHIVIEREN_ENTRY_ACCESS_ROLE_KEYS } from './modul/archivieren/Archivieren.ts'
+import { Archivieren } from './modul/archivieren/Archivieren.tsx'
+import { ArchivierenMailboxTab } from './modul/archivieren/ArchivierenMailboxTab.tsx'
+import { ArchivierenMailPage } from './modul/archivieren/ArchivierenMailPage.tsx'
 import { ARTIKEL_ACCESS_ROLE_KEY } from './modul/artikel/Artikel.ts'
 import { ArtikelEntryPage } from './modul/artikel/ArtikelEntryPage.tsx'
 import { ArtikelmappePage } from './modul/artikel/ArtikelmappePage.tsx'
@@ -74,6 +84,8 @@ import { MappingAbasFetchTab } from './modul/mapping/MappingAbasFetchTab.tsx'
 import { MappingExecuteTab } from './modul/mapping/MappingExecuteTab.tsx'
 import { MappingJsonViewTab } from './modul/mapping/MappingJsonViewTab.tsx'
 import { MappingOverviewTab } from './modul/mapping/MappingOverviewTab.tsx'
+import { NACHRICHTEN_ENTRY_ACCESS_ROLE_KEYS } from './modul/nachrichten/Nachrichten.ts'
+import { NachrichtPage } from './modul/nachrichten/NachrichtPage.tsx'
 import { EditProfileUsers } from './modul/profile/EditProfileUsers.tsx'
 import { EditProfileUsersDetails } from './modul/profile/EditProfileUsersDetails.tsx'
 import { Profile } from './modul/profile/Profile.tsx'
@@ -91,6 +103,7 @@ import { SolrCoreTab } from './modul/solrmanager/SolrCoreTab.tsx'
 import { SolrHookGroupsTab } from './modul/solrmanager/SolrHookGroupsTab.tsx'
 import { SolrHooksTab } from './modul/solrmanager/SolrHooksTab.tsx'
 import { SolrManager } from './modul/solrmanager/SolrManager.tsx'
+import { TestFakeData } from './modul/testfakedata/TestFakeData.tsx'
 
 const router = createBrowserRouter([
   {
@@ -139,6 +152,12 @@ const router = createBrowserRouter([
           { path: 'filesubclasses/new', element: <NewFileSubClassTab /> },
           { path: 'filesubclasses/edit', element: <EditFileSubClassTab /> },
           { path: 'filesubclassdestinations', element: <FileSubClassDestinationsTab /> },
+          { path: 'messagesubclasses', element: <MessageSubClassesTab /> },
+          { path: 'messagesubclasses/new', element: <NewMessageSubClassTab /> },
+          { path: 'messagesubclasses/edit', element: <EditMessageSubClassTab /> },
+          { path: 'mailboxes', element: <MailboxesTab /> },
+          { path: 'mailboxes/new', element: <NewMailboxTab /> },
+          { path: 'mailboxes/edit', element: <EditMailboxTab /> },
           { path: 'filesubclassdestinations/new', element: <NewFileSubClassDestinationTab /> },
           { path: 'filesubclassdestinations/edit', element: <EditFileSubClassDestinationTab /> },
           { path: 'fileextensions', element: <FileExtensionsTab /> },
@@ -222,6 +241,15 @@ const router = createBrowserRouter([
         ],
       },
       {
+        // Testdaten für die Solr-Kerne, um früh die Performance einzuschätzen (User 2026-10-14), nur ADMIN
+        path: 'testfakedata',
+        element: (
+          <RequireLogin accessRoleKey={ADMIN_ACCESS_ROLE_KEY}>
+            <TestFakeData />
+          </RequireLogin>
+        ),
+      },
+      {
         path: 'graph',
         element: (
           <RequireLogin accessRoleKey={ADMIN_ACCESS_ROLE_KEY}>
@@ -298,6 +326,16 @@ const router = createBrowserRouter([
         ),
       },
       {
+        // eine archivierte Nachricht samt Verlauf (User 2026-10-14): keine Kachel, der Weg hinein sind die Suche und die
+        // Markierung in der Postfachliste; welche Nachricht er sieht, entscheidet readAcl im Backend
+        path: 'nachricht/:id',
+        element: (
+          <RequireLogin accessRoleKeys={NACHRICHTEN_ENTRY_ACCESS_ROLE_KEYS}>
+            <NachrichtPage />
+          </RequireLogin>
+        ),
+      },
+      {
         // der Viewer außerhalb des DMS-Moduls, wie in der Vorlage: eigener subheader mit den Angaben zur Datei, keine
         // Tabs, keine ContentBox, die Datei bekommt die ganze Fläche. In der URL steht nur die id.
         path: 'dms/viewer/:id',
@@ -340,6 +378,21 @@ const router = createBrowserRouter([
             <DmsShareOverviewPage />
           </RequireLogin>
         ),
+      },
+      {
+        // Archivieren: die Rolle des Archivierens oder ADMIN, eine reicht; welche Postfächer er hat, prüft das Backend
+        path: 'archivieren',
+        element: (
+          <RequireLogin accessRoleKeys={ARCHIVIEREN_ENTRY_ACCESS_ROLE_KEYS}>
+            <Archivieren />
+          </RequireLogin>
+        ),
+        children: [
+          { index: true, element: <Navigate to="mailboxes" replace /> },
+          { path: 'mailboxes', element: <ArchivierenMailboxTab /> },
+          // eine Mail vor dem Archivieren: Postfach und id kommen als Router-State, nicht in der URL
+          { path: 'mail', element: <ArchivierenMailPage /> },
+        ],
       },
     ],
   },

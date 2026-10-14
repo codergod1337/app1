@@ -222,12 +222,17 @@ public class SolrDocumentDmsService {
 	}
 
 	public DmsSearchedDocumentsPage searchDmsDocuments(String searchText,
-			Map<String, List<String>> exactFilterValuesByFieldName) {
-		// Wird aufgerufen, wenn ein User im Suchmodul tippt oder Chips setzt. Suchen, nicht auflösen: die besten Treffer
-		// mit Score, Gründen und Vorschau für die Trefferbox, keine Seiten, Anzahl aus app1.solr.search.hits.
+			Map<String, List<String>> exactFilterValuesByFieldName, int page) {
+		// Wird aufgerufen, wenn ein User im Suchmodul tippt oder Chips setzt. Suchen, nicht auflösen: die Treffer mit
+		// Score, Gründen und Vorschau für die Trefferbox, eine Seite ab 0 mit app1.solr.search.hits Treffern; „weitere
+		// laden“ in der Maske fragt die nächste Seite (User 2026-10-14).
 		String text = searchText == null ? "" : searchText.trim();
 		if (text.isEmpty() && exactFilterValuesByFieldName.isEmpty()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "weder Suchtext noch Filter");
+		}
+		long start = (long) page * searchHits;
+		if (page < 0 || start > Integer.MAX_VALUE) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page muss zwischen 0 und " + Integer.MAX_VALUE / searchHits + " liegen");
 		}
 		List<String> accessRoleKeys = currentUsersProvider.getCurrentUsersAccessRoleKeys();
 		boolean admin = accessRoleKeys.contains("ADMIN");
@@ -282,7 +287,8 @@ public class SolrDocumentDmsService {
 		}
 		// das Treffergewicht entscheidet, das Erstelldatum nur bei gleichem Score
 		params.set("sort", "score desc, documentCreatedAt desc");
-		params.set("start", 0);
+		// die Seite: spätere Seiten kosten Solr kaum mehr als die erste (gemessen 2026-10-14)
+		params.set("start", (int) start);
 		params.set("rows", searchHits);
 		// fl: die Felder der Trefferbox, writeAcl für writable (geht nicht zum Client), die durchsuchten für die Gründe.
 		// Der Volltext (text_suche) bleibt draußen: groß, und sein Grund braucht ihn nicht (User 2026-10-09)
@@ -337,7 +343,7 @@ public class SolrDocumentDmsService {
 				}
 				hits.add(new DmsSearchHit(fieldValues, writable, reasons));
 			}
-			return new DmsSearchedDocumentsPage(response.getResults().getNumFound(), hits);
+			return new DmsSearchedDocumentsPage(response.getResults().getNumFound(), page, searchHits, hits);
 		} catch (SolrServerException | IOException e) {
 			throw unavailable(e);
 		}

@@ -4,6 +4,7 @@ import codergod1337.app1.abas.repository.AbasInfosysRepository;
 import codergod1337.app1.file.filesubclass.model.FileSubClassDestination;
 import codergod1337.app1.file.filesubclass.repository.FileSubClassDestinationRepository;
 import codergod1337.app1.file.filesubclass.repository.FileSubClassRepository;
+import codergod1337.app1.message.messagesubclass.repository.MessageSubClassRepository;
 import codergod1337.app1.system.HelperInputs;
 import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
@@ -26,9 +27,9 @@ import org.springframework.web.server.ResponseStatusException;
  * nach jedem Commit. Dateiart und Infosystem-Aufruf prüfen beim Speichern über {@link #isFileSubClassDestinationKeyKnown}
  * gegen diese Kopie.
  *
- * ZIRKELSCHLUSS: Ob eine Dateiart oder ein Aufruf den Ort noch trägt, käme eigentlich über deren Services. Die brauchen
- * aber diesen Service zur Prüfung ihrer Anzeigeorte. Deshalb hier ausnahmsweise die fremden Repositories direkt, nur
- * lesend, fürs Löschen.
+ * ZIRKELSCHLUSS: Ob eine Dateiart, ein Aufruf oder eine Nachrichtenart (seit 2026-10-13, derselbe Katalog) den Ort
+ * noch trägt, käme eigentlich über deren Services. Die brauchen aber diesen Service zur Prüfung ihrer Anzeigeorte.
+ * Deshalb hier ausnahmsweise die fremden Repositories direkt, nur lesend, fürs Löschen.
  */
 @Service
 public class FileSubClassDestinationService {
@@ -39,15 +40,19 @@ public class FileSubClassDestinationService {
 	private final FileSubClassDestinationRepository fileSubClassDestinationRepository;
 	private final FileSubClassRepository fileSubClassRepository;
 	private final AbasInfosysRepository abasInfosysRepository;
+	/** ZIRKELSCHLUSS: der MessageSubClassService prüft seine Anzeigeorte hier, siehe Klassenkommentar */
+	private final MessageSubClassRepository messageSubClassRepository;
 
 	/** Die ganze Tabelle nach key, in Listenreihenfolge. Wird nur ersetzt, nie verändert. */
 	private volatile Map<String, FileSubClassDestination> fileSubClassDestinationsByKey = Map.of();
 
 	public FileSubClassDestinationService(FileSubClassDestinationRepository fileSubClassDestinationRepository,
-			FileSubClassRepository fileSubClassRepository, AbasInfosysRepository abasInfosysRepository) {
+			FileSubClassRepository fileSubClassRepository, AbasInfosysRepository abasInfosysRepository,
+			MessageSubClassRepository messageSubClassRepository) {
 		this.fileSubClassDestinationRepository = fileSubClassDestinationRepository;
 		this.fileSubClassRepository = fileSubClassRepository;
 		this.abasInfosysRepository = abasInfosysRepository;
+		this.messageSubClassRepository = messageSubClassRepository;
 	}
 
 	@PostConstruct
@@ -105,16 +110,23 @@ public class FileSubClassDestinationService {
 		return fileSubClassDestinationRepository.findAll(LISTING_ORDER);
 	}
 
-	/** Löscht den Ort. 409, solange eine Dateiart oder ein Infosystem-Aufruf ihn noch in den Anzeigeorten trägt. */
+	/**
+	 * Löscht den Ort. 409, solange eine Dateiart, ein Infosystem-Aufruf oder eine Nachrichtenart ihn noch in den
+	 * Anzeigeorten trägt.
+	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public FileSubClassDestination deleteFileSubClassDestination(String key) {
 		FileSubClassDestination destination = findFileSubClassDestinationForWrite(key);
 		List<String> carriers = new ArrayList<>();
+		// ZIRKELSCHLUSS: die fremden Repositories direkt, nur lesend, siehe Klassenkommentar
 		fileSubClassRepository.findAll().stream().filter(fileSubClass -> fileSubClass.getDisplayContextKeys().contains(key))
 				.forEach(fileSubClass -> carriers.add("Dateiart " + fileSubClass.getKey()));
 		abasInfosysRepository.findAll().stream().filter(abasInfosys -> abasInfosys.isShownIn(key))
 				.forEach(abasInfosys -> carriers.add("Aufruf " + abasInfosys.getKey()));
+		messageSubClassRepository.findAll().stream()
+				.filter(messageSubClass -> messageSubClass.getDisplayContextKeys().contains(key))
+				.forEach(messageSubClass -> carriers.add("Nachrichtenart " + messageSubClass.getKey()));
 		if (!carriers.isEmpty()) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT,
 					"Anzeigeort " + key + " wird noch genutzt von " + String.join(", ", carriers));

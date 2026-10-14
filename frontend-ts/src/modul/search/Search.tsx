@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import { RequestError } from '../../api/client.ts'
@@ -9,6 +10,7 @@ import { useMasterData } from '../../components/masterDataContext.ts'
 import { translate } from '../../components/multilingual.ts'
 import type { OriginState } from '../../components/Origin.ts'
 import { Subheader, type SubheaderToggle } from '../../components/Subheader.tsx'
+import { showToast } from '../../components/toastStore.ts'
 import { useUsersSettings } from '../../components/usersSettingsContext.ts'
 import { DMS_CORE_KEY, FILE_SUB_CLASS_FIELD_NAME } from '../dms/Dms.ts'
 import { fileSubClassesStartingWith, fileSubClassNameOf, type FileSubClass } from '../filesubclass/FileSubClass.ts'
@@ -27,26 +29,34 @@ import {
   isSameSearchFilter,
   SEARCH_ACTIVE_CORES_SETTING_KEY,
   SEARCH_DEBOUNCE_MS,
+  SEARCH_MAX_OFFERS_PER_CORE,
+  SEARCH_MAX_TEXT_COMPLETIONS,
   SEARCH_MAX_WORDS,
   SEARCH_MIN_CHARACTERS,
   SEARCH_PATH,
   SEARCH_TEXT_PARAM,
   searchFiltersOfParams,
-  searchOfferOfReason,
   searchParamsOf,
   searchRequestOf,
+  searchWordsForOffersOf,
   searchWordsOf,
+  typedWordOf,
   useSearchPrefill,
   withoutSearchWord,
+  withTypedWordCompleted,
   type SearchFilter,
   type SearchOffer,
   type SearchResultPage,
+  type SearchTextCompletion,
 } from './Search.ts'
-import { SEARCH_CORES, searchCoresOf, type SearchCore } from './searchCores.ts'
+import { SEARCH_CORES, SEARCH_RESOLVER_CORE_KEY, searchCoresOf, type SearchCore } from './searchCores.ts'
 import { SearchFileSubClassTiles } from './SearchFileSubClassTiles.tsx'
 import { SearchFilterChips } from './SearchFilterChips.tsx'
 import { cachedSearchResult, rememberSearchResult } from './searchResultCache.ts'
 import { SearchSuggestions } from './SearchSuggestions.tsx'
+
+/** Die id der Liste der Vervollständigungen unter dem Suchfeld, für aria-controls und aria-activedescendant */
+const SEARCH_COMPLETION_LIST_ID = 'search-completion-list'
 
 /**
  * Die Suchmaske nach der SuchePage der Vorlage, ein Modul über alle Kerne: ein Eingabefeld, gesucht wird in allen
@@ -58,15 +68,20 @@ import { SearchSuggestions } from './SearchSuggestions.tsx'
  *
  * Nie ins Leere suchen: ohne Suchwort ab drei Zeichen und ohne Filter wird nicht einmal gefragt. Höchstens sechs
  * Suchwörter, eine Regel der Maske. „fsc.“ in der Eingabe öffnet die Dateiarten als Kacheln, die Wahl wird der Chip
- * fileSubClassKey. Ein exakt getippter Schlüssel springt direkt zur Seite des Treffers. Vorbelegungen kommen per
+ * fileSubClassKey. Ein exakt getippter Schlüssel springt nicht mehr, er steht als deutlicher Hinweis da, Enter öffnet
+ * seine Seite (User 2026-10-14: längere Artikelnummern haben oft eine gültige davor). Vorbelegungen kommen per
  * Router-State (Hook-Werte aus Dokumentseite und Treffern), nie über die Adresse.
  *
- * Das Backend liefert nur die besten Treffer (app1.solr.search.hits), keine Seiten: Gibt es mehr, sagt der Footer,
- * dass man enger suchen soll. Der Treffergrund kommt immer mit, es gibt keinen Schalter dafür (User 2026-10-07).
+ * Das Backend liefert eine Seite der Treffer (app1.solr.search.hits, 100). Gibt es mehr, hängt „weitere laden“ im Fuß
+ * der Box die nächste Seite unten an (User 2026-10-14); der Zwischenspeicher merkt sich die angehängten Seiten. Der
+ * Treffergrund kommt immer mit, es gibt keinen Schalter dafür (User 2026-10-07).
  *
- * Die Angebote über der Eingabe (User 2026-10-09) kommen aus den Gründen der Treffer, ohne eigenen Request: Jeder
- * Hook-Wert, den ein Suchwort getroffen hat, steht als Chip da. Klick oder Tab macht ihn zum Filter und nimmt das
- * Suchwort aus dem Text: ein Wort weniger in der qf, ein exakter fq dazu.
+ * Die Angebote über der Eingabe (User 2026-10-09, nach der Vorlage erweitert 2026-10-13) kommen aus den Treffern, ohne
+ * eigenen Request: Jeder Kern baut sie selbst (offersOf), mit Zusatz und Bild, die Kontakte bieten die Nummern jedes
+ * Treffers mit dem Firmennamen. Klick oder Tab macht ein Angebot zum Filter und nimmt das Suchwort aus dem Text: ein
+ * Wort weniger in der qf, ein exakter fq dazu. Die Vervollständigungen des gerade getippten Worts, heute die
+ * E-Mail-Adressen der Kontakte, stehen wie in jeder Oberfläche als Liste direkt unter dem Suchfeld: Sie ersetzen das
+ * Wort im Suchtext und werden nie ein Filter. Ist der Kern KONTAKTE abgewählt, sucht er als Auflöser still mit.
  *
  * Suchwörter und Chips stehen in der Adresse (User 2026-10-07: ?q=… und f=feld:wert), die Seite schreibt sie bei jeder
  * Änderung hinein, ohne neuen Verlaufseintrag. Zurück aus einem Treffer, der Knopf „zurück zu Suche“ und ein Reload
@@ -96,6 +111,10 @@ export function Search() {
   const [running, setRunning] = useState(0)
   /** Laufnummern je Kern gegen veraltete Antworten */
   const runByCore = useRef<Record<string, number>>({})
+  /** die Kerne, deren nächste Seite gerade lädt */
+  const [loadingMoreByCore, setLoadingMoreByCore] = useState<Record<string, boolean>>({})
+  /** Suchtext und Chips der letzten Eingabe: Eine nächste Seite, die erst danach ankommt, wird verworfen */
+  const latestQueryRef = useRef('')
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Die angewählten Kerne: die Wahl des Users in dieser Sitzung, sonst seine gespeicherte, gefiltert nach dem, was
@@ -163,19 +182,52 @@ export function Search() {
   )
   const searchable = !fileSubClassMode && !tooManyWords && (hasSearchWord(searchText) || filters.length > 0)
 
-  /** Die Angebote aus den Gründen der Treffer aller angewählten Kerne, ohne schon gesetzte Filter, ohne Doppelte */
-  const isHook = (fieldName: string) => (solrHooks ?? []).some((hook) => hook.key === fieldName)
+  // Der Auflöser (User 2026-10-13, nach der Vorlage): Ist der Kern KONTAKTE abgewählt, sucht er mit Suchwort trotzdem
+  // still mit, ohne Chips, nur für Angebote und Vervollständigungen. Nur mit seiner Such-Rolle, sonst gibt es ihn nicht.
+  const resolverCore =
+    !activeCoreKeys.includes(SEARCH_RESOLVER_CORE_KEY) && !fileSubClassMode && !tooManyWords && hasSearchWord(searchText)
+      ? (cores.find((core) => core.key === SEARCH_RESOLVER_CORE_KEY) ?? null)
+      : null
+  const suggestingCores = resolverCore !== null ? [...activeCores, resolverCore] : activeCores
+
+  /**
+   * Die Filter-Angebote aller angewählten Kerne und des Auflösers, je Kern höchstens zehn, ohne schon gesetzte Filter.
+   * Dasselbe (Feld, Wert) nur einmal (User 2026-10-13, wie in der Vorlage): Es bleibt das Angebot, das etwas zum
+   * Wiedererkennen mitbringt (Zusatz oder Bild), sonst das erste in der Reihenfolge der Kerne.
+   */
+  const offerWords = searchWordsForOffersOf(searchText)
   const offers: SearchOffer[] = []
-  for (const core of activeCores) {
+  for (const core of suggestingCores) {
+    let countOfCore = 0
     for (const hit of resultByCore[core.key]?.hits ?? []) {
-      for (const reason of hit.reasons) {
-        const offer = searchOfferOfReason(core.key, reason, isHook)
-        if (
-          offer !== null &&
-          !filters.some((existing) => isSameSearchFilter(existing, offer)) &&
-          !offers.some((existing) => existing.fieldName === offer.fieldName && existing.value === offer.value)
-        ) {
+      for (const offer of core.offersOf(hit, offerWords, solrHooks ?? [])) {
+        if (countOfCore >= SEARCH_MAX_OFFERS_PER_CORE || filters.some((existing) => isSameSearchFilter(existing, { fieldName: offer.fieldName, value: offer.value }))) {
+          continue
+        }
+        const index = offers.findIndex((existing) => existing.fieldName === offer.fieldName && existing.value === offer.value)
+        if (index < 0) {
           offers.push(offer)
+          countOfCore++
+        } else if (offers[index].additionText === null && offers[index].previewBase64Png === null && (offer.additionText !== null || offer.previewBase64Png !== null)) {
+          offers[index] = offer
+        }
+      }
+    }
+  }
+
+  /** Die Vervollständigungen des gerade getippten Worts aus den Treffern derselben Kerne, ohne Doppelte, höchstens fünf */
+  const typedWord = typedWordOf(searchText)
+  const completions: SearchTextCompletion[] = []
+  if (typedWord !== '') {
+    for (const core of suggestingCores) {
+      for (const hit of resultByCore[core.key]?.hits ?? []) {
+        for (const completion of core.completionsOf(hit, typedWord)) {
+          if (
+            completions.length < SEARCH_MAX_TEXT_COMPLETIONS &&
+            !completions.some((existing) => existing.completedText.toLowerCase() === completion.completedText.toLowerCase())
+          ) {
+            completions.push(completion)
+          }
         }
       }
     }
@@ -198,10 +250,60 @@ export function Search() {
     setSearchText('')
   }
 
-  /** Ein Angebot einloggen: der Wert wird Chip (fq), das Suchwort, das ihn traf, geht aus dem Suchtext, samt + davor */
+  /**
+   * Ein Angebot einloggen: der Wert wird Chip (fq), Zusatz und Bild wandern mit. Das Suchwort, das ihn traf, geht aus
+   * dem Suchtext, samt + davor; kam der Wert ohne Suchwort (die Nummern des Auflösers), wird die Eingabe geleert.
+   */
   function pickOffer(offer: SearchOffer) {
-    addFilter({ fieldName: offer.fieldName, value: offer.value })
-    setSearchText((previous) => withoutSearchWord(previous, offer.word))
+    addFilter({
+      fieldName: offer.fieldName,
+      value: offer.value,
+      label: offer.additionText ?? undefined,
+      previewBase64Png: offer.previewBase64Png ?? undefined,
+    })
+    const word = offer.word
+    setSearchText((previous) => (word === null ? '' : withoutSearchWord(previous, word)))
+  }
+
+  /** Eine Vervollständigung übernehmen: Das getippte Wort wird der ganze Wert, die Suche läuft damit, kein Filter */
+  function pickCompletion(completion: SearchTextCompletion) {
+    setSearchText((previous) => withTypedWordCompleted(previous, completion.completedText))
+    inputRef.current?.focus()
+  }
+
+  // Die Vervollständigungen wie in jeder Oberfläche (User 2026-10-13): eine Liste direkt unter dem Suchfeld, solange
+  // es den Fokus hat; Pfeiltasten wählen, Enter oder Tab übernimmt, Escape schließt sie für dieses Wort, die Maus geht
+  // auch. Kein Filter, kein Chip.
+  const [inputFocused, setInputFocused] = useState(false)
+  const [dismissedTypedWord, setDismissedTypedWord] = useState<string | null>(null)
+  const [completionCursor, setCompletionCursor] = useState({ typedWord: '', index: 0 })
+  const completionListOpen = inputFocused && completions.length > 0 && dismissedTypedWord !== typedWord
+  const activeCompletionIndex = completionCursor.typedWord === typedWord ? Math.min(completionCursor.index, completions.length - 1) : 0
+  /** wo die Liste steht: unter dem Suchfeld, in Bildschirmkoordinaten, denn die ContentBox schneidet Überstehendes ab */
+  const [completionListBox, setCompletionListBox] = useState<{ top: number; left: number; width: number } | null>(null)
+
+  useEffect(() => {
+    if (!completionListOpen) {
+      return
+    }
+    function place() {
+      const box = inputRef.current?.getBoundingClientRect()
+      if (box) {
+        setCompletionListBox({ top: box.bottom + 2, left: box.left, width: box.width })
+      }
+    }
+    place()
+    // die Seite rollt im main, nicht im Fenster: beim Rollen und bei neuer Größe mitwandern
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [completionListOpen])
+
+  function moveCompletionCursor(step: number) {
+    setCompletionCursor({ typedWord, index: (activeCompletionIndex + step + completions.length) % completions.length })
   }
 
   function runSearch(core: SearchCore, text: string, currentFilters: SearchFilter[]) {
@@ -223,16 +325,8 @@ export function Search() {
         if (runByCore.current[core.key] !== run) {
           return
         }
-        // Direktsprung: Passt ein Schlüssel exakt auf das Getippte, war es eine id, dann direkt zur Seite
-        const typed = text.trim().toLowerCase()
-        if (core.directPathOf !== null && typed !== '') {
-          const direct = data.hits.find((hit) => core.idOf(hit.fieldValues)?.toLowerCase() === typed)
-          const path = direct ? core.directPathOf(direct.fieldValues) : null
-          if (path !== null) {
-            navigate(path, { state: { origin: { path: `${SEARCH_PATH}${location.search}`, label: 'search.title' } } })
-            return
-          }
-        }
+        // kein Direktsprung mehr (User 2026-10-14): ein exakt getippter Schlüssel steht als Hinweis über den Treffern,
+        // Enter öffnet ihn (directHit)
         setResultByCore((previous) => ({ ...previous, [core.key]: data }))
         setErrorByCore((previous) => ({ ...previous, [core.key]: null }))
       })
@@ -248,9 +342,45 @@ export function Search() {
       .finally(() => setRunning((count) => count - 1))
   }
 
+  /**
+   * „weitere laden“ (User 2026-10-14): die nächste Seite desselben Suchtexts mit denselben Chips unten anhängen. Der
+   * Zwischenspeicher merkt sich das Ganze unter der Abfrage der ersten Seite, so stellt „zurück zu Suche“ auch die
+   * angehängten Seiten wieder her. Ändert sich die Eingabe, bevor die Seite ankommt, wird sie verworfen.
+   */
+  function loadMore(core: SearchCore) {
+    const current = resultByCore[core.key]
+    if (current === undefined || loadingMoreByCore[core.key]) {
+      return
+    }
+    const run = runByCore.current[core.key] ?? 0
+    const query = latestQueryRef.current
+    const firstPageRequest = searchRequestOf(searchText, filters)
+    setLoadingMoreByCore((previous) => ({ ...previous, [core.key]: true }))
+    core
+      .search(searchRequestOf(searchText, filters, current.page + 1))
+      .then(({ data }) => {
+        if (runByCore.current[core.key] !== run || latestQueryRef.current !== query) {
+          return
+        }
+        const merged: SearchResultPage = { ...data, hits: [...current.hits, ...data.hits] }
+        rememberSearchResult(usersGuid, core.key, firstPageRequest, merged)
+        setResultByCore((previous) => ({ ...previous, [core.key]: merged }))
+      })
+      .catch((error: unknown) => {
+        showToast({ kind: 'error', title: t('search.results.loadMoreFailed'), text: error instanceof RequestError ? error.message : undefined })
+      })
+      .finally(() => setLoadingMoreByCore((previous) => ({ ...previous, [core.key]: false })))
+  }
+
   // Stabile Schlüssel statt Array-Referenzen, sonst feuert der Effekt bei jedem Render
   const filtersKey = JSON.stringify(filters)
+
+  // die aktuelle Eingabe für loadMore: Eine Antwort zu einer älteren Eingabe gehört nicht mehr in die Liste
+  useEffect(() => {
+    latestQueryRef.current = JSON.stringify([searchText, filtersKey])
+  }, [searchText, filtersKey])
   const activeCoresKey = activeCoreKeys.join(',')
+  const resolverCoreKey = resolverCore?.key ?? ''
 
   // Der Stand in die Adresse, der Eintrag im Verlauf wird ersetzt, nicht vermehrt: Zurück führt aus der Suche heraus,
   // nicht durch jede getippte Taste. Der Router-State fällt dabei weg, die Vorbelegung ist da schon eingearbeitet.
@@ -270,6 +400,31 @@ export function Search() {
   /** Beim Verlassen der Suche mitgeben, mit dem aktuellen Stand in der Adresse, damit „zurück zu Suche“ ihn wiederherstellt */
   const originState: OriginState = { origin: { path: `${SEARCH_PATH}${location.search}`, label: 'search.title' } }
 
+  // Ein exakt getippter Schlüssel (User 2026-10-14): kein Sprung, denn es gibt längere Artikelnummern mit einer gültigen
+  // davor. Die Maske zeigt deutlich, dass die Eingabe genau ein Treffer ist; Enter oder der Knopf öffnet ihn, eine
+  // weitere Ziffer sucht neu. Nur aus den angewählten Kernen, nie aus dem stillen Auflöser.
+  const typedKey = searchText.trim().toLowerCase()
+  let directHit: { core: SearchCore; key: string; path: string } | null = null
+  if (searchable && typedKey !== '') {
+    for (const core of activeCores) {
+      if (core.directPathOf === null) {
+        continue
+      }
+      const hit = (resultByCore[core.key]?.hits ?? []).find((candidate) => core.idOf(candidate.fieldValues)?.toLowerCase() === typedKey)
+      const path = hit ? core.directPathOf(hit.fieldValues) : null
+      if (hit && path !== null) {
+        directHit = { core, key: core.idOf(hit.fieldValues) ?? searchText.trim(), path }
+        break
+      }
+    }
+  }
+
+  function openDirectHit() {
+    if (directHit !== null) {
+      navigate(directHit.path, { state: originState })
+    }
+  }
+
   // Je angewähltem Kern eine Suche. Was der Zwischenspeicher schon hat, steht sofort da, ohne Tipp-Pause (Zurück aus
   // einem Treffer, Backspace auf Gesehenes); der Rest nach 250 ms Tipp-Pause.
   useEffect(() => {
@@ -278,31 +433,60 @@ export function Search() {
       setErrorByCore({})
       return
     }
-    const pendingSearch: SearchCore[] = []
-    const request = searchRequestOf(searchText, filters)
-    for (const core of activeCores) {
-      const cached = cachedSearchResult(usersGuid, core.key, request)
+    // je Kern seine Abfrage: die angewählten mit Chips, der stille Auflöser nur mit dem Suchtext, denn fremde Chips
+    // (z. B. die Dateiart) kennt er nicht, und er soll nur Namen zu Nummern auflösen
+    const planned: { core: SearchCore; filters: SearchFilter[] }[] = activeCores.map((core) => ({ core, filters }))
+    if (resolverCore !== null) {
+      planned.push({ core: resolverCore, filters: [] })
+    }
+    const pendingSearch: typeof planned = []
+    for (const plan of planned) {
+      const cached = cachedSearchResult(usersGuid, plan.core.key, searchRequestOf(searchText, plan.filters))
       if (cached !== undefined) {
-        setResultByCore((previous) => ({ ...previous, [core.key]: cached }))
-        setErrorByCore((previous) => ({ ...previous, [core.key]: null }))
+        setResultByCore((previous) => ({ ...previous, [plan.core.key]: cached }))
+        setErrorByCore((previous) => ({ ...previous, [plan.core.key]: null }))
       } else {
-        pendingSearch.push(core)
+        pendingSearch.push(plan)
       }
     }
     if (pendingSearch.length === 0) {
       return
     }
     const timer = setTimeout(() => {
-      for (const core of pendingSearch) {
-        runSearch(core, searchText, filters)
+      for (const plan of pendingSearch) {
+        runSearch(plan.core, searchText, plan.filters)
       }
     }, SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
-    // die Kerne stehen über activeCoresKey drin, filters über ihren Schlüssel
+    // die Kerne stehen über activeCoresKey und resolverCoreKey drin, filters über ihren Schlüssel
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchText, filtersKey, activeCoresKey, searchable])
+  }, [searchText, filtersKey, activeCoresKey, resolverCoreKey, searchable])
 
   function keyDown(event: KeyboardEvent<HTMLInputElement>) {
+    // die offene Liste der Vervollständigungen unter dem Feld zuerst, wie in jeder Oberfläche
+    if (completionListOpen) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault()
+        moveCompletionCursor(event.key === 'ArrowDown' ? 1 : -1)
+        return
+      }
+      if (event.key === 'Enter' || (event.key === 'Tab' && !event.shiftKey)) {
+        event.preventDefault()
+        pickCompletion(completions[activeCompletionIndex])
+        return
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setDismissedTypedWord(typedWord)
+        return
+      }
+    }
+    // Enter öffnet den exakt getippten Schlüssel (User 2026-10-14)
+    if (event.key === 'Enter' && directHit !== null && !fileSubClassMode) {
+      event.preventDefault()
+      openDirectHit()
+      return
+    }
     // Tab loggt das erste Angebot ein, wie in der Vorlage; ohne Angebot bleibt Tab, was es ist
     if (event.key === 'Tab' && !event.shiftKey && offers.length > 0) {
       event.preventDefault()
@@ -352,11 +536,25 @@ export function Search() {
     })
   }
 
+  // Nur Kerne mit Treffern bekommen ihre Box (User 2026-10-13); ein Kern mit Fehler bleibt sichtbar, sonst verschwände
+  // der Fehler. Haben alle angewählten Kerne geantwortet und keiner trifft, sagt das eine Zeile unter der Eingabe.
+  const shownResultCores = activeCores.filter(
+    (core) => (resultByCore[core.key]?.hits.length ?? 0) > 0 || (errorByCore[core.key] ?? null) !== null,
+  )
+  const noHitsInAnyCore =
+    searchable &&
+    running === 0 &&
+    activeCores.length > 0 &&
+    activeCores.every((core) => resultByCore[core.key] !== undefined && (errorByCore[core.key] ?? null) === null) &&
+    shownResultCores.length === 0
+
   let inputHint: string | null = null
   if (tooManyWords) {
     inputHint = t('search.hint.TOO_MANY_SEARCH_WORDS', { max: SEARCH_MAX_WORDS })
   } else if (!fileSubClassMode && !searchable) {
     inputHint = t('search.hint.NO_SEARCH_WORD_AND_NO_FILTER', { min: SEARCH_MIN_CHARACTERS })
+  } else if (noHitsInAnyCore) {
+    inputHint = t('search.results.noHits')
   }
 
   return (
@@ -371,14 +569,24 @@ export function Search() {
         sticky
       />
       <div className="main-content">
-        <ContentBox title={t('search.title')}>
+        <ContentBox
+          title={t('search.title')}
+          footer={
+            // die Zahl der Suchwörter im Fuß der Box (User 2026-10-13), rot, sobald es zu viele sind
+            cores.length > 0 ? (
+              <span className={tooManyWords ? 'search-words search-words-exceeded' : 'search-words'}>
+                {t('search.words', { count: words.length, max: SEARCH_MAX_WORDS })}
+              </span>
+            ) : undefined
+          }
+        >
           {cores.length === 0 ? (
             <p className="mb-0">{t('search.noCores')}</p>
           ) : (
             <div className="d-flex flex-column gap-3">
               <p className="form-text mb-0">{t('search.intro')}</p>
-              <SearchFilterChips filters={filters} onRemove={removeFilter} language={language} />
-              <SearchSuggestions offers={offers} language={language} onPick={pickOffer} />
+              <SearchFilterChips filters={filters} onRemove={removeFilter} origin={originState} language={language} />
+              <SearchSuggestions offers={offers} firstOfferActive={!completionListOpen} origin={originState} language={language} onPickOffer={pickOffer} />
               <div className="d-flex align-items-center gap-2">
                 <input
                   ref={inputRef}
@@ -387,19 +595,66 @@ export function Search() {
                   value={searchText}
                   placeholder={t('search.placeholder')}
                   aria-label={t('search.title')}
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded={completionListOpen}
+                  aria-controls={SEARCH_COMPLETION_LIST_ID}
+                  aria-activedescendant={completionListOpen ? `${SEARCH_COMPLETION_LIST_ID}-${activeCompletionIndex}` : undefined}
                   onChange={(event) => setSearchText(event.target.value)}
                   onKeyDown={keyDown}
+                  onFocus={() => setInputFocused(true)}
+                  onBlur={() => setInputFocused(false)}
                 />
                 {running > 0 && (
                   <span className="spinner-border spinner-border-sm" role="status" aria-label={t('search.running')} />
                 )}
               </div>
-              <div className="d-flex flex-wrap align-items-center gap-3">
-                <span className={tooManyWords ? 'search-words search-words-exceeded' : 'search-words'}>
-                  {t('search.words', { count: words.length, max: SEARCH_MAX_WORDS })}
-                </span>
-                {inputHint !== null && <span className="small text-muted">{inputHint}</span>}
-              </div>
+              {completionListOpen &&
+                completionListBox !== null &&
+                createPortal(
+                  // das Dropdown von Bootstrap, an den Seitenkörper gehängt wie das Hoverlay, damit die ContentBox es
+                  // nicht abschneidet; mousedown statt click, sonst nähme der Klick dem Feld vorher den Fokus
+                  <ul
+                    id={SEARCH_COMPLETION_LIST_ID}
+                    className="dropdown-menu show search-completion-list"
+                    role="listbox"
+                    aria-label={t('search.completions.title')}
+                    style={{ top: completionListBox.top, left: completionListBox.left, width: completionListBox.width }}
+                  >
+                    {completions.map((completion, index) => (
+                      <li key={completion.completedText.toLowerCase()} id={`${SEARCH_COMPLETION_LIST_ID}-${index}`} role="option" aria-selected={index === activeCompletionIndex}>
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          className={index === activeCompletionIndex ? 'dropdown-item active search-completion-item' : 'dropdown-item search-completion-item'}
+                          onMouseDown={(event) => {
+                            event.preventDefault()
+                            pickCompletion(completion)
+                          }}
+                          onMouseEnter={() => setCompletionCursor({ typedWord, index })}
+                        >
+                          <span className="search-completion-text">{completion.completedText}</span>
+                          {completion.additionText && <span className="search-completion-addition">{completion.additionText}</span>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>,
+                  document.body,
+                )}
+              {directHit !== null && (
+                <div className="search-direct-hit" role="status">
+                  <span>
+                    {t('search.directHit.text', {
+                      core: translate(solrCoreOfKey(solrCores, directHit.core.key)?.displayName ?? null, language) || t(`search.cores.${directHit.core.labelKey}`),
+                      key: directHit.key,
+                    })}
+                  </span>
+                  <button type="button" className="button-other" onClick={openDirectHit}>
+                    {t('search.directHit.open')}
+                  </button>
+                </div>
+              )}
+              {inputHint !== null && <span className="small text-muted">{inputHint}</span>}
               {fileSubClassMode && (
                 <SearchFileSubClassTiles
                   fileSubClasses={readableFileSubClasses}
@@ -413,7 +668,7 @@ export function Search() {
         </ContentBox>
 
         {searchable &&
-          activeCores.map((core) => (
+          shownResultCores.map((core) => (
             <SearchCoreResults
               key={core.key}
               core={core}
@@ -422,6 +677,8 @@ export function Search() {
               errorMessage={errorByCore[core.key] ?? null}
               origin={originState}
               onFilter={addFilter}
+              loadingMore={loadingMoreByCore[core.key] === true}
+              onLoadMore={() => loadMore(core)}
             />
           ))}
       </div>
@@ -438,14 +695,18 @@ interface SearchCoreResultsProps {
   /** woher man kommt, mit dem Stand der Suche in der Adresse */
   origin: OriginState
   onFilter: (filter: SearchFilter) => void
+  /** die nächste Seite lädt gerade */
+  loadingMore: boolean
+  /** die nächste Seite unten anhängen */
+  onLoadMore: () => void
 }
 
 /**
  * Die Treffer eines Kerns: Emblem und Zahl im Kopf, der Fehler, die Liste in der Darstellung des Kerns in seiner Farbe
- * (Marken des Treffergrunds, Rand der Treffer), unten die Gesamtzahl und, wenn das Backend mehr hat als es liefert,
- * der Rat, enger zu suchen.
+ * (Marken des Treffergrunds, Rand der Treffer), unten die Gesamtzahl, wie viele davon geladen sind, und, wenn es mehr
+ * gibt, der Knopf für die nächsten (User 2026-10-14).
  */
-function SearchCoreResults({ core, solrCore, result, errorMessage, origin, onFilter }: SearchCoreResultsProps) {
+function SearchCoreResults({ core, solrCore, result, errorMessage, origin, onFilter, loadingMore, onLoadMore }: SearchCoreResultsProps) {
   const { t } = useTranslation()
   const { language } = useLanguage()
   const coreName = solrCore ? (
@@ -461,7 +722,14 @@ function SearchCoreResults({ core, solrCore, result, errorMessage, origin, onFil
     result !== null ? (
       <div className="d-flex flex-wrap align-items-center gap-2">
         <span>{t('resolve.total', { count: total })}</span>
-        {total > shown && <span className="small text-muted">{t('search.results.onlyBest', { count: shown })}</span>}
+        {total > shown && (
+          <>
+            <span className="small text-muted">{t('search.results.shown', { count: shown })}</span>
+            <button type="button" className="button-other" disabled={loadingMore} onClick={onLoadMore}>
+              {loadingMore ? t('search.results.loadingMore') : t('search.results.loadMore', { count: Math.min(result.pageSize, total - shown) })}
+            </button>
+          </>
+        )}
       </div>
     ) : undefined
 

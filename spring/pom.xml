@@ -84,6 +84,13 @@
 			<artifactId>tika-langdetect-optimaize</artifactId>
 			<version>3.3.2</version>
 		</dependency>
+		<!-- Datafaker erzeugt deutsche Fake-Namen, Firmen, Straßen, Orte und Telefonnummern für die Testdaten
+		     (fakedata/service/TestFakeDataService, User 2026-10-14). Version am 2026-10-14 über Maven Central geprüft. -->
+		<dependency>
+			<groupId>net.datafaker</groupId>
+			<artifactId>datafaker</artifactId>
+			<version>2.7.0</version>
+		</dependency>
 		<!-- SolrJ, der Java-Client für Solr, Version wie der Container solr:10.0.0. Der Jetty-Client ist in Solr 10 ein
 		     eigenes Modul (solr-solrj-jetty) und liefert HttpJettySolrClient (solr/client/SolrClientRegistry). Nie der
 		     HttpJdkSolrClient: Der hängt nach einem Verbindungsabbruch für immer, ohne Fehler (SOLR-17707, in 10.0.0
