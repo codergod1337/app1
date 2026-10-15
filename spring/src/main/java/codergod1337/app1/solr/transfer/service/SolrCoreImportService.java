@@ -1,5 +1,6 @@
 package codergod1337.app1.solr.transfer.service;
 
+import codergod1337.app1.solr.SolrFieldName;
 import codergod1337.app1.solr.client.SolrClientRegistry;
 import codergod1337.app1.solr.core.model.SolrCore;
 import codergod1337.app1.solr.core.service.SolrCoreService;
@@ -519,12 +520,15 @@ public class SolrCoreImportService {
 		return byName;
 	}
 
-	/** Die Namen der Suggest-Zwillinge: Sie entstehen über copyField, aus der Datei kommen sie nie */
+	/** Die Namen der Suggest- und Ngram-Zwillinge: Sie entstehen über copyField, aus der Datei kommen sie nie */
 	private static Set<String> twinNamesOf(Collection<SolrField> coreFields) {
 		Set<String> twinNames = new HashSet<>();
 		for (SolrField coreField : coreFields) {
 			if (coreField.isSuggest()) {
-				twinNames.add(coreField.getName() + "Suggested");
+				twinNames.add(coreField.getName() + SolrFieldName.SUGGEST_SUFFIX);
+			}
+			if (coreField.isNgram()) {
+				twinNames.add(coreField.getName() + SolrFieldName.NGRAM_SUFFIX);
 			}
 		}
 		return twinNames;

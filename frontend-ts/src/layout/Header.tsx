@@ -11,6 +11,7 @@ import { SEARCH_PATH } from '../modul/search/Search.ts'
 import { searchCoresOf } from '../modul/search/searchCores.ts'
 import { LanguageMenu } from './LanguageMenu.tsx'
 import { OwnAccessRoleCollection } from './OwnAccessRoleCollection.tsx'
+import { TodojobWaitingBadge } from '../modul/todojob/TodojobWaitingBadge.tsx'
 import { UserMenu } from './UserMenu.tsx'
 
 /** Restzeit bis zum Zeitpunkt als mm:ss */
@@ -100,6 +101,7 @@ export function Header() {
         <LanguageMenu />
         {sessionInfo?.loggedIn === true && (
           <>
+            <TodojobWaitingBadge />
             <OwnAccessRoleCollection />
             <UserMenu countdown={countdown} />
           </>

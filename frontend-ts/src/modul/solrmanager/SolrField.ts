@@ -31,8 +31,16 @@ export function isSuggestable(type: SolrFieldType): boolean {
   return SOLR_FIELD_TYPES.find((candidate) => candidate.type === type)?.suggestable ?? false
 }
 
-/** Die sechs Solr-Schalter, Spalten der Tabelle im Kern-Tab */
-export type SolrFieldSetting = 'indexed' | 'stored' | 'multiValued' | 'docValues' | 'required' | 'suggest'
+/**
+ * Ob ein Feld einen Ngram-Zwilling <name>Ngram bekommen kann (SolrFieldType.isNgramTwinAllowed): nur Typen mit Text,
+ * string, email und die Texttypen außer text_ngram, das ist selbst schon einer (User 2026-10-16).
+ */
+export function isNgramTwinAllowed(type: SolrFieldType): boolean {
+  return type === 'STRING' || type === 'EMAIL' || type === 'TEXT_EDGE' || type === 'TEXT_SUCHE'
+}
+
+/** Die sieben Solr-Schalter, Spalten der Tabelle im Kern-Tab */
+export type SolrFieldSetting = 'indexed' | 'stored' | 'multiValued' | 'docValues' | 'required' | 'suggest' | 'ngram'
 
 /** Die Erklärungen dazu stehen in solrFieldHints.tsx, fürs Hoverlay am Spaltenkopf */
 export const SOLR_FIELD_SETTINGS: { setting: SolrFieldSetting; label: string }[] = [
@@ -42,6 +50,7 @@ export const SOLR_FIELD_SETTINGS: { setting: SolrFieldSetting; label: string }[]
   { setting: 'docValues', label: 'docValues' },
   { setting: 'required', label: 'required' },
   { setting: 'suggest', label: 'suggest' },
+  { setting: 'ngram', label: 'ngram' },
 ]
 
 /**
@@ -93,6 +102,11 @@ export interface SolrField {
   required: boolean
   /** ein Zwilling <name>Suggested mit copyField, nicht bei jedem Typ */
   suggest: boolean
+  /**
+   * ein Zwilling <name>Ngram vom Typ text_ngram mit copyField (User 2026-10-16): jedes Stück ab 3 Zeichen trifft, das
+   * Feld selbst bleibt exakt; nur bei Typen mit Text, nie an einer Hook-Zeile
+   */
+  ngram: boolean
   /**
    * essenziell: ohne das Feld ergibt ein Dokument dieses Kerns keinen Sinn, der Import verlangt es (User 2026-10-14). Je
    * Kern, auch bei einer Hook-Zeile; id ist immer essenziell. Nur in unserer Felddefinition, nie in Solr.

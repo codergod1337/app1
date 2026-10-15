@@ -105,6 +105,7 @@ import { SolrHookGroupsTab } from './modul/solrmanager/SolrHookGroupsTab.tsx'
 import { SolrHooksTab } from './modul/solrmanager/SolrHooksTab.tsx'
 import { SolrManager } from './modul/solrmanager/SolrManager.tsx'
 import { TestFakeData } from './modul/testfakedata/TestFakeData.tsx'
+import { TodojobPage } from './modul/todojob/TodojobPage.tsx'
 
 const router = createBrowserRouter([
   {
@@ -128,6 +129,15 @@ const router = createBrowserRouter([
           // das Profil eines anderen Users: Ziel jedes angezeigten Namens (UsersGuidName)
           { path: 'user/:guid', element: <UsersProfilePage /> },
         ],
+      },
+      {
+        // die Seite eines Todo-Jobs, nur für eine Partei; angemeldet reicht, das Backend prüft die Partei (User 2026-10-16)
+        path: 'todojob/:id',
+        element: (
+          <RequireLogin>
+            <TodojobPage />
+          </RequireLogin>
+        ),
       },
       {
         path: 'admin',

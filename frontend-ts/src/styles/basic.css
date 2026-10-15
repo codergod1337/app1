@@ -2254,6 +2254,332 @@
     background: var(--contentbox-footer-bg);
   }
 
+  /*
+   * ===== Todo-Jobs (User 2026-10-16): der Block auf der Landingpage Profil, die Jobseite =====
+   * Die Farbe eines Status (--todojob-color) ist theme-invariant wie die Badges, damit jede Zeile sofort zeigt, wo
+   * der Job steht; alles andere kommt aus den Variablen der ContentBox.
+   */
+  /*
+   * Die Landingpage (User 2026-10-16): Message of the day über die ganze Breite, darunter die Jobs breit neben den
+   * News, darunter die beiden Historys nebeneinander. Auf schmalen Schirmen alles untereinander in dieser Reihenfolge.
+   */
+  .profile-landing {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    grid-template-areas:
+      'motd motd'
+      'jobs news'
+      'artikel dokumente';
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 1.5rem;
+  }
+
+  .profile-landing-motd {
+    grid-area: motd;
+  }
+
+  .profile-landing-jobs {
+    grid-area: jobs;
+    min-width: 0;
+  }
+
+  .profile-landing-news {
+    grid-area: news;
+    min-width: 0;
+  }
+
+  .profile-landing-artikel {
+    grid-area: artikel;
+    min-width: 0;
+  }
+
+  .profile-landing-dokumente {
+    grid-area: dokumente;
+    min-width: 0;
+  }
+
+  .profile-motd {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+  }
+
+  .profile-motd-icon {
+    display: grid;
+    flex: none;
+    width: 2.6rem;
+    height: 2.6rem;
+    place-items: center;
+    border-radius: 0.65rem;
+    background: var(--header-bg);
+    color: var(--header-text);
+    font-size: 1.2rem;
+  }
+
+  .profile-motd-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+
+  .profile-motd-text {
+    margin: 0;
+    max-width: 80ch;
+    white-space: pre-line;
+  }
+
+  .profile-motd-meta,
+  .profile-news-author {
+    font-size: 0.8125rem;
+    opacity: 0.7;
+  }
+
+  .profile-news-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .profile-news-entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--contentbox-border);
+  }
+
+  .profile-news-entry:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .profile-news-entry:first-child {
+    padding-top: 0;
+  }
+
+  .profile-news-date {
+    flex: none;
+    width: 6rem;
+    font-size: 0.8125rem;
+    opacity: 0.7;
+  }
+
+  .profile-news-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  .profile-news-title {
+    font-weight: 600;
+  }
+
+  .profile-news-teaser {
+    margin: 0;
+  }
+
+  .todojob-overview-link {
+    font-weight: 600;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .todojob-overview-link:hover {
+    text-decoration: underline;
+  }
+
+  .todojob-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .todojob-entry,
+  .todojob-similar-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--contentbox-border);
+    border-left: 0.35rem solid var(--todojob-color, var(--contentbox-border));
+    border-radius: 0.5rem;
+    background: var(--contentbox-footer-bg);
+  }
+
+  .todojob-entry-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.6rem;
+    font-size: 0.8125rem;
+    opacity: 0.85;
+  }
+
+  .todojob-entry-retracted {
+    opacity: 0.5;
+    text-decoration: line-through;
+  }
+
+  .todojob-answer {
+    margin-top: 0.4rem;
+    padding-left: 0.75rem;
+    border-left: 2px solid var(--contentbox-border);
+  }
+
+  .todojob-card-number {
+    opacity: 0.6;
+    font-weight: 400;
+  }
+
+  .todojob-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.05rem 0.55rem;
+    border-radius: 999px;
+    background: var(--todojob-color, #64748b);
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .todojob-text,
+  .todojob-kontext {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .todojob-kontext {
+    margin: 0 0 0.75rem;
+    padding-left: 1.25rem;
+  }
+
+  .todojob-page-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .todojob-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .todojob-inline-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .todojob-log {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.875rem;
+  }
+
+  .todojob-log-time {
+    opacity: 0.6;
+  }
+
+  .todojob-form,
+  .todojob-similar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .todojob-form-command,
+  .todojob-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem 1rem;
+  }
+
+  .todojob-form-field {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .todojob-similar {
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border: 1px dashed var(--contentbox-border);
+    border-radius: 0.5rem;
+  }
+
+  .todojob-similar-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-weight: 600;
+  }
+
+  .todojob-similar-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.875rem;
+  }
+
+  /* die Zahl im header: das Symbol mit der Zahl der wartenden Jobs, der Klick führt zum Schreibtisch */
+  .todojob-waiting {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    height: 2rem;
+    padding: 0 0.6rem;
+    border-radius: 999px;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .todojob-waiting-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  @media (max-width: 991.98px) {
+    .todojob-page-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .profile-landing {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas:
+        'motd'
+        'jobs'
+        'news'
+        'artikel'
+        'dokumente';
+    }
+  }
+
   .profile-showcase-item .access-role-badge-compact {
     min-width: 2.9rem;
     height: 2.9rem;

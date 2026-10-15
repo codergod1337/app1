@@ -31,7 +31,7 @@
     "symbolSearchPlaceholder": "suchen, z. B. shield, star, crown, desk",
     "keyRule": "nur A–Z, 0–9 und _, beginnt und endet mit einem Großbuchstaben, nie zwei _ hintereinander",
     "keyRuleWithPrefix": "beginnt mit {{prefix}}, {{rule}}",
-    "solrFieldNameRule": "beginnt mit einem Buchstaben, dann Buchstaben, Ziffern und _, endet nicht auf _ oder Suggested",
+    "solrFieldNameRule": "beginnt mit einem Buchstaben, dann Buchstaben, Ziffern und _, endet nicht auf _, Suggested oder Ngram",
     "valuesInputAria": "Wert eingeben, Leertaste, Tab oder Enter loggt ein",
     "removeValue": "{{value}} entfernen",
     "search": "suchen",
@@ -103,7 +103,8 @@
       "belegnummer": "Belegnummer",
       "archivieren": "Archivieren",
       "testfakedata": "Testdaten",
-      "requestmonitor": "Anfragenmonitor"
+      "requestmonitor": "Anfragenmonitor",
+      "todojob": "Todo-Jobs"
     },
     "entryAccessRoles": {
       "symbolLabel": "Welche AR dieses Modul öffnen",
@@ -1088,7 +1089,6 @@
       "newField": "neues Feld",
       "settingFor": "{{setting}} für {{name}}",
       "essential": "essenziell",
-      "essentialHint": "Ohne dieses Feld ergibt ein Dokument dieses Kerns keinen Sinn, etwa Artikelnummer, Name und Sternzeit eines Artikels. Der Import eines Kerns verlangt jedes essenzielle Feld, aus der Datei oder über eine Zuordnung. Gilt je Kern, auch für Hooks; id ist immer essenziell. Nur in unserer Felddefinition, Solr lehnt ohne das Feld nichts ab.",
       "typeOf": "Typ von {{name}}",
       "everyCore": "in jedem Kern: dieselbe Zeile in jedem Kern-Tab",
       "fieldAccess": "Lesen",
@@ -1194,6 +1194,16 @@
           "Kostet Indexplatz: je Wert alle seine Präfixe. Der Zwilling ist nie stored und steht nicht in dieser Tabelle."
         ]
       },
+      "ngram": {
+        "title": "ngram: ein Zwilling, in dem jedes Wortstück trifft",
+        "paragraphs": [
+          "Legt das Feld <name>Ngram vom Typ text_ngram an: jedes Stück ab 3 Zeichen trifft, an jeder Stelle des Werts, „datenbl“ und „herst“ finden „Datenblatt vom Hersteller“. Solr befüllt es selbst per copyField, kein Code schreibt es. Das Feld selbst bleibt exakt, also filterbar und facettierbar.",
+          "Auch nach einem Atomic Update ADD vollständig: Solr indexiert das Dokument dann aus den stored fields komplett neu und kopiert dabei alle Werte in den Zwilling. Deshalb ist der Zwilling nie stored, sonst verdoppelte jedes Update seine Werte.",
+          "Ein ganzer Wert trifft weiterhin exakt (preserveOriginal), auch eine DMS-id oder eine Artikelnummer. Bei einem JSON-Eintrag kopiert Solr den ganzen Text, die Schlüssel stehen dann mit im Zwilling, für das Finden von Text ist das egal.",
+          "Nur bei Typen mit Text: string, email, text_edge, text_suche. Nicht bei Zahlen, boolean, date und text_ngram, das ist selbst schon einer. Nie an einer Hook-Zeile.",
+          "Kostet Indexplatz: je Wert alle seine Stücke von 3 bis 50 Zeichen. Der Zwilling steht nicht in dieser Tabelle. Ein vorhandenes Feld bekommt ihn für alte Dokumente erst nach dem Nachziehen."
+        ]
+      },
       "fieldAccess": {
         "title": "Lesen: welche ARs das Feld bekommen",
         "paragraphs": [
@@ -1224,6 +1234,16 @@
         "paragraphs": [
           "Der Key eines Eintrags aus den Mappings, z. B. FIRMA_NAME: Wenn eine Antwort über ihr Mapping zerlegt wird, geht der Wert dieses Keys in dieses Feld. Derselbe Key darf in mehreren Mappings stehen, Firma und Ansprechpartner liefern beide KONTAKT_NAME.",
           "Ein loser Verweis, nur der Key: Die Vorschlagsliste zeigt alle Keys aus den gespeicherten Mappings, ein Key, den kein Mapping kennt, steht rot. Leer heißt, kein Mapping füllt das Feld. Nur in unserer Felddefinition, nicht in Solr."
+        ]
+      },
+      "essential": {
+        "title": "essenziell: ohne dieses Feld taugt kein Dokument des Kerns",
+        "paragraphs": [
+          "Wirkt an genau einer Stelle: beim Import eines Kerns aus einer Exportdatei (Export/Import in der Leiste oben). Die Datei kommt aus einer anderen Instanz oder einem älteren Export, dort kann ein Feld fehlen oder anders heißen, etwa die Artikelnummer oder die Dateiart.",
+          "Ohne den Schalter schriebe der Import tausende Dokumente ohne Artikelnummer oder ohne Dateiart in den Kern. Unbrauchbar, und man merkt es erst später in der Suche.",
+          "Mit dem Schalter muss vor dem Start, im Schritt Zuordnen, jedes essenzielle Feld des Kerns aus der Datei kommen oder einem Dateifeld zugeordnet sein, sonst startet nichts. id zählt immer dazu, Hook-Zeilen je Kern nach ihrem Haken.",
+          "Warum nicht required: required ist ein Solr-Schalter. Solr lehnt damit jedes Dokument ohne das Feld erst beim Schreiben ab, der Import bräche also mitten im Lauf mit einer Solr-Meldung ab statt vor dem Start. Und required gibt es nur bei Feldern, die der Client beim Anlegen setzt. Backend-Felder wie status oder erstelltAm können nie required sein, essenziell schon.",
+          "Sonst wirkt der Schalter nirgends: nicht beim Upload, nicht in der Suche, nicht in Solr. Nur in unserer Felddefinition."
         ]
       },
       "type": {
@@ -2124,6 +2144,140 @@
       "liftLabel": "Sperre von {{clientIp}} aufheben",
       "liftTitle": "Sperre aufheben",
       "liftQuestion": "Soll die Sperre von {{clientIp}} wirklich aufgehoben werden?"
+    }
+  },
+  "todojob": {
+    "job": "Job #{{id}}",
+    "overview": {
+      "title": "Jobs",
+      "myTurn": "Du bist dran",
+      "others": "Liegt bei anderen",
+      "nothingForMe": "Nichts, was auf dich wartet.",
+      "job": "Job",
+      "who": "Wer",
+      "status": "Status",
+      "frist": "Frist",
+      "footer": "{{open}} offen · {{done}} abgeschlossen"
+    },
+    "card": {
+      "owner": "von",
+      "servant": "an",
+      "claim": "Ich mach das",
+      "claimed": "Du hast den Job beansprucht.",
+      "openQuestions_one": "{{count}} offene Rückfrage",
+      "openQuestions_other": "{{count}} offene Rückfragen"
+    },
+    "waiting": {
+      "label": "{{count}} Jobs warten auf dich",
+      "hint": "Der Ball liegt bei dir: {{servant}} als Servant, {{owner}} als Owner. Klick führt zum Schreibtisch."
+    },
+    "create": {
+      "title": "Job erteilen",
+      "verb": "Verb",
+      "verbPlaceholder": "prüfe, beschaffe, lege an …",
+      "objekt": "Objekt",
+      "objektPlaceholder": "Kalkulation, Datenblatt vom Hersteller, Artikel in ABAS …",
+      "similar": "Ähnliche Jobs, die gut gemacht wurden",
+      "takeKontext": "Eingrenzungen übernehmen",
+      "aufgabe": "Aufgabe",
+      "kontext": "Kontext: mir ist wichtig, dass du …",
+      "kontextHint": "eine Eingrenzung je Zeile",
+      "rueckmeldungsArt": "Rückmeldungsart",
+      "bestaetigungNoetig": "Ich bestätige die Rückmeldung selbst",
+      "dauerhaftRelevant": "dauerhaft relevant, bleibt nach Abschluss in den Mappen",
+      "frist": "Frist",
+      "labels": "Anzeigeorte",
+      "noLabels": "keine Anzeigeorte angelegt",
+      "servantUsers": "Servants: Personen",
+      "servantRoles": "Servants: Rollen (AR)",
+      "servantArcs": "Servants: Positionen (ARC)",
+      "ownerSide": "Owner-Seite erweitern",
+      "ownerSideHint": "Wer eine dieser Rollen trägt oder in einer dieser Positionen ist, handelt neben dir als Owner.",
+      "hooks": "Bezüge",
+      "submit": "Erteilen",
+      "created": "Job #{{id}} erteilt."
+    },
+    "entryType": {
+      "LESEN": "Lesen",
+      "BOOL": "Ja oder Nein",
+      "TEXT": "Text",
+      "ZAHL": "Zahl",
+      "DATUM": "Datum",
+      "DMS_DATEI": "DMS-Datei",
+      "ARTIKELNUMMER": "Artikelnummer",
+      "STERNZEIT": "Sternzeit",
+      "COMMENT": "Kommentar",
+      "RETRACTED": "zurückgenommen"
+    },
+    "ausgang": {
+      "GUT_GEMACHT": "gut gemacht",
+      "VERFALLEN": "verfallen",
+      "ZURUECKGEZOGEN": "zurückgezogen"
+    },
+    "action": {
+      "CREATED": "erteilt",
+      "READ": "gelesen",
+      "CLAIMED": "beansprucht",
+      "CLAIM_RELEASED": "Claim gelöst",
+      "CLAIM_TAKEN": "Claim übernommen",
+      "QUESTION": "Rückfrage {{nr}}",
+      "ANSWER": "Rückantwort {{nr}}",
+      "RESPONDED": "fertig gemeldet",
+      "RETURNED": "zurückgegeben",
+      "CONFIRMED": "bestätigt",
+      "EXPIRED": "verfallen",
+      "WITHDRAWN": "zurückgezogen",
+      "DUE_DATE_CHANGED": "Frist geändert",
+      "LABELS_CHANGED": "Anzeigeorte geändert",
+      "COMMENT": "Kommentar"
+    },
+    "page": {
+      "notFound": "Job #{{id}} gibt es nicht, oder du bist weder Owner noch Servant.",
+      "erstellt": "erteilt",
+      "abgeschlossen": "abgeschlossen",
+      "requiredType": "verlangt: {{type}}",
+      "aufgabe": "Aufgabe",
+      "kontext": "Kontext",
+      "owner": "Owner",
+      "servants": "Servants",
+      "claim": "Claim",
+      "noClaim": "niemand",
+      "frist": "Frist",
+      "labels": "Anzeigeorte",
+      "dauerhaftRelevant": "dauerhaft relevant",
+      "hooks": "Bezüge",
+      "rueckmeldung": "Rückmeldung",
+      "entryValue": "Wert",
+      "entryText": "Text",
+      "addEntry": "Beitrag",
+      "noEntries": "Noch keine Rückmeldung.",
+      "retracts": "nimmt #{{nr}} zurück",
+      "retract": "zurücknehmen",
+      "rueckfragen": "Rückfragen",
+      "askPlaceholder": "Rückfrage an den Owner …",
+      "ask": "Fragen",
+      "noQuestions": "Keine Rückfragen.",
+      "unanswered": "offen",
+      "answerPlaceholder": "Rückantwort …",
+      "answer": "Antworten",
+      "actions": "Vorgänge",
+      "releaseClaim": "Claim lösen",
+      "takeClaim": "Claim übernehmen",
+      "takeReason": "Warum übernimmst du den Job?",
+      "respond": "Fertig melden",
+      "responded": "Fertig gemeldet.",
+      "confirm": "Bestätigen: gut gemacht",
+      "confirmed": "Bestätigt, gut gemacht.",
+      "return": "Zurückgeben",
+      "returned": "Zurückgegeben, der Job ist wieder in Bearbeitung.",
+      "returnReason": "Was fehlt oder stimmt nicht?",
+      "dueDate": "Frist ändern",
+      "withdraw": "Zurückziehen",
+      "withdrawQuestion": "Soll Job #{{id}} wirklich zurückgezogen werden? Er ist danach abgeschlossen, ohne Rückmeldung.",
+      "commentPlaceholder": "Kommentar am Job …",
+      "comment": "Kommentar",
+      "log": "Verlauf",
+      "rueckmeldungBis": "Rückmeldung bis #{{nr}} abgelehnt"
     }
   },
   "nachricht": {

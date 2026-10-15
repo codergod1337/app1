@@ -614,6 +614,8 @@ public class MasterDataImportService {
 				row.reject(RowStatus.INVALID, "type fehlt oder ist unbekannt");
 			} else if (solrField.isSuggest() && !solrField.getType().isSuggestable()) {
 				row.reject(RowStatus.INVALID, "suggest geht bei " + solrField.getType() + " nicht");
+			} else if (solrField.isNgram() && !solrField.getType().isNgramTwinAllowed()) {
+				row.reject(RowStatus.INVALID, "ngram geht bei " + solrField.getType() + " nicht");
 			} else if (solrField.isRequired() && (solrField.getClientWriteRule() == null
 					|| !solrField.getClientWriteRule().isClientAllowedToSetOnCreate())) {
 				row.reject(RowStatus.INVALID, "required geht nur bei einem Feld, das der Client beim Anlegen setzt");
@@ -1356,7 +1358,7 @@ public class MasterDataImportService {
 					solrField.isRequired(), solrField.isSuggest(), solrField.getReadAccessRoleKeys(),
 					solrField.getClientWriteRule(), solrField.getSearchWeight(), solrField.getDisplayName(),
 					solrField.getDescription(), solrField.getListingPosition(), solrField.getCommand(),
-					solrField.isEssential());
+					solrField.isEssential(), solrField.isNgram());
 		}
 
 		String startPassword = sha256Hex(START_PASSWORD);

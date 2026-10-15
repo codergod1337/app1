@@ -164,6 +164,32 @@ Rollen `NACHRICHTEN` (Tür) und `NACHRICHTEN_SUCHE` (Suche, öffnet auch die Tre
 
 Die Seite einer Nachricht (Frontend `modul/nachrichten/NachrichtPage.tsx`, Route `/nachricht/<id>`, keine Kachel) liest nur über den Verlauf: oben die Nachricht samt ganzer Mail, wenn so archiviert, darunter ihre Anhänge, jeder einzeln über `GET /api/rest/v1/solr/dms/document/<id>` mit den DMS-Rechten des Users, dann der Verlauf mit dem neuen Teil jeder Nachricht. Bilder im Text (`dms:<sha256>`, die DMS-id) holt die Seite über den normalen Download als Blob, ebenfalls mit den DMS-Rechten; `MailHtmlFrame` lässt dafür `blob:` zu. Die Suchmaske kennt den Kern als vierten Eintrag in `searchCores.ts`, ohne Direktsprung, denn die kleine laufende Nummer träfe jede getippte Belegnummer.
 
+## Kern TODOJOB
+
+Die Todo-Jobs (User 2026-10-16, Paket `codergod1337.app1.solr.todojob`): ein Job ist ein Befehl aus `verb` und `objekt` (freie Wörter, Vervollständigung aus dem Kern, zusammen die Kategorie), vom Owner (`ownerGuid`, dazu `ownerAccessRoleKeys`, `ownerArcKeys`) an Servants (`servantGuids`, `servantAccessRoleKeys`, `servantArcKeys`), mit `aufgabe`, `kontext` (Liste von Eingrenzungen), `rueckmeldungsArt`, `bestaetigungNoetig`, `dauerhaftRelevant`, `displayContextKeys` (Labels = Anzeigeorte aus `file_sub_class_destination`), `fristAm` und Hooks. Drei nur angehängte JSON-Listen im selben Format `{at, user, …}`: `rueckmeldung` (nr, type aus `TodojobRueckmeldungEntryType`, text oder value, RETRACTED nimmt eine nr zurück), `rueckfragen` und `rueckantworten` (nr, text), dazu `log` (action aus `TodojobLogAction`, je nach Aktion text, nr, rueckmeldungBis, snapshot). Zähler `offeneRueckfragen`, `wiedereroeffnetAnzahl`; Status `TodojobStatus` (OFFEN, CLAIMED, IN_BEARBEITUNG, FERTIG, ABGESCHLOSSEN, EntityState scope TODOJOB), Ausgang `TodojobAusgang` (GUT_GEMACHT, VERFALLEN, ZURUECKGEZOGEN). Die id ist eine laufende Nummer aus `counter_todojob_id`. Feldnamen in `codergod1337.app1.solr.todojob.model.TodojobFieldNames`.
+
+Kein readAcl, keine guid-Freigabe, keine Suchrolle, keine Tür-Rolle (User 2026-10-16: Jobs darf erst mal jeder Angemeldete empfangen, eine Rolle fürs Erteilen kommt später dort; die AR `TODOJOB` in der Datenbank ist ungenutzt): Die Sicht ist die Parteien-Prüfung (`SolrDocumentTodojobUtilsService.partyFilterQueryOfCurrentUser`: Owner oder Servant über guid, AR oder ARC des Tokens), auch für ADMIN. Zweiter Weg ist der Auszug für die Mappen über den Anzeigeort, ohne Parteien-Prüfung, mit festem fl (`TodojobFieldNames.EXCERPT_FIELD_NAMES` plus Hooks). Ein Admin-Weg ist noch nicht gebaut. Endpunkte `codergod1337.app1.solr.todojob.controller.SolrDocumentTodojobController` unter `/api/rest/v1/solr/todojob`, alle Methoden in `codergod1337.app1.solr.todojob.service.SolrDocumentTodojobService`.
+
+| Vorgang | Methode | Endpunkt | Tür | fq | Felder |
+|---|---|---|---|---|---|
+| Rechte des Users | `SolrDocumentTodojobUtilsService.accessForClient` | `GET /access` | TODOJOB | kein Solr | lesbare Felder, Rückmeldungsarten |
+| Jobseite | `getByIdAndMarkRead` | `GET /id/{id}` | TODOJOB | Parteien, Echtzeit-Lesen | Feldgrenze; beim ersten Öffnen durch einen Servant READ im Log |
+| Stapel | `resolveTodojobsForCurrentUser` | `POST /list` | TODOJOB | FOR_ME: Servant-Seite und offen; FROM_ME: Owner-Seite und offen; DONE: Parteien und ABGESCHLOSSEN | Feldgrenze, Seiten aus `app1.solr.resolve` |
+| Zahl im Benutzermenü | `countTodojobsWaitingForCurrentUser` | `GET /waiting` | TODOJOB | Servant: offen, kein fremder Claim, keine offene Rückfrage; Owner: FERTIG oder offene Rückfrage | nur Zahlen |
+| Auszug einer Mappe | `resolveTodojobExcerptsByDisplayContext` | `POST /excerpt` | TODOJOB plus die Tür der Mappe | Anzeigeort, Hook gleich Wert, offen oder dauerhaftRelevant; keine Parteien-Prüfung | nur der Auszug plus Hooks |
+| Suche über eigene Jobs | `searchTodojobs` | `POST /search` | TODOJOB | Parteien, Chips des Clients, Debuffs | edismax über die Felder mit Suchgewicht, Ngram-Zwilling vor Suggested-Zwilling vor Feld; Feldgrenze; `app1.solr.search.hits` je Seite; noch ohne Treffergrund |
+| Ähnliche Jobs | `suggestSimilarTodojobs` | `POST /suggest` | TODOJOB | Parteien, `ausgang:GUT_GEMACHT`, Verb exakt, Objekt über `objektNgram` | Verb, Objekt, Aufgabe, Kontext, Rückmeldung, Rückfragen, Rückantworten, 10 Treffer |
+| Vervollständigung | `completeFieldValues` | `POST /complete` | TODOJOB | Parteien, `verbSuggested` oder `objektSuggested` | Facette auf verb oder objekt, 10 Werte |
+| Erteilen | `createTodojob` | `POST /create` | TODOJOB | Prüfung jeder Eingabe: Labels, ARs, ARCs, User, Hooks, mindestens ein Servant | volles Dokument, Status OFFEN, Log CREATED |
+| Claim, lösen, übernehmen | `claimTodojob`, `releaseClaim`, `takeOverClaim` | `POST /claim`, `/claim/release`, `/claim/take` | TODOJOB | Servant und Gruppenjob; Inhaber oder Owner; Servant mit Begründung | `claimGuid`, Status OFFEN ↔ CLAIMED |
+| Beitrag, zurücknehmen | `addRueckmeldungEntry`, `retractRueckmeldungEntry` | `POST /rueckmeldung`, `/rueckmeldung/retract` | TODOJOB | Servant, in Arbeit, bei Claim nur der Inhaber | `rueckmeldung` ADD, Status IN_BEARBEITUNG, erster Beitrag an einem Gruppenjob ist der Claim |
+| Rückfrage, Rückantwort | `askQuestion`, `answerQuestion` | `POST /question`, `/answer` | TODOJOB | Servant; Owner | `rueckfragen` bzw. `rueckantworten` ADD, `offeneRueckfragen` INC |
+| Fertig melden | `respondTodojob` | `POST /respond` | TODOJOB | Servant, keine offene Rückfrage, ein Eintrag der Rückmeldungsart | FERTIG, oder ohne Bestätigungspflicht ABGESCHLOSSEN mit GUT_GEMACHT |
+| Bestätigen, zurückgeben, zurückziehen | `confirmTodojob`, `returnTodojob`, `withdrawTodojob` | `POST /confirm`, `/return`, `/withdraw` | TODOJOB | Owner | GUT_GEMACHT; IN_BEARBEITUNG mit `wiedereroeffnetAnzahl` INC und RETURNED (text, rueckmeldungBis, snapshot); ZURUECKGEZOGEN |
+| Kommentar, Frist, Labels | `commentTodojob`, `changeDueDate`, `changeLabels` | `POST /comment`, `/due-date`, `/labels` | TODOJOB | Partei; Owner; Owner | Log COMMENT; `fristAm`; `displayContextKeys` und `dauerhaftRelevant` |
+
+Jeder Vorgang ist ein Atomic Update über `SolrDocumentService.atomicUpdateDocument`: nur die genannten Felder, Listen nur per `add-distinct`, dazu der Log-Eintrag, `lastChangedAt` SET und `changingUsers` ADD; keine Revision. Offen: Verfall per Fristlauf (EXPIRED), der Admin-Weg, der Treffergrund der Suche, die Namen der Parteien für die Oberfläche.
+
 ## Nur Postgres, kein Solr
 
 | Klasse | Was |

@@ -246,14 +246,13 @@ public class SolrSchemaSyncService {
 			expectedNames.add(expected.name());
 			planField(expected.attributes(), fieldsInSolr, updates, added, replaced, typeConflicts);
 			if (expected.suggest() && expected.type().isSuggestable()) {
-				String twin = expected.name() + SolrFieldName.SUGGEST_SUFFIX;
-				expectedNames.add(twin);
-				planField(attributes(twin, expected.type().getSuggestSolrFieldType(), true, false, true, false, false),
-						fieldsInSolr, updates, added, replaced, typeConflicts);
-				if (!copyFieldsInSolr.contains(expected.name() + "→" + twin)) {
-					updates.add(new SchemaRequest.AddCopyField(expected.name(), List.of(twin)));
-					copyFieldsAdded.add(expected.name() + " → " + twin);
-				}
+				planTwin(expected, SolrFieldName.SUGGEST_SUFFIX, expected.type().getSuggestSolrFieldType(), fieldsInSolr,
+						copyFieldsInSolr, expectedNames, updates, added, replaced, typeConflicts, copyFieldsAdded);
+			}
+			// der Ngram-Zwilling (User 2026-10-16): jedes Stück ab 3 Zeichen trifft, das Feld selbst bleibt exakt
+			if (expected.ngram() && expected.type().isNgramTwinAllowed()) {
+				planTwin(expected, SolrFieldName.NGRAM_SUFFIX, TEXT_NGRAM_FIELD_TYPE_NAME, fieldsInSolr, copyFieldsInSolr,
+						expectedNames, updates, added, replaced, typeConflicts, copyFieldsAdded);
 			}
 		}
 
@@ -357,6 +356,24 @@ public class SolrSchemaSyncService {
 		}
 	}
 
+	/**
+	 * Ein Zwilling eines Feldes: {@code <name><suffix>} mit dem genannten Typ, indexed, nie stored (sonst verdoppelte
+	 * jedes Atomic Update seine Werte), immer multiValued, dazu das copyField von der Quelle, wenn es noch fehlt.
+	 */
+	private static void planTwin(ExpectedField expected, String suffix, String twinSolrType,
+			Map<String, Map<String, Object>> fieldsInSolr, Set<String> copyFieldsInSolr, Set<String> expectedNames,
+			List<SchemaRequest.Update> updates, List<String> added, List<String> replaced, List<String> typeConflicts,
+			List<String> copyFieldsAdded) {
+		String twin = expected.name() + suffix;
+		expectedNames.add(twin);
+		planField(attributes(twin, twinSolrType, true, false, true, false, false), fieldsInSolr, updates, added,
+				replaced, typeConflicts);
+		if (!copyFieldsInSolr.contains(expected.name() + "→" + twin)) {
+			updates.add(new SchemaRequest.AddCopyField(expected.name(), List.of(twin)));
+			copyFieldsAdded.add(expected.name() + " → " + twin);
+		}
+	}
+
 	/** Ein erwartetes Feld gegen Solr: fehlt es, add-field; anderer Typ, nur melden; andere Schalter, replace-field. */
 	private static void planField(Map<String, Object> attributes, Map<String, Map<String, Object>> fieldsInSolr,
 			List<SchemaRequest.Update> updates, List<String> added, List<String> replaced, List<String> typeConflicts) {
@@ -386,13 +403,13 @@ public class SolrSchemaSyncService {
 		for (SolrField solrField : solrFieldService.getSolrFieldsByCoreKey(coreKey)) {
 			expected.add(new ExpectedField(solrField.getName(), solrField.getType(), solrField.isIndexed(),
 					solrField.isStored(), solrField.isMultiValued(), solrField.isDocValues(), solrField.isRequired(),
-					solrField.isSuggest()));
+					solrField.isSuggest(), solrField.isNgram()));
 		}
 		return expected;
 	}
 
 	private record ExpectedField(String name, SolrFieldType type, boolean indexed, boolean stored,
-			boolean multiValued, boolean docValues, boolean required, boolean suggest) {
+			boolean multiValued, boolean docValues, boolean required, boolean suggest, boolean ngram) {
 
 		Map<String, Object> attributes() {
 			return SolrSchemaSyncService.attributes(name, type.getSolrFieldType(), indexed, stored, multiValued,

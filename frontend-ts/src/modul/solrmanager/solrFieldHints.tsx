@@ -33,11 +33,13 @@ function paragraphs(
     | 'docValues'
     | 'required'
     | 'suggest'
+    | 'ngram'
     | 'type'
     | 'fieldAccess'
     | 'searchWeight'
     | 'clientWriteRule'
-    | 'command',
+    | 'command'
+    | 'essential',
 ): string[] {
   const value: unknown = t(`solrmanager.hints.${key}.paragraphs`, { returnObjects: true })
   return Array.isArray(value) ? value.map(String) : []
@@ -114,6 +116,11 @@ export function solrFieldClientWriteRuleHint(t: TFunction): ReactNode {
 /** Die Erklärung der Spalte Mapping: der Key des Mapping-Eintrags, dessen Werte ins Feld gehen */
 export function solrFieldCommandHint(t: TFunction): ReactNode {
   return explanation(t('solrmanager.hints.command.title'), ...paragraphs(t, 'command'))
+}
+
+/** Die Erklärung der Spalte essenziell: wirkt nur beim Import eines Kerns, und warum required das nicht leistet */
+export function solrFieldEssentialHint(t: TFunction): ReactNode {
+  return explanation(t('solrmanager.hints.essential.title'), ...paragraphs(t, 'essential'))
 }
 
 /**

@@ -121,6 +121,17 @@ public class SolrField {
 	private boolean suggest;
 
 	/**
+	 * Ein Zwilling <name>Ngram vom Typ text_ngram mit copyField (User 2026-10-16): jedes Stück ab 3 Zeichen trifft, an
+	 * jeder Stelle des Werts, das Feld selbst bleibt exakt und facettierbar. Solr füllt den Zwilling bei jedem Schreiben
+	 * neu, auch nach einem Atomic Update ADD, denn es indexiert das Dokument dann aus den stored fields komplett neu. Der
+	 * Zwilling ist nie stored, sonst verdoppelte jedes Update seine Werte. Nur bei Typen mit Text
+	 * ({@link SolrFieldType#isNgramTwinAllowed()}), nie an einer Hook-Zeile.
+	 */
+	@Column(nullable = false)
+	@ColumnDefault("false")
+	private boolean ngram;
+
+	/**
 	 * Essenziell (User 2026-10-14): Ohne dieses Feld ergibt ein Dokument des Kerns keinen Sinn, z. B. Artikelnummer, Name
 	 * und Sternzeit eines Artikels oder die Dateiart eines DMS-Dokuments. Der Import eines Kerns verlangt jedes
 	 * essenzielle Feld, aus der Datei oder über eine Zuordnung. Je Zeile, also je Kern, auch bei einer Hook-Zeile; id ist
@@ -304,6 +315,14 @@ public class SolrField {
 
 	public void setSuggest(boolean suggest) {
 		this.suggest = suggest;
+	}
+
+	public boolean isNgram() {
+		return ngram;
+	}
+
+	public void setNgram(boolean ngram) {
+		this.ngram = ngram;
 	}
 
 	public boolean isEssential() {

@@ -1,13 +1,16 @@
 /*
  * Die Regel für Solr-Feldnamen, gleich wie im Backend (SolrFieldName.isValid):
- * Buchstabe am Anfang, dann Buchstaben, Ziffern und _, nicht auf _ oder Suggested endend, kein Solr-eigenes Feld,
- * höchstens 100 Zeichen. Beispiele: artikelNummer, kundenNummer, ean
+ * Buchstabe am Anfang, dann Buchstaben, Ziffern und _, nicht auf _, Suggested oder Ngram endend, kein Solr-eigenes
+ * Feld, höchstens 100 Zeichen. Beispiele: artikelNummer, kundenNummer, ean
  */
 
 export const SOLR_FIELD_NAME_MAX_LENGTH = 100
 
 /** Hängt Solr an jedes Feld, das ein Suggest-Gegenstück bekommt, deshalb darf kein Hook so enden */
 const SUGGEST_SUFFIX = 'Suggested'
+
+/** Hängt Solr an jedes Feld, das ein Ngram-Gegenstück bekommt (User 2026-10-16), deshalb darf kein Feld so enden */
+const NGRAM_SUFFIX = 'Ngram'
 
 /**
  * Solrs eigene Felder, kein Hook und kein Feld darf so heißen. id ist ein normales Feld ohne Kern, angelegt im Kern-Tab
@@ -23,6 +26,7 @@ export function isValidSolrFieldName(fieldName: string): boolean {
     VALID_SOLR_FIELD_NAME.test(fieldName) &&
     !fieldName.endsWith('_') &&
     !fieldName.endsWith(SUGGEST_SUFFIX) &&
+    !fieldName.endsWith(NGRAM_SUFFIX) &&
     !RESERVED.includes(fieldName)
   )
 }

@@ -75,6 +75,16 @@ public enum SolrFieldType {
 		return suggestSolrFieldType != null;
 	}
 
+	/**
+	 * Ob das Feld einen Ngram-Zwilling {@code <name>Ngram} vom Typ text_ngram bekommen kann (User 2026-10-16): jedes
+	 * Stück ab 3 Zeichen trifft, das Feld selbst bleibt exakt. Nur bei Werten mit Text: string, E-Mail und die Texttypen
+	 * außer text_ngram, das ist selbst schon einer. Zahlen, boolean und date haben nichts, worin ein Wortteil treffen
+	 * könnte.
+	 */
+	public boolean isNgramTwinAllowed() {
+		return this == STRING || this == EMAIL || this == TEXT_EDGE || this == TEXT_SUCHE;
+	}
+
 	/** Ein Textfeld: Werte werden zerlegt, exakte Bedingungen gehen als Phrase, nicht über den terms-Parser */
 	public boolean isText() {
 		return this == TEXT_EDGE || this == TEXT_NGRAM || this == TEXT_SUCHE;

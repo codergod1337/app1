@@ -23,11 +23,16 @@ import {
   type UsersSessionForClient,
 } from '../login/Session.ts'
 import { useSession } from '../login/sessionContext.ts'
+import { TodojobOverviewBox } from '../todojob/TodojobOverviewBox.tsx'
 import { ChangeUsersPasswordPopup } from '../users/ChangeUsersPasswordPopup.tsx'
 import { getUsersByGuid } from '../users/Users.ts'
 import { getUsersDetailsByUsersGuid } from '../users/UsersDetails.ts'
+import { ProfileArticleHistory } from './ProfileArticleHistory.tsx'
+import { ProfileDocumentHistory } from './ProfileDocumentHistory.tsx'
 import { ProfileGuestbook } from './ProfileGuestbook.tsx'
 import { ProfileHero } from './ProfileHero.tsx'
+import { ProfileMessageOfTheDay } from './ProfileMessageOfTheDay.tsx'
+import { ProfileNews } from './ProfileNews.tsx'
 import { toWebUrl, usersAvatarBackground, usersInitials } from './profileDisplay.ts'
 
 /** Beim Wechsel auf eine Bearbeiten-Seite mitgeben, damit der header „zurück zu Profil“ anbietet */
@@ -152,6 +157,29 @@ export function ProfileOverview({ usersGuid: requestedUsersGuid }: ProfileOvervi
         errorMessage={usersErrorMessage}
         onEdit={own ? () => navigate('/profile/edit/users', { state: ORIGIN_STATE }) : undefined}
       />
+
+      {/* Das Profil ist die Landingpage (User 2026-10-16): Blöcke über alles, was ansteht. Die Jobs sind echt, Message of
+          the day, Unternehmensnews und die eigene History an Artikeln und Dokumenten sind Vorschau mit Platzhaltern wie
+          das Gästebuch, damit die Struktur steht. Nur im eigenen Profil. */}
+      {own && (
+        <div className="profile-landing">
+          <div className="profile-landing-motd">
+            <ProfileMessageOfTheDay />
+          </div>
+          <div className="profile-landing-jobs">
+            <TodojobOverviewBox />
+          </div>
+          <div className="profile-landing-news">
+            <ProfileNews />
+          </div>
+          <div className="profile-landing-artikel">
+            <ProfileArticleHistory />
+          </div>
+          <div className="profile-landing-dokumente">
+            <ProfileDocumentHistory />
+          </div>
+        </div>
+      )}
 
       <div className="profile-grid">
         <div className="profile-column">

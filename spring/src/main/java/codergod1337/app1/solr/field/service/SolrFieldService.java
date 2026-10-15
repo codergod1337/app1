@@ -99,21 +99,23 @@ public class SolrFieldService {
 	// ===== Admin =====
 
 	/**
-	 * Neues normales Feld. 400 bei ungültigem name, bei unbekanntem Kern, unbekannter AR, suggest bei einem Typ ohne
-	 * Zwilling, required an einem Feld, das der Client nicht setzt, oder Suchgewicht an einem Feld ohne Wortanfang. 409
-	 * wenn es den Namen in diesem Kern schon gibt, als Feld, als Hook oder als Feld jedes Kerns (Kern plus Name ist
-	 * eindeutig, User 2026-10-14). coreKey leer heißt in jedem Kern. clientWriteRule null heißt BACKEND_ONLY.
+	 * Neues normales Feld. 400 bei ungültigem name, bei unbekanntem Kern, unbekannter AR, suggest oder ngram bei einem
+	 * Typ ohne diesen Zwilling, required an einem Feld, das der Client nicht setzt, oder Suchgewicht an einem Feld ohne
+	 * Wortanfang. 409 wenn es den Namen in diesem Kern schon gibt, als Feld, als Hook oder als Feld jedes Kerns (Kern
+	 * plus Name ist eindeutig, User 2026-10-14). coreKey leer heißt in jedem Kern. clientWriteRule null heißt
+	 * BACKEND_ONLY.
 	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public SolrField createSolrField(String coreKey, String name, SolrFieldType type, boolean indexed, boolean stored,
 			boolean multiValued, boolean docValues, boolean required, boolean suggest, List<String> readAccessRoleKeys,
 			SolrFieldClientWriteRule clientWriteRule, int searchWeight, String displayName, String description,
-			int listingPosition, String command, boolean essential) {
+			int listingPosition, String command, boolean essential, boolean ngram) {
 		String checkedCoreKey = checkedCoreKey(coreKey);
 		requireNewName(checkedCoreKey, name);
 		requireType(type);
 		requireSuggestAllowed(type, suggest);
+		requireNgramAllowed(type, ngram);
 		requireRequiredOnlyWhenClientSets(clientWriteRule, required);
 		requireSearchWeightAllowed(indexed, searchWeight);
 		SolrField newSolrField = new SolrField(checkedCoreKey, name, type, indexed, stored, multiValued, docValues,
@@ -121,6 +123,7 @@ public class SolrFieldService {
 				description, listingPosition);
 		newSolrField.setCommand(checkedCommand(command));
 		newSolrField.setEssential(essential);
+		newSolrField.setNgram(ngram);
 		SolrField solrField = solrFieldRepository.save(newSolrField);
 		reloadSolrFieldsAfterCommit();
 		return solrField;
@@ -129,15 +132,15 @@ public class SolrFieldService {
 	/**
 	 * Die id bestimmt, welches Feld geändert wird. Kern und Name ändern sich nie. Bei einer Hook-Zeile ändern sich nur
 	 * Leseliste, Suchgewicht, Position und essenziell, die Technik steht fest. Sonst wird alles andere ersetzt. 400 bei
-	 * unbekannter AR, suggest bei einem Typ ohne Zwilling, required an einem Feld, das der Client nicht setzt, oder
-	 * Suchgewicht an einem Feld ohne Wortanfang.
+	 * unbekannter AR, suggest oder ngram bei einem Typ ohne diesen Zwilling, required an einem Feld, das der Client
+	 * nicht setzt, oder Suchgewicht an einem Feld ohne Wortanfang.
 	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public SolrField updateSolrField(Long id, SolrFieldType type, boolean indexed, boolean stored, boolean multiValued,
 			boolean docValues, boolean required, boolean suggest, List<String> readAccessRoleKeys,
 			SolrFieldClientWriteRule clientWriteRule, int searchWeight, String displayName, String description,
-			int listingPosition, String command, boolean essential) {
+			int listingPosition, String command, boolean essential, boolean ngram) {
 		SolrField solrField = findSolrFieldForWrite(id);
 		// das Mapping darf auch einen Hook füllen, z. B. artikelNummer aus ARTIKEL_NUMMER
 		solrField.setCommand(checkedCommand(command));
@@ -151,6 +154,7 @@ public class SolrFieldService {
 		} else {
 			requireType(type);
 			requireSuggestAllowed(type, suggest);
+			requireNgramAllowed(type, ngram);
 			requireRequiredOnlyWhenClientSets(clientWriteRule, required);
 			requireSearchWeightAllowed(indexed, searchWeight);
 			solrField.setType(type);
@@ -160,6 +164,7 @@ public class SolrFieldService {
 			solrField.setDocValues(docValues);
 			solrField.setRequired(required);
 			solrField.setSuggest(suggest);
+			solrField.setNgram(ngram);
 			solrField.setReadAccessRoleKeys(checkedAccessRoleKeys(readAccessRoleKeys));
 			solrField.setClientWriteRule(clientWriteRule);
 			solrField.setSearchWeight(searchWeight);
@@ -355,6 +360,14 @@ public class SolrFieldService {
 		if (suggest && !type.isSuggestable()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
 					"suggest geht bei " + type + " nicht, dieser Typ bekommt keinen Zwilling");
+		}
+	}
+
+	/** Der Ngram-Zwilling nur bei Typen mit Text; Zahlen, boolean, date und text_ngram selbst bekommen keinen */
+	private static void requireNgramAllowed(SolrFieldType type, boolean ngram) {
+		if (ngram && !type.isNgramTwinAllowed()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+					"ngram geht bei " + type + " nicht, dieser Typ bekommt keinen Ngram-Zwilling");
 		}
 	}
 

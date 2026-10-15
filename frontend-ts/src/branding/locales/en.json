@@ -31,7 +31,7 @@
     "symbolSearchPlaceholder": "search, e.g. shield, star, crown, desk",
     "keyRule": "only A–Z, 0–9 and _, starts and ends with a capital letter, never two _ in a row",
     "keyRuleWithPrefix": "starts with {{prefix}}, {{rule}}",
-    "solrFieldNameRule": "starts with a letter, then letters, digits and _, does not end with _ or Suggested",
+    "solrFieldNameRule": "starts with a letter, then letters, digits and _, does not end with _, Suggested or Ngram",
     "valuesInputAria": "Enter a value, space, Tab or Enter adds it",
     "removeValue": "remove {{value}}",
     "search": "search",
@@ -103,7 +103,8 @@
       "belegnummer": "Document number",
       "archivieren": "Archive",
       "testfakedata": "Test data",
-      "requestmonitor": "Request monitor"
+      "requestmonitor": "Request monitor",
+      "todojob": "Todo jobs"
     },
     "entryAccessRoles": {
       "symbolLabel": "Which ARs open this module",
@@ -1088,7 +1089,6 @@
       "newField": "new field",
       "settingFor": "{{setting}} for {{name}}",
       "essential": "essential",
-      "essentialHint": "Without this field a document of this core makes no sense, such as article number, name and Sternzeit of an article. Importing a core requires every essential field, from the file or through a mapping. Applies per core, also to hooks; id is always essential. Only in our field definition, Solr rejects nothing without it.",
       "typeOf": "type of {{name}}",
       "everyCore": "in every core: the same row in every core tab",
       "fieldAccess": "Read",
@@ -1194,6 +1194,16 @@
           "Costs index space: all prefixes of every value. The twin is never stored and does not appear in this table."
         ]
       },
+      "ngram": {
+        "title": "ngram: a twin in which every part of a word matches",
+        "paragraphs": [
+          "Creates the field <name>Ngram of type text_ngram: every piece from 3 characters matches, anywhere in the value, \"datenbl\" and \"herst\" find \"Datenblatt vom Hersteller\". Solr fills it itself via copyField, no code writes it. The field itself stays exact, so it remains filterable and facetable.",
+          "Complete even after an atomic update ADD: Solr then re-indexes the whole document from the stored fields and copies all values into the twin. That is why the twin is never stored, otherwise every update would double its values.",
+          "A whole value still matches exactly (preserveOriginal), also a DMS id or an article number. For a JSON entry Solr copies the whole text, so the keys end up in the twin too, which does not matter for finding text.",
+          "Only for types with text: string, email, text_edge, text_suche. Not for numbers, boolean, date and text_ngram, which is one itself. Never on a hook row.",
+          "Costs index space: all pieces of 3 to 50 characters of every value. The twin does not appear in this table. An existing field gets it for old documents only after a reindex."
+        ]
+      },
       "fieldAccess": {
         "title": "Read: which ARs get the field",
         "paragraphs": [
@@ -1224,6 +1234,16 @@
         "paragraphs": [
           "The key of a line from the mappings, e.g. FIRMA_NAME: when a response is taken apart by its mapping, the value of this key goes into this field. The same key may appear in several mappings, company and contact person both deliver KONTAKT_NAME.",
           "A loose reference, only the key: the suggestion list shows all keys of the saved mappings, a key no mapping knows is shown in red. Empty means no mapping fills the field. Only in our field definition, not in Solr."
+        ]
+      },
+      "essential": {
+        "title": "essential: without this field no document of the core is usable",
+        "paragraphs": [
+          "Takes effect in exactly one place: importing a core from an export file (Export/Import in the bar above). The file comes from another instance or an older export, where a field may be missing or named differently, such as the article number or the file sub class.",
+          "Without the switch the import would write thousands of documents without article number or without file sub class into the core. Unusable, and noticed only later in the search.",
+          "With the switch, before the start, in the mapping step, every essential field of the core has to come from the file or be mapped to a file field, otherwise nothing starts. id always counts, hook rows per core by their check mark.",
+          "Why not required: required is a Solr switch. With it Solr rejects every document without the field only when writing, so the import would abort in the middle of the run with a Solr message instead of before the start. And required exists only for fields the client sets on create. Backend fields like status or erstelltAm can never be required, but they can be essential.",
+          "Otherwise the switch has no effect anywhere: not on upload, not in the search, not in Solr. Only in our field definition."
         ]
       },
       "type": {
@@ -2124,6 +2144,140 @@
       "liftLabel": "Lift the block of {{clientIp}}",
       "liftTitle": "Lift block",
       "liftQuestion": "Really lift the block of {{clientIp}}?"
+    }
+  },
+  "todojob": {
+    "job": "Job #{{id}}",
+    "overview": {
+      "title": "Jobs",
+      "myTurn": "Your turn",
+      "others": "With others",
+      "nothingForMe": "Nothing waiting for you.",
+      "job": "Job",
+      "who": "Who",
+      "status": "Status",
+      "frist": "Due",
+      "footer": "{{open}} open · {{done}} completed"
+    },
+    "card": {
+      "owner": "from",
+      "servant": "to",
+      "claim": "I'll do it",
+      "claimed": "You claimed the job.",
+      "openQuestions_one": "{{count}} open query",
+      "openQuestions_other": "{{count}} open queries"
+    },
+    "waiting": {
+      "label": "{{count}} jobs are waiting for you",
+      "hint": "The ball is with you: {{servant}} as servant, {{owner}} as owner. Click leads to the desk."
+    },
+    "create": {
+      "title": "Issue job",
+      "verb": "Verb",
+      "verbPlaceholder": "check, procure, create …",
+      "objekt": "Object",
+      "objektPlaceholder": "calculation, data sheet from the manufacturer, article in ABAS …",
+      "similar": "Similar jobs that were done well",
+      "takeKontext": "Take over constraints",
+      "aufgabe": "Task",
+      "kontext": "Context: it matters to me that you …",
+      "kontextHint": "one constraint per line",
+      "rueckmeldungsArt": "Response type",
+      "bestaetigungNoetig": "I confirm the response myself",
+      "dauerhaftRelevant": "permanently relevant, stays in the folder pages after completion",
+      "frist": "Due date",
+      "labels": "Display contexts",
+      "noLabels": "no display contexts defined",
+      "servantUsers": "Servants: people",
+      "servantRoles": "Servants: roles (AR)",
+      "servantArcs": "Servants: positions (ARC)",
+      "ownerSide": "Extend owner side",
+      "ownerSideHint": "Whoever holds one of these roles or is in one of these positions acts as owner next to you.",
+      "hooks": "References",
+      "submit": "Issue",
+      "created": "Job #{{id}} issued."
+    },
+    "entryType": {
+      "LESEN": "Read",
+      "BOOL": "Yes or no",
+      "TEXT": "Text",
+      "ZAHL": "Number",
+      "DATUM": "Date",
+      "DMS_DATEI": "DMS file",
+      "ARTIKELNUMMER": "Article number",
+      "STERNZEIT": "Sternzeit",
+      "COMMENT": "Comment",
+      "RETRACTED": "retracted"
+    },
+    "ausgang": {
+      "GUT_GEMACHT": "well done",
+      "VERFALLEN": "expired",
+      "ZURUECKGEZOGEN": "withdrawn"
+    },
+    "action": {
+      "CREATED": "issued",
+      "READ": "read",
+      "CLAIMED": "claimed",
+      "CLAIM_RELEASED": "claim released",
+      "CLAIM_TAKEN": "claim taken over",
+      "QUESTION": "query {{nr}}",
+      "ANSWER": "reply {{nr}}",
+      "RESPONDED": "reported done",
+      "RETURNED": "returned",
+      "CONFIRMED": "confirmed",
+      "EXPIRED": "expired",
+      "WITHDRAWN": "withdrawn",
+      "DUE_DATE_CHANGED": "due date changed",
+      "LABELS_CHANGED": "display contexts changed",
+      "COMMENT": "comment"
+    },
+    "page": {
+      "notFound": "Job #{{id}} does not exist, or you are neither owner nor servant.",
+      "erstellt": "issued",
+      "abgeschlossen": "completed",
+      "requiredType": "requires: {{type}}",
+      "aufgabe": "Task",
+      "kontext": "Context",
+      "owner": "Owner",
+      "servants": "Servants",
+      "claim": "Claim",
+      "noClaim": "nobody",
+      "frist": "Due date",
+      "labels": "Display contexts",
+      "dauerhaftRelevant": "permanently relevant",
+      "hooks": "References",
+      "rueckmeldung": "Response",
+      "entryValue": "Value",
+      "entryText": "Text",
+      "addEntry": "Contribute",
+      "noEntries": "No response yet.",
+      "retracts": "retracts #{{nr}}",
+      "retract": "retract",
+      "rueckfragen": "Queries",
+      "askPlaceholder": "Query to the owner …",
+      "ask": "Ask",
+      "noQuestions": "No queries.",
+      "unanswered": "open",
+      "answerPlaceholder": "Reply …",
+      "answer": "Reply",
+      "actions": "Actions",
+      "releaseClaim": "Release claim",
+      "takeClaim": "Take over claim",
+      "takeReason": "Why do you take over the job?",
+      "respond": "Report done",
+      "responded": "Reported done.",
+      "confirm": "Confirm: well done",
+      "confirmed": "Confirmed, well done.",
+      "return": "Return",
+      "returned": "Returned, the job is in progress again.",
+      "returnReason": "What is missing or wrong?",
+      "dueDate": "Change due date",
+      "withdraw": "Withdraw",
+      "withdrawQuestion": "Really withdraw job #{{id}}? It will be completed without a response.",
+      "commentPlaceholder": "Comment on the job …",
+      "comment": "Comment",
+      "log": "History",
+      "rueckmeldungBis": "response up to #{{nr}} rejected"
     }
   },
   "nachricht": {

@@ -24,6 +24,7 @@ import {
   deleteSolrField,
   fieldReadAccessRoleCandidates,
   isClientAllowedToSetOnCreate,
+  isNgramTwinAllowed,
   isSolrFieldSearchable,
   isSolrHookField,
   isSuggestable,
@@ -41,6 +42,7 @@ import {
   solrFieldAccessHint,
   solrFieldClientWriteRuleHint,
   solrFieldCommandHint,
+  solrFieldEssentialHint,
   solrFieldNameHint,
   solrFieldSearchWeightHint,
   solrFieldSettingHint,
@@ -68,6 +70,7 @@ function emptySolrFieldData(coreKey: string): SolrFieldData {
     docValues: false,
     required: false,
     suggest: false,
+    ngram: false,
     essential: false,
     readAccessRoleKeys: [],
     clientWriteRule: 'BACKEND_ONLY',
@@ -97,6 +100,7 @@ function withAllowedSettings<T extends SolrFieldData>(field: T): T {
   return {
     ...field,
     suggest: field.suggest && isSuggestable(field.type),
+    ngram: field.ngram && isNgramTwinAllowed(field.type),
     required: field.required && isClientAllowedToSetOnCreate(field.clientWriteRule),
     searchWeight: isSolrFieldSearchable(field) ? Math.max(-1, field.searchWeight) : -1,
   }
@@ -434,6 +438,7 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
         const data = dataOf(row)
         const unavailable =
           (setting === 'suggest' && !isSuggestable(data.type)) ||
+          (setting === 'ngram' && !isNgramTwinAllowed(data.type)) ||
           (setting === 'required' && !isClientAllowedToSetOnCreate(data.clientWriteRule))
         return (
           <input
@@ -456,7 +461,7 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
    */
   const essentialColumn: TableColumn<SheetRow> = {
     header: t('solrmanager.sheet.essential'),
-    headerHint: t('solrmanager.sheet.essentialHint'),
+    headerHint: solrFieldEssentialHint(t),
     unimportant: true,
     width: '3rem',
     verticalHeader: true,

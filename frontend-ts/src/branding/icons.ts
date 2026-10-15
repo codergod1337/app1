@@ -23,6 +23,18 @@ export const icons = {
   testfakedata: { pack: 'bootstrap', id: 'database-fill-add' },
   // Kachel und Modul Anfragenmonitor: die Map der Anfragen an den Login-Endpunkt, live
   requestmonitor: { pack: 'bootstrap', id: 'activity' },
+  // Todo-Jobs: die Kachel, der Schreibtisch im Profil, die Zahl im header (User 2026-10-16)
+  todojob: { pack: 'bootstrap', id: 'clipboard-check' },
+  // ein Servant trägt sich für einen Gruppenjob ein
+  claim: { pack: 'bootstrap', id: 'hand-index-thumb' },
+  // Rückfrage des Servants und Rückantwort des Owners
+  question: { pack: 'bootstrap', id: 'chat-left-text' },
+  reply: { pack: 'bootstrap', id: 'reply-fill' },
+  comment: { pack: 'bootstrap', id: 'chat-dots' },
+  // die Frist eines Jobs
+  due: { pack: 'bootstrap', id: 'alarm' },
+  // der Owner gibt die Rückmeldung zurück
+  returned: { pack: 'bootstrap', id: 'arrow-counterclockwise' },
   // der Ordner Posteingang eines Postfachs
   inbox: { pack: 'bootstrap', id: 'inbox-fill' },
   // eine Mail hat Anhänge

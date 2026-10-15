@@ -23,7 +23,7 @@ import { TESTFAKEDATA_PATH } from '../testfakedata/TestFakeData.ts'
 interface HomeTile {
   icon: IconName
   /** Schlüssel des Titels im Sprachkatalog, unter home.tiles */
-  titleKey: 'admin' | 'solrManager' | 'abasManager' | 'infosys' | 'mapping' | 'dms' | 'artikel' | 'belegnummer' | 'search' | 'grant' | 'graph' | 'archivieren' | 'testfakedata' | 'requestmonitor'
+  titleKey: 'admin' | 'solrManager' | 'abasManager' | 'infosys' | 'mapping' | 'dms' | 'artikel' | 'belegnummer' | 'search' | 'grant' | 'graph' | 'archivieren' | 'testfakedata' | 'requestmonitor' | 'todojob'
   to: string
   /**
    * Die AR, von denen eine reicht, um das Modul zu betreten: Wer im Modul etwas darf, sieht die Kachel. Was er darin
@@ -71,6 +71,8 @@ const HOME_TILES: HomeTile[] = [
   { icon: 'testfakedata', titleKey: 'testfakedata', to: TESTFAKEDATA_PATH, entryAccessRoleKeys: [ADMIN_ACCESS_ROLE_KEY] },
   // Anfragenmonitor: die Map der Anfragen an den Login-Endpunkt, live. Nur ADMIN (User 2026-10-15)
   { icon: 'requestmonitor', titleKey: 'requestmonitor', to: REQUESTMONITOR_PATH, entryAccessRoleKeys: [ADMIN_ACCESS_ROLE_KEY] },
+  // Todo-Jobs: der Schreibtisch liegt im eigenen Profil, die Kachel führt nur hin; empfangen darf jeder Angemeldete (User 2026-10-16)
+  { icon: 'todojob', titleKey: 'todojob', to: '/profile', entryAccessRoleKeys: [], loginRequired: true },
 ]
 
 /**
