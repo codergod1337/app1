@@ -64,6 +64,14 @@ app1:
     # Secure-Flag der Cookies. Chrome erlaubt Secure-Cookies auch auf http://localhost
     secure: true
 
+  # Der Anfragenmonitor (system/security/requestmonitor, User 2026-10-15): Jede Anfrage an den Login-Endpunkt landet
+  # mit IP, Zeitstempel und Endpunkt in einer Map im Speicher, der Admin sieht sie live im Modul Anfragenmonitor.
+  request-monitor:
+    # so oft läuft der Aufräumer (RequestMonitorCleaner)
+    cleanup-interval: 5m
+    # was älter ist als das, löscht er
+    keep-for: 1h
+
   # Der System-User (system/security/SystemUsersSecurityContextService): Als er laufen Jobs ohne Token, zuerst der
   # ABAS-Worker, der nach dem Holen in die Kerne schreibt. Eigene Zeile in users, Service-Account, ohne Zugangsdaten;
   # was er darf, sagen seine AR in der Datenbank. Die guid ist fest (User 2026-10-13).
@@ -83,6 +91,14 @@ app1:
     # Suche aller Kerne: Treffer je Seite; die Maske hängt mit „weitere laden“ die nächste Seite an (User 2026-10-14)
     search:
       hits: 100
+    # Nachziehen im SolrManager (solr/reindex): so viele Dokumente je gelesenem Block, nur id und die Felder der
+    # Prüfungen; geschrieben wird jedes geänderte Dokument einzeln (User 2026-10-14)
+    reindex:
+      batch-size: 1000
+    # Export und Import je Kern im SolrManager (solr/transfer): so viele Dokumente je gelesenem Block beim Export und je
+    # Block beim Prüfen bekannter ids im Import; geschrieben wird im Import jedes Dokument einzeln (User 2026-10-14)
+    transfer:
+      batch-size: 1000
     # Kern ARTIKEL (solr/artikel), die aufaggregierten Referenzen je Flag (User 2026-10-13): bis zu wie vielen
     # Alternativschritten die Mappe suchen darf, und höchstens wie viele Treffer je Flag abgelegt werden; darüber
     # gilt das Ergebnis als gekürzt

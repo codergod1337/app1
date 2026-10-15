@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { DeleteButton } from '../../components/DeleteButton.tsx'
 import { FileDropzone } from '../../components/FileDropzone.tsx'
@@ -36,6 +37,8 @@ import {
 } from './Dms.ts'
 import { useDmsUploadPrefill } from './DmsUploadPrefill.ts'
 
+/** Wohin Abbrechen führt, wenn niemand eine Herkunft mitgab: die Maske kam über die Kachel */
+const CANCEL_FALLBACK_PATH = '/'
 /** So viele Dateien nimmt ein Stapel: eine Mappe ist kein Massenimport */
 const MAX_FILES = 25
 /** So lange bleibt eine fertige Zeile grün stehen, dann räumt sie sich weg */
@@ -570,15 +573,16 @@ export function DmsUploadBatchTab() {
   } else {
     footer = <span>{t('dms.batch.count', { count: entries.length, max: maxFiles })}</span>
   }
-  const uploadButton = (
-    <button
-      type="button"
-      className="button-save"
-      disabled={uploading || fileSubClass === null || uploadable.length === 0 || (newVersion && chainHead === null)}
-      onClick={() => void uploadAll()}
-    >
-      {uploading ? t('dms.batch.uploading') : t('dms.batch.upload', { count: uploadable.length })}
-    </button>
+  // dasselbe Paar im Kopf und im Footer: bei 25 Zeilen muss man weder nach oben noch nach unten scrollen. Abbrechen
+  // führt zur Herkunft, über die Kachel geöffnet zur Startseite (User 2026-10-14)
+  const buttons = (
+    <ConfirmCancelButtons
+      onCancel={() => navigate(origin?.path ?? CANCEL_FALLBACK_PATH)}
+      confirmLabel={uploading ? t('dms.batch.uploading') : t('dms.batch.upload', { count: uploadable.length })}
+      onConfirm={() => void uploadAll()}
+      disabled={fileSubClass === null || uploadable.length === 0 || (newVersion && chainHead === null)}
+      busy={uploading}
+    />
   )
 
   const headName = chainHead !== null && typeof chainHead.fileName === 'string' ? chainHead.fileName : ''
@@ -591,10 +595,11 @@ export function DmsUploadBatchTab() {
   return (
     <ContentBox
       title={title}
+      actions={buttons}
       footer={
         <>
           {footer}
-          <span className="ms-auto d-flex gap-2">{uploadButton}</span>
+          {buttons}
         </>
       }
       language={{ value: language, onChange: setLanguage }}

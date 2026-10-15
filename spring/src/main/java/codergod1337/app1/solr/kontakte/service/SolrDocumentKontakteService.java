@@ -213,7 +213,8 @@ public class SolrDocumentKontakteService {
 	 * Suche über die Nummern.
 	 */
 	public KontakteSearchedDocumentsPage searchKontakteDocuments(String searchText,
-			Map<String, List<String>> exactFilterValuesByFieldName, int page) {
+			Map<String, List<String>> exactFilterValuesByFieldName, int page,
+			boolean allWordsRequired) {
 		String text = searchText == null ? "" : searchText.trim();
 		if (text.isEmpty() && exactFilterValuesByFieldName.isEmpty()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "weder Suchtext noch Filter");
@@ -268,8 +269,10 @@ public class SolrDocumentKontakteService {
 			params.set("defType", "edismax");
 			params.set("q", text);
 			params.set("qf", String.join(" ", qf));
-			params.set("q.op", "OR");
-			params.set("mm", "1");
+			// alle Wörter (Schalter über dem Suchfeld, User 2026-10-14): jedes Wort muss in irgendeinem Feld stehen, ein - schließt
+			// weiter aus; sonst reicht eines, mehr Treffer heben den Treffer nach oben
+			params.set("q.op", allWordsRequired ? "AND" : "OR");
+			params.set("mm", allWordsRequired ? "100%" : "1");
 			// sow: erst an Leerzeichen zerlegen, dann jedes Wort einzeln durch jeden Feld-Analyzer (User 2026-10-09)
 			params.set("sow", "true");
 			// die Firma vor ihren Ansprechpartnern: ein Zusatz zum Score, kein Filter
@@ -278,6 +281,9 @@ public class SolrDocumentKontakteService {
 				params.set("hl", true);
 				params.set("hl.fl", String.join(",", highlightedFieldNames));
 				params.set("hl.method", "unified");
+				// jedes Suchwort in jedem Feld markieren, in dem es steht (User 2026-10-14); sonst markiert Solr ein
+				// Feld nur, wenn alle +Wörter in genau diesem Feld stehen
+				params.set("hl.weightMatches", false);
 				params.set("hl.tag.pre", "\u0002");
 				params.set("hl.tag.post", "\u0003");
 			}

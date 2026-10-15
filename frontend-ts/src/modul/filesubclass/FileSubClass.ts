@@ -51,20 +51,21 @@ export function isFileSubClassWritableBy(fileSubClass: Pick<FileSubClass, 'write
 /** Daten zum Anlegen und Ändern: alles außer den Endungen, die fasst das Speichern nie an. */
 export type FileSubClassData = Omit<FileSubClass, 'extensions'>
 
-/** Der Anzeigename einer Dateiart in der Sprache, sonst der key */
-export function fileSubClassNameOf(fileSubClass: FileSubClass, language: LanguageCode): string {
+/** Der Anzeigename einer Dateiart (oder Nachrichtenart) in der Sprache, sonst der key */
+export function fileSubClassNameOf(fileSubClass: Pick<FileSubClass, 'key' | 'displayName'>, language: LanguageCode): string {
   return translate(fileSubClass.displayName, language) || fileSubClass.key
 }
 
 /**
  * Die Dateiarten, deren Anzeigename oder key mit dem Getippten beginnt (klein), in Kachelreihenfolge: listingPosition,
- * dann key. Leer passt alles. Für den Dateiart-Modus der Suche, wo genau dieser Anfang zu Ende geschrieben wird.
+ * dann key. Leer passt alles. Für die spezialFilterErsterOrdnung der Suche (fsc., msc.), wo genau dieser Anfang zu Ende
+ * geschrieben wird; Nachrichtenarten haben dieselben Felder und gehen genauso.
  */
-export function fileSubClassesStartingWith(
-  fileSubClasses: readonly FileSubClass[],
+export function fileSubClassesStartingWith<T extends Pick<FileSubClass, 'key' | 'displayName' | 'listingPosition'>>(
+  fileSubClasses: readonly T[],
   needle: string,
   language: LanguageCode,
-): FileSubClass[] {
+): T[] {
   return [...fileSubClasses]
     .filter(
       (fileSubClass) =>

@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
+import { ConfirmButton } from '../../components/ConfirmButton.tsx'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { Popup } from '../../components/Popup.tsx'
 import { useSession } from '../login/sessionContext.ts'
 import { changeUsersCredentialsPassword } from './UsersCredentials.ts'
@@ -57,25 +59,19 @@ export function ChangeUsersPasswordPopup({ open, usersGuid, onClose }: ChangeUse
   }
 
   const footer = saved ? (
-    <button type="button" className="button-save ms-auto" onClick={close}>
-      Neu anmelden
-    </button>
+    <span className="ms-auto">
+      <ConfirmButton label="Neu anmelden" onClick={close} />
+    </span>
   ) : (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={close}>
-          Abbrechen
-        </button>
-        <button
-          type="submit"
-          form={FORM_ID}
-          className="button-save"
-          disabled={saving || oldPassword === '' || !passwordsMatch}
-        >
-          Passwort ändern
-        </button>
-      </span>
+      <ConfirmCancelButtons
+        onCancel={close}
+        confirmLabel="Passwort ändern"
+        confirmForm={FORM_ID}
+        disabled={oldPassword === '' || !passwordsMatch}
+        busy={saving}
+      />
     </>
   )
 

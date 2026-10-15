@@ -21,6 +21,8 @@ export const icons = {
   archivieren: { pack: 'bootstrap', id: 'archive-fill' },
   // Kachel und Modul Testdaten: Dummy-Daten für die Solr-Kerne
   testfakedata: { pack: 'bootstrap', id: 'database-fill-add' },
+  // Kachel und Modul Anfragenmonitor: die Map der Anfragen an den Login-Endpunkt, live
+  requestmonitor: { pack: 'bootstrap', id: 'activity' },
   // der Ordner Posteingang eines Postfachs
   inbox: { pack: 'bootstrap', id: 'inbox-fill' },
   // eine Mail hat Anhänge

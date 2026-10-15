@@ -159,6 +159,7 @@ export function DmsSearchResultList({ hits, origin, onFilter }: SearchResultList
                       origin={origin}
                       onSearchFilter={onFilter}
                       badgeClassName="search-hit-hook-value"
+                      valuesInHoverlay
                     />
                   ))}
                 </div>

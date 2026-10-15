@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { useLanguage } from '../../components/languageContext.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { useOrigin } from '../../components/Origin.ts'
@@ -16,6 +18,7 @@ const FALLBACK_PATH = '/admin/filesubclasses'
 
 /** Neue Dateiart anlegen. Abbrechen und Anlegen springen zum origin. */
 export function NewFileSubClassTab() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const originPath = useOrigin()?.path ?? FALLBACK_PATH
   const [saving, setSaving] = useState(false)
@@ -37,22 +40,24 @@ export function NewFileSubClassTab() {
       })
   }
 
+  // dasselbe Paar im Kopf und im Footer
+  const buttons = (
+    <ConfirmCancelButtons
+      onCancel={() => navigate(originPath)}
+      confirmLabel={t('common.create')}
+      confirmForm={FORM_ID}
+      busy={saving}
+    />
+  )
   const footer = (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={() => navigate(originPath)}>
-          Abbrechen
-        </button>
-        <button type="submit" form={FORM_ID} className="button-save" disabled={saving}>
-          Anlegen
-        </button>
-      </span>
+      {buttons}
     </>
   )
 
   return (
-    <ContentBox title="new FileSubClass()" footer={footer} language={{ value: language, onChange: setLanguage }}>
+    <ContentBox title="new FileSubClass()" actions={buttons} footer={footer} language={{ value: language, onChange: setLanguage }}>
       <FileSubClassForm formId={FORM_ID} language={language} disabled={saving} onSubmit={saveNewFileSubClass} />
     </ContentBox>
   )

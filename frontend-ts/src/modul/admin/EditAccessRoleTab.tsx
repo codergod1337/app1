@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { useLanguage } from '../../components/languageContext.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { useOrigin, type OriginState } from '../../components/Origin.ts'
@@ -24,6 +26,7 @@ export interface EditAccessRoleState extends OriginState {
 
 /** Eine AccessRole bearbeiten. Abbrechen und Speichern springen zum origin. */
 export function EditAccessRoleTab() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const originPath = useOrigin()?.path ?? FALLBACK_PATH
   const accessRoleKey = (useLocation().state as Partial<EditAccessRoleState> | null)?.accessRoleKey
@@ -53,26 +56,30 @@ export function EditAccessRoleTab() {
     errorMessage = 'keine AccessRole gewählt oder nicht gefunden'
   }
 
+  // dasselbe Paar im Kopf und im Footer
+  const buttons = (
+    <ConfirmCancelButtons
+      onCancel={() => navigate(originPath)}
+      confirmLabel={t('common.save')}
+      confirmForm={FORM_ID}
+      disabled={accessRole === null}
+      busy={saving}
+    />
+  )
   const footer = (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
       {accessRoles === null && errorMessage === null && (
         <span className="spinner-border spinner-border-sm" role="status" aria-label="lädt" />
       )}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={() => navigate(originPath)}>
-          Abbrechen
-        </button>
-        <button type="submit" form={FORM_ID} className="button-save" disabled={saving || accessRole === null}>
-          Speichern
-        </button>
-      </span>
+      {buttons}
     </>
   )
 
   return (
     <ContentBox
       title={accessRole ? `AccessRole bearbeiten: ${accessRole.key}` : 'AccessRole bearbeiten'}
+      actions={buttons}
       footer={footer}
       language={{ value: language, onChange: setLanguage }}
     >

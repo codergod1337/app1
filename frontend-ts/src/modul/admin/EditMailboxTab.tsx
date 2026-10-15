@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import { useLoad } from '../../api/useLoad.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { useOrigin, type OriginState } from '../../components/Origin.ts'
 import { getAllMailboxes, updateMailbox, type Mailbox } from '../mailbox/Mailbox.ts'
@@ -44,23 +45,26 @@ export function EditMailboxTab() {
     errorMessage = t('mailbox.notFound')
   }
 
+  // dasselbe Paar im Kopf und im Footer
+  const buttons = (
+    <ConfirmCancelButtons
+      onCancel={() => navigate(originPath)}
+      confirmLabel={t('common.save')}
+      confirmForm={FORM_ID}
+      disabled={mailbox === null}
+      busy={saving}
+    />
+  )
   const footer = (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
       {mailboxes === null && errorMessage === null && <span className="spinner-border spinner-border-sm" role="status" aria-label={t('common.loading')} />}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={() => navigate(originPath)}>
-          {t('common.cancel')}
-        </button>
-        <button type="submit" form={FORM_ID} className="button-save" disabled={saving || mailbox === null}>
-          {t('common.save')}
-        </button>
-      </span>
+      {buttons}
     </>
   )
 
   return (
-    <ContentBox title={mailbox ? t('mailbox.editTitle', { emailAddress: mailbox.emailAddress }) : t('mailbox.editTitleEmpty')} footer={footer}>
+    <ContentBox title={mailbox ? t('mailbox.editTitle', { emailAddress: mailbox.emailAddress }) : t('mailbox.editTitleEmpty')} actions={buttons} footer={footer}>
       {/* Erst mit den geladenen Daten anzeigen, damit das Formular mit ihnen startet */}
       {mailbox !== null && <MailboxForm formId={FORM_ID} initialMailbox={mailbox} disabled={saving} onSubmit={saveMailbox} />}
     </ContentBox>

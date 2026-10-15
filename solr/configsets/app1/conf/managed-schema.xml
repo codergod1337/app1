@@ -33,6 +33,26 @@
         </analyzer>
     </fieldType>
 
+    <!-- text_ngram: wie text_edge, aber jedes Stück ab 3 Zeichen an jeder Stelle des Worts (NGram bis 50, das ganze Wort
+         bleibt): „schild“ und „folie“ finden „Typenschild 100x50 Polyesterfolie“. Nur für die wenigen Schlüsselfelder,
+         die jeder User sieht (User 2026-10-14: ARTIKEL name, DMS fileName und fileDescription), denn der Index wächst
+         mit jeder Wortlänge. Umlaute und ß vereinheitlicht vor dem Zerlegen, auf beiden Seiten: „schluessel“ trifft
+         „Schlüssel“. Die Anfrage zerlegt nicht, das getippte Wort muss als Stück im Wort stecken.
+         SolrSchemaSyncService legt ihn in Kernen an, die vor ihm entstanden sind, mit genau dieser Definition. -->
+    <fieldType name="text_ngram" class="solr.TextField" positionIncrementGap="100">
+        <analyzer type="index">
+            <tokenizer class="solr.StandardTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+            <filter class="solr.GermanNormalizationFilterFactory"/>
+            <filter class="solr.NGramFilterFactory" minGramSize="3" maxGramSize="50" preserveOriginal="true"/>
+        </analyzer>
+        <analyzer type="query">
+            <tokenizer class="solr.StandardTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+            <filter class="solr.GermanNormalizationFilterFactory"/>
+        </analyzer>
+    </fieldType>
+
     <!-- text_suche: der Volltext. Jedes Wort einzeln, klein. Beim Indexieren wird jedes Kompositum ab 7 Zeichen
          zusätzlich in seine Teile zerlegt (HyphenationCompoundWordTokenFilter: die deutschen Trennmuster
          lang/hyph_de.xml liefern die möglichen Stellen, zerlegt wird nur in Teile, die im Wörterbuch

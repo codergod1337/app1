@@ -11,6 +11,9 @@ import codergod1337.app1.solr.dms.model.DmsSearchedDocumentsPage;
 import codergod1337.app1.solr.field.model.SolrField;
 import codergod1337.app1.solr.field.model.SolrFieldType;
 import codergod1337.app1.solr.field.service.SolrFieldService;
+import codergod1337.app1.solr.reindex.model.SolrReindexCheck;
+import codergod1337.app1.solr.reindex.model.SolrReindexProgress;
+import codergod1337.app1.solr.reindex.service.SolrReindexIterator;
 import codergod1337.app1.solr.share.model.ShareToken;
 import codergod1337.app1.system.security.CurrentUsersProvider;
 import java.io.IOException;
@@ -30,10 +33,7 @@ import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -47,19 +47,19 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class SolrDocumentDmsService {
 
-	private static final Logger log = LoggerFactory.getLogger(SolrDocumentDmsService.class);
-
-	private static final String DMS_CORE_KEY = "DMS";
+	public static final String DMS_CORE_KEY = "DMS";
 
 	/** Die Felder jeder Trefferbox der Suche: Kopf, Dateiart, Status, Größe, Datum, Sprache und die Vorschau */
-	private static final List<String> DISPLAY_FIELD_NAMES = List.of("id", "fileName", "fileIndex", "fileSubClassKey",
-			"fileDescription", "status", "version", "fileSizeBytes", "documentCreatedAt", "documentLanguage",
-			"bildVorschauBase64Png");
+	// fileExtension: Daran entscheidet die Trefferzeile, ob es einen Viewer gibt und das Auge erscheint (User 2026-10-14)
+	private static final List<String> DISPLAY_FIELD_NAMES = List.of("id", "fileName", "fileExtension", "fileIndex",
+			"fileSubClassKey", "fileDescription", "status", "version", "fileSizeBytes", "documentCreatedAt",
+			"documentLanguage", "bildVorschauBase64Png");
 
 	private final SolrClientRegistry solrClientRegistry;
 	private final CurrentUsersProvider currentUsersProvider;
 	private final SolrFieldService solrFieldService;
 	private final SolrDocumentDmsUtilsService utils;
+	private final SolrReindexIterator solrReindexIterator;
 
 	/** Treffer je Seite beim Auflösen, app1.solr.resolve.page-size */
 	private final int resolvePageSize;
@@ -71,7 +71,7 @@ public class SolrDocumentDmsService {
 	private final int searchHits;
 
 	public SolrDocumentDmsService(SolrClientRegistry solrClientRegistry, CurrentUsersProvider currentUsersProvider,
-			SolrFieldService solrFieldService, SolrDocumentDmsUtilsService utils,
+			SolrFieldService solrFieldService, SolrDocumentDmsUtilsService utils, SolrReindexIterator solrReindexIterator,
 			@Value("${app1.solr.resolve.page-size}") int resolvePageSize,
 			@Value("${app1.solr.resolve.max-results}") int resolveMaxResults,
 			@Value("${app1.solr.search.hits}") int searchHits) {
@@ -79,6 +79,7 @@ public class SolrDocumentDmsService {
 		this.currentUsersProvider = currentUsersProvider;
 		this.solrFieldService = solrFieldService;
 		this.utils = utils;
+		this.solrReindexIterator = solrReindexIterator;
 		this.resolvePageSize = resolvePageSize;
 		this.resolveMaxResults = resolveMaxResults;
 		this.searchHits = searchHits;
@@ -235,7 +236,8 @@ public class SolrDocumentDmsService {
 	}
 
 	public DmsSearchedDocumentsPage searchDmsDocuments(String searchText,
-			Map<String, List<String>> exactFilterValuesByFieldName, int page) {
+			Map<String, List<String>> exactFilterValuesByFieldName, int page,
+			boolean allWordsRequired) {
 		// Wird aufgerufen, wenn ein User im Suchmodul tippt oder Chips setzt. Suchen, nicht auflösen: die Treffer mit
 		// Score, Gründen und Vorschau für die Trefferbox, eine Seite ab 0 mit app1.solr.search.hits Treffern; „weitere
 		// laden“ in der Maske fragt die nächste Seite (User 2026-10-14).
@@ -283,9 +285,10 @@ public class SolrDocumentDmsService {
 			params.set("defType", "edismax");
 			params.set("q", text);
 			params.set("qf", String.join(" ", qf));
-			// ohne Operator reicht eines der Wörter, mindestens eines muss treffen; bei + oder - setzt edismax mm aus
-			params.set("q.op", "OR");
-			params.set("mm", "1");
+			// alle Wörter (Schalter über dem Suchfeld, User 2026-10-14): jedes Wort muss in irgendeinem Feld stehen, ein - schließt
+			// weiter aus; sonst reicht eines, mehr Treffer heben den Treffer nach oben
+			params.set("q.op", allWordsRequired ? "AND" : "OR");
+			params.set("mm", allWordsRequired ? "100%" : "1");
 			// sow (split on whitespace): erst an Leerzeichen zerlegen, dann jedes Wort einzeln durch jeden Feld-Analyzer.
 			// Ohne das bekäme der Zwilling (KeywordTokenizer) "1150 777" als ein Wort und träfe nichts (User 2026-10-09).
 			params.set("sow", "true");
@@ -294,6 +297,9 @@ public class SolrDocumentDmsService {
 				params.set("hl", true);
 				params.set("hl.fl", String.join(",", highlightedFieldNames));
 				params.set("hl.method", "unified");
+				// jedes Suchwort in jedem Feld markieren, in dem es steht (User 2026-10-14); sonst markiert Solr ein
+				// Feld nur, wenn alle +Wörter in genau diesem Feld stehen
+				params.set("hl.weightMatches", false);
 				params.set("hl.tag.pre", "\u0002");
 				params.set("hl.tag.post", "\u0003");
 			}
@@ -620,52 +626,22 @@ public class SolrDocumentDmsService {
 		send(update);
 	}
 
-	public int reindexDmsDocuments(Set<DmsReindexOption> options) {
-		// Der Admin stößt das an, um alle Dokumente auf den neuesten Stand zu bringen: 1000 ids je Seite über den
-		// Solr-Cursor, dann der Reihe nach getById, die Blöcke der Optionen, send. Keine Revision, das ist nur Nachziehen.
+	public void reindexDmsDocuments(Set<DmsReindexOption> options, SolrReindexProgress progress) {
+		// Der SolrManager startet das über den SolrReindexService im Hintergrund, um alle Dokumente auf den Sollstand zu
+		// bringen (User 2026-10-14), z. B. die ACLs nach einer geänderten Dateiart. Je Option eine Prüfung, die ihren
+		// Sollstand einmal beim Bauen liest; die Schleife liest blockweise nur die Felder der Prüfungen und schreibt jedes
+		// geänderte Dokument einzeln über send. Keine Revision, das ist nur Nachziehen.
 		if (!currentUsersProvider.getCurrentUsersAccessRoleKeys().contains("ADMIN")) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Nachziehen nur als ADMIN");
 		}
-		int changed = 0;
-		String cursorMark = CursorMarkParams.CURSOR_MARK_START;
-		while (true) {
-			ModifiableSolrParams params = new ModifiableSolrParams();
-			params.set("q", "*:*");
-			// der Cursor braucht eine eindeutige Sortierung, die id ist der uniqueKey
-			params.set("sort", "id asc");
-			params.set("rows", 1000);
-			params.set("fl", "id");
-			params.set(CursorMarkParams.CURSOR_MARK_PARAM, cursorMark);
-			QueryResponse response;
-			try {
-				response = client().query(params);
-			} catch (SolrServerException | IOException e) {
-				throw unavailable(e);
-			}
-			for (SolrDocument found : response.getResults()) {
-				String id = String.valueOf(found.getFieldValue("id"));
-				Map<String, Object> document = getById(id);
-				if (document == null) {
-					continue;
-				}
-				SolrInputDocument update = atomicUpdate(id);
-				utils.addReindexChanges(update, document, options);
-				// nur die id im Update heißt: kein Block hat etwas gesetzt, das Dokument bleibt unangetastet
-				if (update.size() == 1) {
-					continue;
-				}
-				update.addField("cursorDate", Map.of("set", Date.from(Instant.now())));
-				send(update);
-				changed++;
-			}
-			// dieselbe Marke zurück heißt: keine weitere Seite
-			if (cursorMark.equals(response.getNextCursorMark())) {
-				break;
-			}
-			cursorMark = response.getNextCursorMark();
+		List<SolrReindexCheck> checks = new ArrayList<>();
+		if (options.contains(DmsReindexOption.ACLS_FROM_FILE_SUB_CLASS)) {
+			checks.add(utils.aclsFromFileSubClassCheck());
 		}
-		log.info("Nachziehen DMS: {} Dokumente geändert, Optionen {}", changed, options);
-		return changed;
+		if (options.contains(DmsReindexOption.SEARCHABLE_WORDS_FROM_BINARY)) {
+			checks.add(utils.searchableWordsFromBinaryCheck());
+		}
+		solrReindexIterator.iterate(DMS_CORE_KEY, checks, this::send, progress);
 	}
 
 }

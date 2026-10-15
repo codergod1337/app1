@@ -84,7 +84,8 @@ public class SolrDocumentArtikelController {
 	public ArtikelSearchedDocumentsPage searchArtikelDocuments(@RequestBody Map<String, Object> searchRequest) {
 		String searchText = searchRequest.get("searchText") instanceof String text ? text : "";
 		return solrDocumentArtikelService.searchArtikelDocuments(searchText,
-				readValuesByFieldName(searchRequest, "exactFilterValuesByFieldName"), readSearchPage(searchRequest));
+				readValuesByFieldName(searchRequest, "exactFilterValuesByFieldName"), readSearchPage(searchRequest),
+				Boolean.TRUE.equals(searchRequest.get("allWordsRequired")));
 	}
 
 	/** Die Seite der Suche, ab 0; fehlt sie, die erste (User 2026-10-14: „weitere laden“ in der Maske) */

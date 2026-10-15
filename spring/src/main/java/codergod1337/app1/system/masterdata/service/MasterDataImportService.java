@@ -1348,14 +1348,15 @@ public class MasterDataImportService {
 			if (solrField.isHookField()) {
 				// die Zeile hat der Hook- oder Kern-Import gerade angelegt, aus der Datei kommen Leseliste und Gewicht
 				solrFieldService.changeHookFieldFromImport(solrField.getCoreKey(), solrField.getHookKey(),
-						solrField.getReadAccessRoleKeys(), solrField.getSearchWeight());
+						solrField.getReadAccessRoleKeys(), solrField.getSearchWeight(), solrField.isEssential());
 				continue;
 			}
 			solrFieldService.createSolrField(solrField.getCoreKey(), solrField.getName(), solrField.getType(),
 					solrField.isIndexed(), solrField.isStored(), solrField.isMultiValued(), solrField.isDocValues(),
 					solrField.isRequired(), solrField.isSuggest(), solrField.getReadAccessRoleKeys(),
 					solrField.getClientWriteRule(), solrField.getSearchWeight(), solrField.getDisplayName(),
-					solrField.getDescription(), solrField.getListingPosition(), solrField.getCommand());
+					solrField.getDescription(), solrField.getListingPosition(), solrField.getCommand(),
+					solrField.isEssential());
 		}
 
 		String startPassword = sha256Hex(START_PASSWORD);

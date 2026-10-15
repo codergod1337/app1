@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import { ContentBox } from '../../components/ContentBox.tsx'
+import { Hoverlay } from '../../components/Hoverlay.tsx'
 import { Icon } from '../../components/Icon.tsx'
 import { useLanguage } from '../../components/languageContext.ts'
 import { useMasterData } from '../../components/masterDataContext.ts'
@@ -11,9 +12,11 @@ import { translate } from '../../components/multilingual.ts'
 import type { OriginState } from '../../components/Origin.ts'
 import { Subheader, type SubheaderToggle } from '../../components/Subheader.tsx'
 import { showToast } from '../../components/toastStore.ts'
+import { ToggleSwitch } from '../../components/ToggleSwitch.tsx'
 import { useUsersSettings } from '../../components/usersSettingsContext.ts'
-import { DMS_CORE_KEY, FILE_SUB_CLASS_FIELD_NAME } from '../dms/Dms.ts'
-import { fileSubClassesStartingWith, fileSubClassNameOf, type FileSubClass } from '../filesubclass/FileSubClass.ts'
+import { FILE_SUB_CLASS_FIELD_NAME } from '../dms/Dms.ts'
+import { fileSubClassesStartingWith, fileSubClassNameOf } from '../filesubclass/FileSubClass.ts'
+import type { PickableSubClass } from '../filesubclass/FileSubClassPicker.tsx'
 import { useSession } from '../login/sessionContext.ts'
 import {
   solrCoreColorStyle,
@@ -24,10 +27,10 @@ import {
 } from '../solrmanager/SolrCore.ts'
 import { SolrCoreEmblem } from '../solrmanager/SolrCoreEmblem.tsx'
 import {
-  FILE_SUB_CLASS_MODE_PREFIX,
   hasSearchWord,
   isSameSearchFilter,
   SEARCH_ACTIVE_CORES_SETTING_KEY,
+  SEARCH_ALL_WORDS_SETTING_KEY,
   SEARCH_DEBOUNCE_MS,
   SEARCH_MAX_OFFERS_PER_CORE,
   SEARCH_MAX_TEXT_COMPLETIONS,
@@ -49,9 +52,18 @@ import {
   type SearchResultPage,
   type SearchTextCompletion,
 } from './Search.ts'
-import { SEARCH_CORES, SEARCH_RESOLVER_CORE_KEY, searchCoresOf, type SearchCore } from './searchCores.ts'
+import {
+  SEARCH_CORES,
+  SEARCH_RESOLVER_CORE_KEY,
+  searchCoresOf,
+  SPEZIAL_FILTER_ERSTER_ORDNUNG,
+  spezialFilterErsterOrdnungOfField,
+  type SearchCore,
+  type SpezialFilterErsterOrdnung,
+} from './searchCores.ts'
 import { SearchFileSubClassTiles } from './SearchFileSubClassTiles.tsx'
 import { SearchFilterChips } from './SearchFilterChips.tsx'
+import { SearchHelp } from './SearchHelp.tsx'
 import { cachedSearchResult, rememberSearchResult } from './searchResultCache.ts'
 import { SearchSuggestions } from './SearchSuggestions.tsx'
 
@@ -68,7 +80,8 @@ const SEARCH_COMPLETION_LIST_ID = 'search-completion-list'
  *
  * Nie ins Leere suchen: ohne Suchwort ab drei Zeichen und ohne Filter wird nicht einmal gefragt. Höchstens sechs
  * Suchwörter, eine Regel der Maske. „fsc.“ in der Eingabe öffnet die Dateiarten als Kacheln, die Wahl wird der Chip
- * fileSubClassKey. Ein exakt getippter Schlüssel springt nicht mehr, er steht als deutlicher Hinweis da, Enter öffnet
+ * fileSubClassKey, „msc.“ ebenso die Nachrichtenarten mit messageSubClassKey: die spezialFilterErsterOrdnung (User
+ * 2026-10-14), immer nur einer, und solange er steht, sucht nur sein Kern. Ein exakt getippter Schlüssel springt nicht mehr, er steht als deutlicher Hinweis da, Enter öffnet
  * seine Seite (User 2026-10-14: längere Artikelnummern haben oft eine gültige davor). Vorbelegungen kommen per
  * Router-State (Hook-Werte aus Dokumentseite und Treffern), nie über die Adresse.
  *
@@ -94,7 +107,7 @@ export function Search() {
   const location = useLocation()
   const { hasAccessRole, sessionInfo } = useSession()
   const usersGuid = sessionInfo?.usersGuid ?? null
-  const { fileSubClasses, solrCores, solrHooks } = useMasterData()
+  const { fileSubClasses, messageSubClasses, solrCores, solrHooks } = useMasterData()
   const { settingValue, changeSetting } = useUsersSettings()
   const prefill = useSearchPrefill()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -123,13 +136,33 @@ export function Search() {
     .split(',')
     .map((entry) => entry.trim())
     .filter((entry) => cores.some((core) => core.key === entry))
-  const activeCoreKeys = chosenCoreKeys ?? (storedCoreKeys.length > 0 ? storedCoreKeys : cores.map((core) => core.key))
+  // Ein gesetzter spezialFilterErsterOrdnung legt die Suche auf seinen Kern fest (User 2026-10-14): Nur dieser Kern ist
+  // aktiv, die anderen Schalter sind gesperrt, bis der Chip weg ist. Die Wahl des Users bleibt dabei unberührt und gilt
+  // wieder, sobald der Chip entfernt ist.
+  const lockingSpezialFilter =
+    filters.map((filter) => spezialFilterErsterOrdnungOfField(filter.fieldName)).find((entry) => entry !== null) ?? null
+  const activeCoreKeys =
+    lockingSpezialFilter !== null
+      ? [lockingSpezialFilter.coreKey]
+      : (chosenCoreKeys ?? (storedCoreKeys.length > 0 ? storedCoreKeys : cores.map((core) => core.key)))
   const activeCores = cores.filter((core) => activeCoreKeys.includes(core.key))
   const allActive = cores.length > 0 && cores.every((core) => activeCoreKeys.includes(core.key))
 
   function chooseCores(keys: string[]) {
     setChosenCoreKeys(keys)
     changeSetting(SEARCH_ACTIVE_CORES_SETTING_KEY, keys.join(',')).catch(() => {
+      // nur eine Bequemlichkeit, die Suche läuft auch ohne gespeicherte Wahl
+    })
+  }
+
+  // Der Schalter über dem Suchfeld (User 2026-10-14): an heißt jedes Wort muss vorhanden sein, aus heißt Hauptsache
+  // ein Treffer. Die Wahl in dieser Sitzung, sonst die gespeicherte, ohne beides an.
+  const [chosenAllWordsRequired, setChosenAllWordsRequired] = useState<boolean | null>(null)
+  const allWordsRequired = chosenAllWordsRequired ?? settingValue(SEARCH_ALL_WORDS_SETTING_KEY) !== 'false'
+
+  function chooseAllWordsRequired(checked: boolean) {
+    setChosenAllWordsRequired(checked)
+    changeSetting(SEARCH_ALL_WORDS_SETTING_KEY, String(checked)).catch(() => {
       // nur eine Bequemlichkeit, die Suche läuft auch ohne gespeicherte Wahl
     })
   }
@@ -173,80 +206,108 @@ export function Search() {
 
   const words = searchWordsOf(searchText)
   const tooManyWords = words.length > SEARCH_MAX_WORDS
-  const fileSubClassMode =
-    activeCoreKeys.includes(DMS_CORE_KEY) && searchText.toLowerCase().startsWith(FILE_SUB_CLASS_MODE_PREFIX)
-  const fileSubClassNeedle = fileSubClassMode ? searchText.slice(FILE_SUB_CLASS_MODE_PREFIX.length).trim().toLowerCase() : ''
-  /** die Dateiarten, die der User lesen darf: nur die stehen als Filter zur Wahl */
-  const readableFileSubClasses = (fileSubClasses ?? []).filter((fileSubClass) =>
-    (fileSubClass.readAccessRoleKeys ?? []).some(hasAccessRole),
-  )
-  const searchable = !fileSubClassMode && !tooManyWords && (hasSearchWord(searchText) || filters.length > 0)
+  /** die volle Zahl erreicht oder darüber: der Zähler wird rot und rät zu einem Filter */
+  const wordsAtLimit = words.length >= SEARCH_MAX_WORDS
+  // „fsc.“ oder „msc.“ am Anfang öffnet die Kacheln eines spezialFilterErsterOrdnung, nur mit der Such-Rolle seines Kerns
+  const lowerSearchText = searchText.toLowerCase()
+  const spezialFilterMode =
+    SPEZIAL_FILTER_ERSTER_ORDNUNG.find(
+      (entry) => lowerSearchText.startsWith(entry.prefix) && cores.some((core) => core.key === entry.coreKey),
+    ) ?? null
+  const spezialFilterNeedle = spezialFilterMode !== null ? searchText.slice(spezialFilterMode.prefix.length).trim().toLowerCase() : ''
+  /** die Dateiarten oder Nachrichtenarten des offenen Modus, die der User lesen darf: nur die stehen als Filter zur Wahl */
+  const subClassCatalog: readonly (PickableSubClass & { readAccessRoleKeys: string[] | null })[] =
+    (spezialFilterMode?.fieldName === FILE_SUB_CLASS_FIELD_NAME ? fileSubClasses : messageSubClasses) ?? []
+  const pickableSubClasses =
+    spezialFilterMode === null ? [] : subClassCatalog.filter((subClass) => (subClass.readAccessRoleKeys ?? []).some(hasAccessRole))
+  const searchable = spezialFilterMode === null && !tooManyWords && (hasSearchWord(searchText) || filters.length > 0)
 
   // Der Auflöser (User 2026-10-13, nach der Vorlage): Ist der Kern KONTAKTE abgewählt, sucht er mit Suchwort trotzdem
   // still mit, ohne Chips, nur für Angebote und Vervollständigungen. Nur mit seiner Such-Rolle, sonst gibt es ihn nicht.
   const resolverCore =
-    !activeCoreKeys.includes(SEARCH_RESOLVER_CORE_KEY) && !fileSubClassMode && !tooManyWords && hasSearchWord(searchText)
+    !activeCoreKeys.includes(SEARCH_RESOLVER_CORE_KEY) && spezialFilterMode === null && !tooManyWords && hasSearchWord(searchText)
       ? (cores.find((core) => core.key === SEARCH_RESOLVER_CORE_KEY) ?? null)
       : null
   const suggestingCores = resolverCore !== null ? [...activeCores, resolverCore] : activeCores
+  // Stabile Schlüssel statt Array-Referenzen, sonst rechnen useMemo und die Effekte bei jedem Render neu
+  const suggestingCoresKey = suggestingCores.map((core) => core.key).join(',')
+  const activeCoresKey = activeCoreKeys.join(',')
+  const filtersKey = JSON.stringify(filters)
 
   /**
    * Die Filter-Angebote aller angewählten Kerne und des Auflösers, je Kern höchstens zehn, ohne schon gesetzte Filter.
    * Dasselbe (Feld, Wert) nur einmal (User 2026-10-13, wie in der Vorlage): Es bleibt das Angebot, das etwas zum
-   * Wiedererkennen mitbringt (Zusatz oder Bild), sonst das erste in der Reihenfolge der Kerne.
+   * Wiedererkennen mitbringt (Zusatz oder Bild), sonst das erste in der Reihenfolge der Kerne. Neu gerechnet nur, wenn
+   * sich Treffer, Suchwörter, Chips oder Kerne ändern, nicht bei jedem Render (User 2026-10-14).
    */
   const offerWords = searchWordsForOffersOf(searchText)
-  const offers: SearchOffer[] = []
-  for (const core of suggestingCores) {
-    let countOfCore = 0
-    for (const hit of resultByCore[core.key]?.hits ?? []) {
-      for (const offer of core.offersOf(hit, offerWords, solrHooks ?? [])) {
-        if (countOfCore >= SEARCH_MAX_OFFERS_PER_CORE || filters.some((existing) => isSameSearchFilter(existing, { fieldName: offer.fieldName, value: offer.value }))) {
-          continue
-        }
-        const index = offers.findIndex((existing) => existing.fieldName === offer.fieldName && existing.value === offer.value)
-        if (index < 0) {
-          offers.push(offer)
-          countOfCore++
-        } else if (offers[index].additionText === null && offers[index].previewBase64Png === null && (offer.additionText !== null || offer.previewBase64Png !== null)) {
-          offers[index] = offer
-        }
-      }
-    }
-  }
-
-  /** Die Vervollständigungen des gerade getippten Worts aus den Treffern derselben Kerne, ohne Doppelte, höchstens fünf */
-  const typedWord = typedWordOf(searchText)
-  const completions: SearchTextCompletion[] = []
-  if (typedWord !== '') {
+  const offerWordsKey = offerWords.join(' ')
+  const offers = useMemo(() => {
+    const collected: SearchOffer[] = []
     for (const core of suggestingCores) {
+      let countOfCore = 0
       for (const hit of resultByCore[core.key]?.hits ?? []) {
-        for (const completion of core.completionsOf(hit, typedWord)) {
-          if (
-            completions.length < SEARCH_MAX_TEXT_COMPLETIONS &&
-            !completions.some((existing) => existing.completedText.toLowerCase() === completion.completedText.toLowerCase())
-          ) {
-            completions.push(completion)
+        for (const offer of core.offersOf(hit, offerWords, solrHooks ?? [])) {
+          if (countOfCore >= SEARCH_MAX_OFFERS_PER_CORE || filters.some((existing) => isSameSearchFilter(existing, { fieldName: offer.fieldName, value: offer.value }))) {
+            continue
+          }
+          const index = collected.findIndex((existing) => existing.fieldName === offer.fieldName && existing.value === offer.value)
+          if (index < 0) {
+            collected.push(offer)
+            countOfCore++
+          } else if (collected[index].additionText === null && collected[index].previewBase64Png === null && (offer.additionText !== null || offer.previewBase64Png !== null)) {
+            collected[index] = offer
           }
         }
       }
     }
-  }
+    return collected
+    // die Kerne, Wörter und Chips stehen über ihre Schlüssel drin
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultByCore, suggestingCoresKey, offerWordsKey, filtersKey, solrHooks])
 
-  function addFilter(filter: SearchFilter) {
+  /** Die Vervollständigungen des gerade getippten Worts aus den Treffern derselben Kerne, ohne Doppelte, höchstens fünf */
+  const typedWord = typedWordOf(searchText)
+  const completions = useMemo(() => {
+    const collected: SearchTextCompletion[] = []
+    if (typedWord === '') {
+      return collected
+    }
+    for (const core of suggestingCores) {
+      for (const hit of resultByCore[core.key]?.hits ?? []) {
+        for (const completion of core.completionsOf(hit, typedWord)) {
+          if (
+            collected.length < SEARCH_MAX_TEXT_COMPLETIONS &&
+            !collected.some((existing) => existing.completedText.toLowerCase() === completion.completedText.toLowerCase())
+          ) {
+            collected.push(completion)
+          }
+        }
+      }
+    }
+    return collected
+    // die Kerne stehen über ihren Schlüssel drin
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultByCore, suggestingCoresKey, typedWord])
+
+  // stabil, denn die Trefferlisten bekommen sie mit und sollen nicht bei jedem Tastendruck neu zeichnen
+  const addFilter = useCallback((filter: SearchFilter) => {
     setFilters((previous) => (previous.some((existing) => isSameSearchFilter(existing, filter)) ? previous : [...previous, filter]))
-  }
+  }, [])
 
   function removeFilter(filter: SearchFilter) {
     setFilters((previous) => previous.filter((existing) => !isSameSearchFilter(existing, filter)))
   }
 
-  function pickFileSubClass(fileSubClass: FileSubClass) {
-    addFilter({
-      fieldName: FILE_SUB_CLASS_FIELD_NAME,
-      value: fileSubClass.key,
-      label: fileSubClassNameOf(fileSubClass, language),
-    })
+  /**
+   * Eine Kachel eines spezialFilterErsterOrdnung wählen: Ihr Chip ersetzt jeden anderen spezialFilterErsterOrdnung,
+   * denn es darf immer nur einer aktiv sein (User 2026-10-14). Die Eingabe wird geleert.
+   */
+  function pickSpezialFilterErsterOrdnung(spezialFilter: SpezialFilterErsterOrdnung, subClass: PickableSubClass) {
+    setFilters((previous) => [
+      ...previous.filter((existing) => spezialFilterErsterOrdnungOfField(existing.fieldName) === null),
+      { fieldName: spezialFilter.fieldName, value: subClass.key, label: fileSubClassNameOf(subClass, language) },
+    ])
     setSearchText('')
   }
 
@@ -306,10 +367,10 @@ export function Search() {
     setCompletionCursor({ typedWord, index: (activeCompletionIndex + step + completions.length) % completions.length })
   }
 
-  function runSearch(core: SearchCore, text: string, currentFilters: SearchFilter[]) {
+  function runSearch(core: SearchCore, text: string, currentFilters: SearchFilter[], allWords: boolean) {
     const run = (runByCore.current[core.key] ?? 0) + 1
     runByCore.current[core.key] = run
-    const request = searchRequestOf(text, currentFilters)
+    const request = searchRequestOf(text, currentFilters, allWords)
     // schon gesehen: sofort aus dem Zwischenspeicher, kein Request, kein Direktsprung (der führte zurück und wieder hin)
     const cached = cachedSearchResult(usersGuid, core.key, request)
     if (cached !== undefined) {
@@ -354,10 +415,10 @@ export function Search() {
     }
     const run = runByCore.current[core.key] ?? 0
     const query = latestQueryRef.current
-    const firstPageRequest = searchRequestOf(searchText, filters)
+    const firstPageRequest = searchRequestOf(searchText, filters, allWordsRequired)
     setLoadingMoreByCore((previous) => ({ ...previous, [core.key]: true }))
     core
-      .search(searchRequestOf(searchText, filters, current.page + 1))
+      .search(searchRequestOf(searchText, filters, allWordsRequired, current.page + 1))
       .then(({ data }) => {
         if (runByCore.current[core.key] !== run || latestQueryRef.current !== query) {
           return
@@ -372,40 +433,61 @@ export function Search() {
       .finally(() => setLoadingMoreByCore((previous) => ({ ...previous, [core.key]: false })))
   }
 
-  // Stabile Schlüssel statt Array-Referenzen, sonst feuert der Effekt bei jedem Render
-  const filtersKey = JSON.stringify(filters)
+  // „weitere laden“ als stabile Funktion für die Trefferlisten: Sie ruft immer die neueste loadMore, sonst zeichneten
+  // die Listen bei jedem Tastendruck neu, nur weil die Funktion neu ist
+  const loadMoreRef = useRef(loadMore)
+  useEffect(() => {
+    loadMoreRef.current = loadMore
+  })
+  const loadMoreOfCore = useCallback((core: SearchCore) => loadMoreRef.current(core), [])
 
   // die aktuelle Eingabe für loadMore: Eine Antwort zu einer älteren Eingabe gehört nicht mehr in die Liste
   useEffect(() => {
-    latestQueryRef.current = JSON.stringify([searchText, filtersKey])
-  }, [searchText, filtersKey])
-  const activeCoresKey = activeCoreKeys.join(',')
+    latestQueryRef.current = JSON.stringify([searchText, filtersKey, allWordsRequired])
+  }, [searchText, filtersKey, allWordsRequired])
   const resolverCoreKey = resolverCore?.key ?? ''
 
   // Der Stand in die Adresse, der Eintrag im Verlauf wird ersetzt, nicht vermehrt: Zurück führt aus der Suche heraus,
   // nicht durch jede getippte Taste. Der Router-State fällt dabei weg, die Vorbelegung ist da schon eingearbeitet.
+  // Der Text erst nach der Tipp-Pause wie die Suche selbst (User 2026-10-14): Jedes Schreiben lässt den Router die
+  // ganze Seite samt Header neu durchlaufen. Ein Chip ist ein Klick und geht sofort hinein.
+  const writtenFiltersKeyRef = useRef(filtersKey)
   useEffect(() => {
     const params = searchParamsOf(searchText, filters)
     const nextSearch = params.size === 0 ? '' : `?${params.toString()}`
     if (nextSearch === location.search) {
       writtenSearchRef.current = nextSearch
+      writtenFiltersKeyRef.current = filtersKey
       return
     }
-    writtenSearchRef.current = nextSearch
-    setSearchParams(params, { replace: true })
+    const delay = filtersKey !== writtenFiltersKeyRef.current ? 0 : SEARCH_DEBOUNCE_MS
+    const timer = setTimeout(() => {
+      writtenSearchRef.current = nextSearch
+      writtenFiltersKeyRef.current = filtersKey
+      setSearchParams(params, { replace: true })
+    }, delay)
+    return () => clearTimeout(timer)
     // filters über ihren Schlüssel; location.search und setSearchParams ändern sich nur durch diesen Effekt selbst
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchText, filtersKey])
 
-  /** Beim Verlassen der Suche mitgeben, mit dem aktuellen Stand in der Adresse, damit „zurück zu Suche“ ihn wiederherstellt */
-  const originState: OriginState = { origin: { path: `${SEARCH_PATH}${location.search}`, label: 'search.title' } }
+  /**
+   * Beim Verlassen der Suche mitgeben, mit dem aktuellen Stand in der Adresse, damit „zurück zu Suche“ ihn
+   * wiederherstellt. Dasselbe Objekt, solange die Adresse gleich bleibt: Die Trefferlisten zeichnen sonst neu.
+   */
+  const originState: OriginState = useMemo(
+    () => ({ origin: { path: `${SEARCH_PATH}${location.search}`, label: 'search.title' } }),
+    [location.search],
+  )
 
   // Ein exakt getippter Schlüssel (User 2026-10-14): kein Sprung, denn es gibt längere Artikelnummern mit einer gültigen
   // davor. Die Maske zeigt deutlich, dass die Eingabe genau ein Treffer ist; Enter oder der Knopf öffnet ihn, eine
   // weitere Ziffer sucht neu. Nur aus den angewählten Kernen, nie aus dem stillen Auflöser.
   const typedKey = searchText.trim().toLowerCase()
-  let directHit: { core: SearchCore; key: string; path: string } | null = null
-  if (searchable && typedKey !== '') {
+  const directHit = useMemo(() => {
+    if (!searchable || typedKey === '') {
+      return null
+    }
     for (const core of activeCores) {
       if (core.directPathOf === null) {
         continue
@@ -413,11 +495,13 @@ export function Search() {
       const hit = (resultByCore[core.key]?.hits ?? []).find((candidate) => core.idOf(candidate.fieldValues)?.toLowerCase() === typedKey)
       const path = hit ? core.directPathOf(hit.fieldValues) : null
       if (hit && path !== null) {
-        directHit = { core, key: core.idOf(hit.fieldValues) ?? searchText.trim(), path }
-        break
+        return { core, key: core.idOf(hit.fieldValues) ?? typedKey, path }
       }
     }
-  }
+    return null
+    // die Kerne stehen über ihren Schlüssel drin
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultByCore, typedKey, activeCoresKey, searchable])
 
   function openDirectHit() {
     if (directHit !== null) {
@@ -433,15 +517,20 @@ export function Search() {
       setErrorByCore({})
       return
     }
-    // je Kern seine Abfrage: die angewählten mit Chips, der stille Auflöser nur mit dem Suchtext, denn fremde Chips
-    // (z. B. die Dateiart) kennt er nicht, und er soll nur Namen zu Nummern auflösen
-    const planned: { core: SearchCore; filters: SearchFilter[] }[] = activeCores.map((core) => ({ core, filters }))
+    // je Kern seine Abfrage: die angewählten mit Chips und dem Schalter „jedes Wort“, der stille Auflöser nur mit dem
+    // Suchtext und immer „ein Wort reicht“: Fremde Chips (z. B. die Dateiart) kennt er nicht, und er soll Namen zu
+    // Nummern auflösen, auch wenn nicht jedes Wort im Kontakt steht („vermes schraube“ findet Vermes)
+    const planned: { core: SearchCore; filters: SearchFilter[]; allWords: boolean }[] = activeCores.map((core) => ({
+      core,
+      filters,
+      allWords: allWordsRequired,
+    }))
     if (resolverCore !== null) {
-      planned.push({ core: resolverCore, filters: [] })
+      planned.push({ core: resolverCore, filters: [], allWords: false })
     }
     const pendingSearch: typeof planned = []
     for (const plan of planned) {
-      const cached = cachedSearchResult(usersGuid, plan.core.key, searchRequestOf(searchText, plan.filters))
+      const cached = cachedSearchResult(usersGuid, plan.core.key, searchRequestOf(searchText, plan.filters, plan.allWords))
       if (cached !== undefined) {
         setResultByCore((previous) => ({ ...previous, [plan.core.key]: cached }))
         setErrorByCore((previous) => ({ ...previous, [plan.core.key]: null }))
@@ -454,13 +543,13 @@ export function Search() {
     }
     const timer = setTimeout(() => {
       for (const plan of pendingSearch) {
-        runSearch(plan.core, searchText, plan.filters)
+        runSearch(plan.core, searchText, plan.filters, plan.allWords)
       }
     }, SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
     // die Kerne stehen über activeCoresKey und resolverCoreKey drin, filters über ihren Schlüssel
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchText, filtersKey, activeCoresKey, resolverCoreKey, searchable])
+  }, [searchText, filtersKey, activeCoresKey, resolverCoreKey, searchable, allWordsRequired])
 
   function keyDown(event: KeyboardEvent<HTMLInputElement>) {
     // die offene Liste der Vervollständigungen unter dem Feld zuerst, wie in jeder Oberfläche
@@ -482,7 +571,7 @@ export function Search() {
       }
     }
     // Enter öffnet den exakt getippten Schlüssel (User 2026-10-14)
-    if (event.key === 'Enter' && directHit !== null && !fileSubClassMode) {
+    if (event.key === 'Enter' && directHit !== null && spezialFilterMode === null) {
       event.preventDefault()
       openDirectHit()
       return
@@ -493,11 +582,11 @@ export function Search() {
       pickOffer(offers[0])
       return
     }
-    if (fileSubClassMode && event.key === 'Enter') {
+    if (spezialFilterMode !== null && event.key === 'Enter') {
       event.preventDefault()
-      const first = fileSubClassesStartingWith(readableFileSubClasses, fileSubClassNeedle, language)[0]
+      const first = fileSubClassesStartingWith(pickableSubClasses, spezialFilterNeedle, language)[0]
       if (first !== undefined) {
-        pickFileSubClass(first)
+        pickSpezialFilterErsterOrdnung(spezialFilterMode, first)
       }
       return
     }
@@ -510,28 +599,35 @@ export function Search() {
   // Die Kernschalter im subheader wie die Kernreiter der Vorlage: keine Seiten, sondern Filter, welche Kerne suchen.
   // „alle Kerne“ leuchtet nur, wenn wirklich keiner fehlt. Ein Kern ohne Such-Rolle ist gesperrt, nicht versteckt:
   // Man soll sehen, was es gäbe. Gesperrte Knöpfe sind eine Bequemlichkeit, keine Sicherung, das Tor ist das Backend.
+  // Steht ein spezialFilterErsterOrdnung, sind alle Schalter gesperrt, sein Kern leuchtet allein (User 2026-10-14).
+  /** Name des Kerns aus den Stammdaten (look des Kerns), sonst aus dem Sprachkatalog */
+  const coreLabelOf = (core: SearchCore) =>
+    translate(solrCoreOfKey(solrCores, core.key)?.displayName ?? null, language) || t(`search.cores.${core.labelKey}`)
+  const lockingCore = lockingSpezialFilter !== null ? (SEARCH_CORES.find((core) => core.key === lockingSpezialFilter.coreKey) ?? null) : null
+  const lockHint = lockingCore !== null ? t('search.subClassLock', { core: coreLabelOf(lockingCore) }) : undefined
   const coreToggles: SubheaderToggle[] = [
     {
       key: 'all',
       label: t('search.allCores'),
       active: allActive,
-      disabled: cores.length === 0,
+      disabled: cores.length === 0 || lockingSpezialFilter !== null,
+      hint: lockHint,
       onClick: () => chooseCores(allActive ? [] : cores.map((core) => core.key)),
     },
   ]
   for (const core of SEARCH_CORES) {
     const allowed = cores.some((candidate) => candidate.key === core.key)
-    // Name, Symbol und Farbe des Kerns aus den Stammdaten (look des Kerns), wie die Kernfarbe der Vorlage
+    // Symbol und Farbe des Kerns aus den Stammdaten (look des Kerns), wie die Kernfarbe der Vorlage
     const solrCore = solrCoreOfKey(solrCores, core.key)
     coreToggles.push({
       key: core.key,
-      label: (solrCore ? translate(solrCore.displayName, language) : '') || t(`search.cores.${core.labelKey}`),
+      label: coreLabelOf(core),
       symbol: solrCore?.look.symbol ?? undefined,
       color: solrCoreMainColor(solrCore),
       textColor: solrCoreTextColor(solrCore),
       active: allowed && activeCoreKeys.includes(core.key),
-      disabled: !allowed,
-      hint: allowed ? undefined : t('search.missingRole', { role: core.searchAccessRoleKey }),
+      disabled: !allowed || lockingSpezialFilter !== null,
+      hint: !allowed ? t('search.missingRole', { role: core.searchAccessRoleKey }) : lockHint,
       onClick: () => toggleCore(core.key),
     })
   }
@@ -551,7 +647,7 @@ export function Search() {
   let inputHint: string | null = null
   if (tooManyWords) {
     inputHint = t('search.hint.TOO_MANY_SEARCH_WORDS', { max: SEARCH_MAX_WORDS })
-  } else if (!fileSubClassMode && !searchable) {
+  } else if (spezialFilterMode === null && !searchable) {
     inputHint = t('search.hint.NO_SEARCH_WORD_AND_NO_FILTER', { min: SEARCH_MIN_CHARACTERS })
   } else if (noHitsInAnyCore) {
     inputHint = t('search.results.noHits')
@@ -570,12 +666,25 @@ export function Search() {
       />
       <div className="main-content">
         <ContentBox
-          title={t('search.title')}
+          title={
+            <span className="d-inline-flex align-items-center gap-2">
+              {t('search.title')}
+              {/* die Bedienung der Suche im Hoverlay statt als Text über dem Feld (User 2026-10-14); interaktiv, damit man
+                  bei kleinem Fenster darin rollen kann */}
+              <Hoverlay text={<SearchHelp />} interactive>
+                <span className="search-help-symbol" tabIndex={0} aria-label={t('search.help.title')}>
+                  <Icon name="details" />
+                </span>
+              </Hoverlay>
+            </span>
+          }
           footer={
-            // die Zahl der Suchwörter im Fuß der Box (User 2026-10-13), rot, sobald es zu viele sind
+            // die Zahl der Suchwörter im Fuß der Box (User 2026-10-13); ab der vollen Zahl rot und fett, dazu der Rat,
+            // einen Filter zu setzen statt weiterer Wörter (User 2026-10-14)
             cores.length > 0 ? (
-              <span className={tooManyWords ? 'search-words search-words-exceeded' : 'search-words'}>
+              <span className={wordsAtLimit ? 'search-words search-words-exceeded' : 'search-words'}>
                 {t('search.words', { count: words.length, max: SEARCH_MAX_WORDS })}
+                {wordsAtLimit && ` · ${t('search.wordsLimitHint')}`}
               </span>
             ) : undefined
           }
@@ -584,10 +693,10 @@ export function Search() {
             <p className="mb-0">{t('search.noCores')}</p>
           ) : (
             <div className="d-flex flex-column gap-3">
-              <p className="form-text mb-0">{t('search.intro')}</p>
               <SearchFilterChips filters={filters} onRemove={removeFilter} origin={originState} language={language} />
               <SearchSuggestions offers={offers} firstOfferActive={!completionListOpen} origin={originState} language={language} onPickOffer={pickOffer} />
-              <div className="d-flex align-items-center gap-2">
+              {/* das Feld auf 70 % der Box, es nimmt ohnehin höchstens fünf Wörter; rechts daneben der Schalter (User 2026-10-14) */}
+              <div className="search-input-row">
                 <input
                   ref={inputRef}
                   type="search"
@@ -604,6 +713,13 @@ export function Search() {
                   onKeyDown={keyDown}
                   onFocus={() => setInputFocused(true)}
                   onBlur={() => setInputFocused(false)}
+                />
+                <ToggleSwitch
+                  id="search-all-words-required"
+                  checked={allWordsRequired}
+                  onChange={chooseAllWordsRequired}
+                  labelOn={t('search.allWords.on')}
+                  labelOff={t('search.allWords.off')}
                 />
                 {running > 0 && (
                   <span className="spinner-border spinner-border-sm" role="status" aria-label={t('search.running')} />
@@ -655,12 +771,13 @@ export function Search() {
                 </div>
               )}
               {inputHint !== null && <span className="small text-muted">{inputHint}</span>}
-              {fileSubClassMode && (
+              {spezialFilterMode !== null && (
                 <SearchFileSubClassTiles
-                  fileSubClasses={readableFileSubClasses}
-                  needle={fileSubClassNeedle}
+                  subClasses={pickableSubClasses}
+                  needle={spezialFilterNeedle}
+                  hint={spezialFilterMode.prefix === 'fsc.' ? t('search.fsc.hint') : t('search.msc.hint')}
                   language={language}
-                  onPick={pickFileSubClass}
+                  onPick={(subClass) => pickSpezialFilterErsterOrdnung(spezialFilterMode, subClass)}
                 />
               )}
             </div>
@@ -678,7 +795,7 @@ export function Search() {
               origin={originState}
               onFilter={addFilter}
               loadingMore={loadingMoreByCore[core.key] === true}
-              onLoadMore={() => loadMore(core)}
+              onLoadMore={loadMoreOfCore}
             />
           ))}
       </div>
@@ -697,16 +814,28 @@ interface SearchCoreResultsProps {
   onFilter: (filter: SearchFilter) => void
   /** die nächste Seite lädt gerade */
   loadingMore: boolean
-  /** die nächste Seite unten anhängen */
-  onLoadMore: () => void
+  /** die nächste Seite dieses Kerns unten anhängen; stabil, sie bekommt den Kern mit */
+  onLoadMore: (core: SearchCore) => void
 }
 
 /**
  * Die Treffer eines Kerns: Emblem und Zahl im Kopf, der Fehler, die Liste in der Darstellung des Kerns in seiner Farbe
  * (Marken des Treffergrunds, Rand der Treffer), unten die Gesamtzahl, wie viele davon geladen sind, und, wenn es mehr
  * gibt, der Knopf für die nächsten (User 2026-10-14).
+ *
+ * Mit memo: Die Box zeichnet nur neu, wenn ihre Treffer, ihr Fehler, ihr Laden oder die Herkunft sich ändern, nicht bei
+ * jedem Tastendruck im Suchfeld (User 2026-10-14). Dafür gibt die Suchseite nur stabile Werte mit.
  */
-function SearchCoreResults({ core, solrCore, result, errorMessage, origin, onFilter, loadingMore, onLoadMore }: SearchCoreResultsProps) {
+const SearchCoreResults = memo(function SearchCoreResults({
+  core,
+  solrCore,
+  result,
+  errorMessage,
+  origin,
+  onFilter,
+  loadingMore,
+  onLoadMore,
+}: SearchCoreResultsProps) {
   const { t } = useTranslation()
   const { language } = useLanguage()
   const coreName = solrCore ? (
@@ -725,7 +854,7 @@ function SearchCoreResults({ core, solrCore, result, errorMessage, origin, onFil
         {total > shown && (
           <>
             <span className="small text-muted">{t('search.results.shown', { count: shown })}</span>
-            <button type="button" className="button-other" disabled={loadingMore} onClick={onLoadMore}>
+            <button type="button" className="button-other" disabled={loadingMore} onClick={() => onLoadMore(core)}>
               {loadingMore ? t('search.results.loadingMore') : t('search.results.loadMore', { count: Math.min(result.pageSize, total - shown) })}
             </button>
           </>
@@ -758,4 +887,4 @@ function SearchCoreResults({ core, solrCore, result, errorMessage, origin, onFil
       </div>
     </ContentBox>
   )
-}
+})

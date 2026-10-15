@@ -2,8 +2,11 @@ import { request } from '../../api/client.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { translate } from '../../components/multilingual.ts'
 
-/** Unser Typkatalog (SolrFieldType.java): jeder Eintrag ist ein fieldType im Basis-Schema. Genau zwei Texttypen. */
-export type SolrFieldType = 'STRING' | 'EMAIL' | 'BOOLEAN' | 'LONG' | 'DOUBLE' | 'DATE' | 'TEXT_EDGE' | 'TEXT_SUCHE'
+/**
+ * Unser Typkatalog (SolrFieldType.java): jeder Eintrag ist ein fieldType im Basis-Schema. Drei Texttypen, text_ngram
+ * nur für die essenziellen Felder (User 2026-10-14).
+ */
+export type SolrFieldType = 'STRING' | 'EMAIL' | 'BOOLEAN' | 'LONG' | 'DOUBLE' | 'DATE' | 'TEXT_EDGE' | 'TEXT_NGRAM' | 'TEXT_SUCHE'
 
 /**
  * Die Typen, nur der Name: Das ist ein Adminmodul, die Erklärung steht im Hoverlay der Spalte. Ganze Zahlen sind
@@ -19,6 +22,8 @@ export const SOLR_FIELD_TYPES: { type: SolrFieldType; label: string; suggestable
   { type: 'DOUBLE', label: 'double', suggestable: true },
   { type: 'DATE', label: 'date', suggestable: false },
   { type: 'TEXT_EDGE', label: 'text_edge', suggestable: false },
+  // jedes Stück ab 3 Zeichen an jeder Stelle, nur für die essenziellen Felder wie den Artikelnamen
+  { type: 'TEXT_NGRAM', label: 'text_ngram', suggestable: false },
   { type: 'TEXT_SUCHE', label: 'text_suche', suggestable: false },
 ]
 
@@ -88,6 +93,11 @@ export interface SolrField {
   required: boolean
   /** ein Zwilling <name>Suggested mit copyField, nicht bei jedem Typ */
   suggest: boolean
+  /**
+   * essenziell: ohne das Feld ergibt ein Dokument dieses Kerns keinen Sinn, der Import verlangt es (User 2026-10-14). Je
+   * Kern, auch bei einer Hook-Zeile; id ist immer essenziell. Nur in unserer Felddefinition, nie in Solr.
+   */
+  essential: boolean
   /** die ARs, deren Inhaber das Feld lesen dürfen; leer heißt niemand außer SOLR_USERS_VIEW_ALL */
   readAccessRoleKeys: string[]
   /** wer das Feld setzt, der Umschaltknopf im Sheet */

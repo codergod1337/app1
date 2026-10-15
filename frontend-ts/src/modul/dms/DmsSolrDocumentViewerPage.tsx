@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router'
+import { useParams } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import { Hoverlay } from '../../components/Hoverlay.tsx'
 import { Icon } from '../../components/Icon.tsx'
@@ -15,10 +15,13 @@ import { SolrHookFields } from '../solrmanager/SolrHookFields.tsx'
 import { dmsFieldLabel, dmsFileDownloadUrl, getDmsSolrDocument, type DmsSolrDocumentForClient } from './Dms.ts'
 import { DmsPdfViewer } from './DmsPdfViewer.tsx'
 import { DmsSolrDocumentActionButtons } from './DmsSolrDocumentActionButtons.tsx'
-import { dmsViewerKindOfFileExtension } from './dmsViewerByFileExtension.ts'
+import { DmsTextViewer } from './DmsTextViewer.tsx'
+import { dmsViewerKindOf } from './dmsViewerByFileExtension.ts'
 
-/** Wohin Schließen führt, wenn niemand eine Herkunft mitgab */
-const FALLBACK_PATH = '/search'
+// Word und Excel bringen große Bibliotheken mit (docx-preview, SheetJS): Wie in der Vorlage lädt der Browser sie erst,
+// wenn wirklich so eine Datei geöffnet wird, nicht mit jeder Seite
+const DmsWordViewer = lazy(() => import('./DmsWordViewer.tsx').then((module) => ({ default: module.DmsWordViewer })))
+const DmsSpreadsheetViewer = lazy(() => import('./DmsSpreadsheetViewer.tsx').then((module) => ({ default: module.DmsSpreadsheetViewer })))
 
 /**
  * Ein Bild, die Bytes über den Download-Weg: der Browser kann das selbst. Zwei Größen, ein Klick, wie ein einzeln
@@ -45,14 +48,13 @@ function DmsImageViewer({ id, fileName }: { id: string; fileName: string }) {
  * nur die id, alles andere kommt aus dem Dokument, das mit der Leseprüfung des Users geladen wird.
  *
  * Ohne ContentBox: Der eigene subheader trägt, was man beim Ansehen braucht, Dateiname mit der Beschreibung im
- * Hoverlay, Index, die Hooks als Knopf mit Anzahl und Popup, rechts die Aktionen und Schließen. Darunter bekommt die
- * Datei die ganze Fläche, die in sich scrollt. Welche Endung welchen Viewer bekommt, sagt dmsViewerByFileExtension;
- * ohne Viewer bleibt der Download. Schließen führt zur Herkunft, sonst zur Suche.
+ * Hoverlay, Index, die Hooks als Knopf mit Anzahl und Popup, rechts die Aktionen. Darunter bekommt die Datei die ganze
+ * Fläche, die in sich scrollt. Welche Endung welchen Viewer bekommt, sagt dmsViewerByFileExtension; ohne Viewer bleibt
+ * der Download. Eine Lese-Seite: kein Schließen, raus geht es über das „zurück zu …“ im Header (User 2026-10-14).
  */
 export function DmsSolrDocumentViewerPage() {
   const { t } = useTranslation()
   const { id } = useParams()
-  const navigate = useNavigate()
   const origin = useOrigin()
   const { language } = useLanguage()
   const { solrHooks, solrFields } = useMasterData()
@@ -75,7 +77,6 @@ export function DmsSolrDocumentViewerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  const closePath = origin?.path ?? FALLBACK_PATH
   const originState = origin !== null ? { origin } : undefined
   const document = loaded?.document ?? null
   const fileName = typeof document?.fileName === 'string' ? document.fileName : (id ?? '')
@@ -83,7 +84,7 @@ export function DmsSolrDocumentViewerPage() {
   const fileIndex = typeof document?.fileIndex === 'string' ? document.fileIndex : null
   const hooks = document ? solrHookValuesOf(document, solrHooks ?? []) : {}
   const hookCount = Object.keys(hooks).length
-  const viewerKind = document ? dmsViewerKindOfFileExtension(document.fileExtension) : null
+  const viewerKind = document ? dmsViewerKindOf(document) : null
 
   const status = (
     <span className="d-inline-flex align-items-center gap-2">
@@ -113,14 +114,7 @@ export function DmsSolrDocumentViewerPage() {
     </span>
   )
 
-  const actions = (
-    <>
-      {document && <DmsSolrDocumentActionButtons document={document} origin={originState} onViewerPage />}
-      <button type="button" className="button-cancel" onClick={() => navigate(closePath)}>
-        {t('common.close')}
-      </button>
-    </>
-  )
+  const actions = document && <DmsSolrDocumentActionButtons document={document} origin={originState} onViewerPage />
 
   let area
   if (errorMessage !== null) {
@@ -136,6 +130,15 @@ export function DmsSolrDocumentViewerPage() {
     area = <DmsImageViewer id={id} fileName={fileName} />
   } else if (viewerKind === 'pdf') {
     area = <DmsPdfViewer id={id} fileName={fileName} />
+  } else if (viewerKind === 'text') {
+    area = <DmsTextViewer id={id} fileName={fileName} />
+  } else if (viewerKind === 'word' || viewerKind === 'spreadsheet') {
+    const loadingViewer = <span className="spinner-border spinner-border-sm" role="status" aria-label={t('common.loading')} />
+    area = (
+      <Suspense fallback={loadingViewer}>
+        {viewerKind === 'word' ? <DmsWordViewer id={id} fileName={fileName} /> : <DmsSpreadsheetViewer id={id} fileName={fileName} />}
+      </Suspense>
+    )
   } else {
     area = <p className="text-warning mb-0">{t('dms.viewer.noViewer')}</p>
   }

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
+import { CancelButton } from '../../components/CancelButton.tsx'
+import { ConfirmButton } from '../../components/ConfirmButton.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { Hoverlay } from '../../components/Hoverlay.tsx'
 import { useLanguage } from '../../components/languageContext.ts'
@@ -344,6 +346,24 @@ export function ArchivierenMailPage() {
 
   const receivedOrSent = mailView.receivedDateTime ?? mailView.sentDateTime
 
+  // dasselbe Paar im Kopf und im Footer des Prüfers, aus den beiden Knöpfen einzeln, weil nur Archivieren das Hoverlay
+  // mit dem Sperrgrund trägt; der Grund steht auch im Footer
+  const archiveButtons = (
+    <span className="ms-auto d-flex gap-2">
+      <CancelButton disabled={archiving} onClick={() => navigate(backPath)} />
+      <Hoverlay text={archiveBlockedReason}>
+        <span>
+          <ConfirmButton
+            label={archiving ? t('archivieren.prepare.archiving') : t('archivieren.prepare.archive')}
+            onClick={archive}
+            disabled={archiveBlockedReason !== null}
+            busy={archiving}
+          />
+        </span>
+      </Hoverlay>
+    </span>
+  )
+
   return (
     <div className="row g-3">
       <div className="col-lg-7 d-flex flex-column gap-3">
@@ -411,23 +431,16 @@ export function ArchivierenMailPage() {
       <div className="col-lg-5">
         <ContentBox
           title={t('archivieren.prepare.inspectorTitle')}
-          actions={
-            <Hoverlay text={archiveBlockedReason}>
-              <span>
-                <button type="button" className="button-save" disabled={archiving || archiveBlockedReason !== null} onClick={archive}>
-                  {archiving ? t('archivieren.prepare.archiving') : t('archivieren.prepare.archive')}
-                </button>
-              </span>
-            </Hoverlay>
-          }
+          actions={archiveButtons}
           footer={
-            archiveErrorMessage !== null ? (
-              <span className="text-danger">{archiveErrorMessage}</span>
-            ) : archiveBlockedReason !== null ? (
-              <span className={noAccess ? 'text-danger' : undefined}>{archiveBlockedReason}</span>
-            ) : archiving ? (
-              <span className="spinner-border spinner-border-sm" role="status" aria-label={t('archivieren.prepare.archiving')} />
-            ) : null
+            <>
+              {archiveErrorMessage !== null ? (
+                <span className="text-danger">{archiveErrorMessage}</span>
+              ) : archiveBlockedReason !== null ? (
+                <span className={noAccess ? 'text-danger' : undefined}>{archiveBlockedReason}</span>
+              ) : null}
+              {archiveButtons}
+            </>
           }
         >
           <div className="d-flex flex-column gap-4">

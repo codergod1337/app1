@@ -119,6 +119,7 @@ export function KontakteSearchResultList({ hits, origin, onFilter }: SearchResul
                       origin={origin}
                       onSearchFilter={onFilter}
                       badgeClassName="search-hit-hook-value"
+                      valuesInHoverlay
                     />
                   ))}
                 </div>

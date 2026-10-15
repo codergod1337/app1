@@ -97,6 +97,7 @@ export function ArtikelSearchResultList({ hits, origin, onFilter }: SearchResult
                       origin={origin}
                       onSearchFilter={onFilter}
                       badgeClassName="search-hit-hook-value"
+                      valuesInHoverlay
                     />
                   ))}
                 </div>

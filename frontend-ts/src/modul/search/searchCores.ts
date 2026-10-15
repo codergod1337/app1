@@ -4,7 +4,7 @@ import type { OriginState } from '../../components/Origin.ts'
 import { ADMIN_ACCESS_ROLE_KEY } from '../accessrole/AccessRole.ts'
 import { ARTIKEL_CORE_KEY, ARTIKEL_SEARCH_ACCESS_ROLE_KEY, artikelOffersOfHit, artikelPath, searchArtikelDocuments } from '../artikel/Artikel.ts'
 import { ArtikelSearchResultList } from '../artikel/ArtikelSearchResultList.tsx'
-import { DMS_CORE_KEY, DMS_SEARCH_ACCESS_ROLE_KEY, dmsSolrDocumentPath, searchDmsDocuments } from '../dms/Dms.ts'
+import { DMS_CORE_KEY, DMS_SEARCH_ACCESS_ROLE_KEY, dmsSolrDocumentPath, FILE_SUB_CLASS_FIELD_NAME, searchDmsDocuments } from '../dms/Dms.ts'
 import { DmsSearchResultList } from '../dms/DmsSearchResultList.tsx'
 import {
   KONTAKTE_CORE_KEY,
@@ -16,6 +16,7 @@ import {
 } from '../kontakte/Kontakte.ts'
 import { KontakteSearchResultList } from '../kontakte/KontakteSearchResultList.tsx'
 import {
+  MESSAGE_SUB_CLASS_FIELD_NAME,
   NACHRICHTEN_CORE_KEY,
   NACHRICHTEN_SEARCH_ACCESS_ROLE_KEY,
   nachrichtenCompletionsOfHit,
@@ -132,6 +133,31 @@ export const SEARCH_CORES: readonly SearchCore[] = [
  * so die Kundennummer mit Firmennamen als Filter.
  */
 export const SEARCH_RESOLVER_CORE_KEY = KONTAKTE_CORE_KEY
+
+/**
+ * Ein spezialFilterErsterOrdnung (User 2026-10-14): „fsc.“ wählt eine Dateiart, „msc.“ eine Nachrichtenart. Die
+ * Eingabe öffnet die Arten als Kacheln, die Wahl wird ein Chip mit eigenem Aussehen (SearchSubClassChip). Sein Feld
+ * gibt es nur in einem Kern: Solange der Chip steht, sucht nur dieser Kern, die anderen Kernschalter sind gesperrt.
+ * Immer nur einer zugleich, ein neuer ersetzt den alten. Nur mit der Such-Rolle seines Kerns.
+ */
+export interface SpezialFilterErsterOrdnung {
+  /** womit die Eingabe beginnt, klein; zugleich der Schlüssel im Sprachkatalog, search.<prefix ohne Punkt> */
+  prefix: 'fsc.' | 'msc.'
+  /** das Feld des Chips */
+  fieldName: string
+  /** der einzige Kern mit diesem Feld */
+  coreKey: string
+}
+
+export const SPEZIAL_FILTER_ERSTER_ORDNUNG: readonly SpezialFilterErsterOrdnung[] = [
+  { prefix: 'fsc.', fieldName: FILE_SUB_CLASS_FIELD_NAME, coreKey: DMS_CORE_KEY },
+  { prefix: 'msc.', fieldName: MESSAGE_SUB_CLASS_FIELD_NAME, coreKey: NACHRICHTEN_CORE_KEY },
+]
+
+/** Der spezialFilterErsterOrdnung zu einem Chip-Feld, null für jedes andere Feld */
+export function spezialFilterErsterOrdnungOfField(fieldName: string): SpezialFilterErsterOrdnung | null {
+  return SPEZIAL_FILTER_ERSTER_ORDNUNG.find((entry) => entry.fieldName === fieldName) ?? null
+}
 
 /** Die Kerne, die dieser User durchsuchen darf: die Such-Rolle des Kerns, ADMIN darf jeden */
 export function searchCoresOf(hasAccessRole: (accessRoleKey: string) => boolean): SearchCore[] {

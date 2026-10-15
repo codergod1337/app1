@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RequestError } from '../../api/client.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { highlight } from '../../components/highlight.tsx'
 import { useLanguage } from '../../components/languageContext.ts'
 import { useMasterData } from '../../components/masterDataContext.ts'
@@ -54,6 +55,7 @@ export function UsersDebuffsPopup({ open, usersGuid, onCreated, onClose }: Users
     (solrField) =>
       solrField.hookKey === null &&
       solrField.type !== 'TEXT_EDGE' &&
+      solrField.type !== 'TEXT_NGRAM' &&
       solrField.type !== 'TEXT_SUCHE' &&
       matchesNeedle(solrField.name, solrFieldLabel(solrField, language)),
   )
@@ -106,14 +108,13 @@ export function UsersDebuffsPopup({ open, usersGuid, onCreated, onClose }: Users
   const footer = (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={close}>
-          {t('common.cancel')}
-        </button>
-        <button type="button" className="button-save" disabled={!canSave} onClick={save}>
-          {t('common.save')}
-        </button>
-      </span>
+      <ConfirmCancelButtons
+        onCancel={close}
+        confirmLabel={t('common.save')}
+        onConfirm={save}
+        disabled={!canSave}
+        busy={saving}
+      />
     </>
   )
 

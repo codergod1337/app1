@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
+import { CancelButton } from '../../components/CancelButton.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { claimLogin, confirmLogin, startLogin, type Login2faPollToken } from './Session.ts'
 import { useSession } from './sessionContext.ts'
@@ -117,9 +118,7 @@ export function LoginPage() {
           </button>
         )}
         {phase === 'waiting' && (
-          <button type="button" className="button-cancel" onClick={cancelLogin}>
-            Abbrechen
-          </button>
+          <CancelButton onClick={cancelLogin} />
         )}
       </span>
     </>

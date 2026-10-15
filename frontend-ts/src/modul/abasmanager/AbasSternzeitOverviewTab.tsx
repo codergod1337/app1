@@ -8,6 +8,7 @@ import { Hoverlay } from '../../components/Hoverlay.tsx'
 import { Icon } from '../../components/Icon.tsx'
 import { Table, type TableColumn } from '../../components/Table.tsx'
 import { showToast } from '../../components/toastStore.ts'
+import { ViewButton } from '../../components/ViewButton.tsx'
 import {
   type AbasSternzeit,
   type AbasSternzeitOverviewCounts,
@@ -262,16 +263,10 @@ export function AbasSternzeitOverviewTab() {
             <Icon name="refresh" />
           </button>
         </Hoverlay>
-        <Hoverlay text={t('abasmanager.overview.viewResponse', { sternzeit: row.sternzeit })}>
-          <button
-            type="button"
-            className="button-other"
-            aria-label={t('abasmanager.overview.viewResponse', { sternzeit: row.sternzeit })}
-            onClick={() => setSternzeitForResponse(row.sternzeit)}
-          >
-            <Icon name="view" />
-          </button>
-        </Hoverlay>
+        <ViewButton
+          label={t('abasmanager.overview.viewResponse', { sternzeit: row.sternzeit })}
+          onClick={() => setSternzeitForResponse(row.sternzeit)}
+        />
         <Hoverlay text={t('abasmanager.overview.ignoreRow', { sternzeit: row.sternzeit })}>
           <button
             type="button"

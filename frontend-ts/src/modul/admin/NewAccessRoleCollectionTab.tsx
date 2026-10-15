@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { useLanguage } from '../../components/languageContext.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { useOrigin } from '../../components/Origin.ts'
@@ -19,6 +21,7 @@ const FALLBACK_PATH = '/admin/accessrolecollections'
 
 /** Neue AccessRoleCollection anlegen. Abbrechen und Anlegen springen zum origin. */
 export function NewAccessRoleCollectionTab() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const originPath = useOrigin()?.path ?? FALLBACK_PATH
   const { accessRoleCollections, errorMessage: loadErrorMessage, reloadMasterData } = useMasterData()
@@ -42,26 +45,30 @@ export function NewAccessRoleCollectionTab() {
 
   const loaded = accessRoleCollections !== null
   const errorMessage = loadErrorMessage ?? saveErrorMessage
+  // dasselbe Paar im Kopf und im Footer
+  const buttons = (
+    <ConfirmCancelButtons
+      onCancel={() => navigate(originPath)}
+      confirmLabel={t('common.create')}
+      confirmForm={FORM_ID}
+      disabled={!loaded}
+      busy={saving}
+    />
+  )
   const footer = (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
       {!loaded && errorMessage === null && (
         <span className="spinner-border spinner-border-sm" role="status" aria-label="lädt" />
       )}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={() => navigate(originPath)}>
-          Abbrechen
-        </button>
-        <button type="submit" form={FORM_ID} className="button-save" disabled={saving || !loaded}>
-          Anlegen
-        </button>
-      </span>
+      {buttons}
     </>
   )
 
   return (
     <ContentBox
       title="new AccessRoleCollection()"
+      actions={buttons}
       footer={footer}
       language={{ value: language, onChange: setLanguage }}
     >

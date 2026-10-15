@@ -42,7 +42,7 @@ public class SolrFieldAdminController {
 				newSolrFieldData.isSuggest(), newSolrFieldData.getReadAccessRoleKeys(),
 				newSolrFieldData.getClientWriteRule(), newSolrFieldData.getSearchWeight(),
 				newSolrFieldData.getDisplayName(), newSolrFieldData.getDescription(),
-				newSolrFieldData.getListingPosition(), newSolrFieldData.getCommand());
+				newSolrFieldData.getListingPosition(), newSolrFieldData.getCommand(), newSolrFieldData.isEssential());
 	}
 
 	/** Die id im Body bestimmt, welches Feld geändert wird. Kern, name und hookKey ändern sich nie. */
@@ -54,7 +54,7 @@ public class SolrFieldAdminController {
 				changedSolrFieldData.getReadAccessRoleKeys(), changedSolrFieldData.getClientWriteRule(),
 				changedSolrFieldData.getSearchWeight(), changedSolrFieldData.getDisplayName(),
 				changedSolrFieldData.getDescription(), changedSolrFieldData.getListingPosition(),
-				changedSolrFieldData.getCommand());
+				changedSolrFieldData.getCommand(), changedSolrFieldData.isEssential());
 	}
 
 	/**

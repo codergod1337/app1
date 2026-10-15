@@ -1,7 +1,9 @@
 import { useCallback, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import { useLoad } from '../../api/useLoad.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { useOrigin } from '../../components/Origin.ts'
 import { useSession } from '../login/sessionContext.ts'
@@ -83,6 +85,7 @@ function ProfileUsersForm({ users, disabled, onSubmit }: ProfileUsersFormProps) 
 
 /** Der User ändert username, Vor- und Nachname. Abbrechen und Speichern springen zum origin. */
 export function EditProfileUsers() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const originPath = useOrigin()?.path ?? FALLBACK_PATH
   const usersGuid = useSession().sessionInfo?.usersGuid ?? ''
@@ -103,25 +106,28 @@ export function EditProfileUsers() {
   }
 
   const errorMessage = loadErrorMessage ?? saveErrorMessage
+  // dasselbe Paar im Kopf und im Footer
+  const buttons = (
+    <ConfirmCancelButtons
+      onCancel={() => navigate(originPath)}
+      confirmLabel={t('common.save')}
+      confirmForm={FORM_ID}
+      disabled={users === null}
+      busy={saving}
+    />
+  )
   const footer = (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
       {users === null && errorMessage === null && (
         <span className="spinner-border spinner-border-sm" role="status" aria-label="lädt" />
       )}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={() => navigate(originPath)}>
-          Abbrechen
-        </button>
-        <button type="submit" form={FORM_ID} className="button-save" disabled={saving || users === null}>
-          Speichern
-        </button>
-      </span>
+      {buttons}
     </>
   )
 
   return (
-    <ContentBox title="Name bearbeiten" footer={footer}>
+    <ContentBox title="Name bearbeiten" actions={buttons} footer={footer}>
       {/* Erst mit den geladenen Daten anzeigen, damit das Formular mit ihnen startet */}
       {users !== null && <ProfileUsersForm users={users} disabled={saving} onSubmit={saveUsersNames} />}
     </ContentBox>

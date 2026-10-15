@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { useLanguage } from '../../components/languageContext.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { useMasterData } from '../../components/masterDataContext.ts'
 import { useOrigin, type OriginState } from '../../components/Origin.ts'
@@ -21,6 +23,7 @@ export interface EditFileExtensionState extends OriginState {
 
 /** Eine Endung bearbeiten. Abbrechen und Speichern springen zum origin. */
 export function EditFileExtensionTab() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const originPath = useOrigin()?.path ?? FALLBACK_PATH
   const extension = (useLocation().state as Partial<EditFileExtensionState> | null)?.fileExtension
@@ -50,26 +53,30 @@ export function EditFileExtensionTab() {
     errorMessage = 'keine Endung gewählt oder nicht gefunden'
   }
 
+  // dasselbe Paar im Kopf und im Footer
+  const buttons = (
+    <ConfirmCancelButtons
+      onCancel={() => navigate(originPath)}
+      confirmLabel={t('common.save')}
+      confirmForm={FORM_ID}
+      disabled={fileExtension === null}
+      busy={saving}
+    />
+  )
   const footer = (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
       {fileExtensions === null && errorMessage === null && (
         <span className="spinner-border spinner-border-sm" role="status" aria-label="lädt" />
       )}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={() => navigate(originPath)}>
-          Abbrechen
-        </button>
-        <button type="submit" form={FORM_ID} className="button-save" disabled={saving || fileExtension === null}>
-          Speichern
-        </button>
-      </span>
+      {buttons}
     </>
   )
 
   return (
     <ContentBox
       title={fileExtension ? `Endung bearbeiten: .${fileExtension.extension}` : 'Endung bearbeiten'}
+      actions={buttons}
       footer={footer}
       language={{ value: language, onChange: setLanguage }}
     >

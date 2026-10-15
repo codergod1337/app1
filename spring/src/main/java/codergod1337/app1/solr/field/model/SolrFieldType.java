@@ -4,10 +4,11 @@ package codergod1337.app1.solr.field.model;
  * Unser Typkatalog für Solr-Felder. Jeder Eintrag ist ein fieldType im Basis-Schema, die Maske wählt nur aus, nie rohe
  * Analyzer-Ketten. Der Suggest-Zwilling (code_suggest) gibt es nur bei String und Zahlen: Texte brauchen keinen,
  * text_edge ist selbst per Wortanfang suchbar. Ein neuer Typ hier braucht denselben Typ im Basis-Configset, und ein
- * bestehender Kern kennt ihn erst nach dem Neuaufbau, denn das Configset wird nur beim Anlegen des Kerns kopiert.
+ * bestehender Kern kennt ihn erst nach dem Neuaufbau, denn das Configset wird nur beim Anlegen des Kerns kopiert;
+ * text_ngram legt SolrSchemaSyncService in älteren Kernen selbst an.
  *
- * Genau zwei Texttypen (User 2026-10-09): text_edge für alles, was ein User tippt und beim Tippen wiederfinden will,
- * text_suche für den Volltext.
+ * Drei Texttypen: text_edge für alles, was ein User tippt und beim Tippen wiederfinden will, text_suche für den
+ * Volltext (User 2026-10-09), text_ngram für die wenigen Schlüsselfelder, in denen jedes Stück trifft (User 2026-10-14).
  */
 public enum SolrFieldType {
 
@@ -40,6 +41,13 @@ public enum SolrFieldType {
 	TEXT_EDGE("text_edge", null),
 
 	/**
+	 * Text, in dem jedes Stück ab 3 Zeichen trifft, an jeder Stelle des Worts (NGram beim Indexieren, User 2026-10-14):
+	 * „schild“ und „folie“ finden „Typenschild 100x50 Polyesterfolie“. Nur für die essenziellen Felder, die jeder User
+	 * sieht, wie den Artikelnamen und Dateiname und Beschreibung im DMS: Der Index wächst mit jeder Wortlänge.
+	 */
+	TEXT_NGRAM("text_ngram", null),
+
+	/**
 	 * Der Volltext: jedes Wort einzeln, Stammform, dazu Komposita-Zerlegung und Synonyme, sobald die Dateien dafür da
 	 * sind. „Rechnungen“ findet „Rechnung“, „Kapitänschifffahrtsmütze“ soll über kapitän, schiff und mütze treffen.
 	 */
@@ -69,7 +77,7 @@ public enum SolrFieldType {
 
 	/** Ein Textfeld: Werte werden zerlegt, exakte Bedingungen gehen als Phrase, nicht über den terms-Parser */
 	public boolean isText() {
-		return this == TEXT_EDGE || this == TEXT_SUCHE;
+		return this == TEXT_EDGE || this == TEXT_NGRAM || this == TEXT_SUCHE;
 	}
 
 }

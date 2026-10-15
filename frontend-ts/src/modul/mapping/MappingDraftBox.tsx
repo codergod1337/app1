@@ -1,6 +1,8 @@
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RequestError } from '../../api/client.ts'
+import { CancelButton } from '../../components/CancelButton.tsx'
+import { ConfirmButton } from '../../components/ConfirmButton.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { Hoverlay } from '../../components/Hoverlay.tsx'
 import { NewEntityButton } from '../../components/NewEntityButton.tsx'
@@ -79,24 +81,27 @@ export function MappingDraftBox({ mappingDraft, onJumpToLine, onFetchSubfetch, o
       .finally(() => setSaving(false))
   }
 
+  // dasselbe Paar im Kopf und im Footer; Abbrechen heißt hier Verwerfen, darum die beiden Knöpfe einzeln
+  const buttons = current !== null && (
+    <span className="ms-auto d-flex gap-2">
+      <CancelButton label={t('mapping.draft.discard')} disabled={saving} onClick={mappingDraft.reset} />
+      <ConfirmButton
+        label={current.value.responseMapping.id !== null ? t('mapping.draft.update') : t('mapping.draft.save')}
+        form={FORM_ID}
+        disabled={current.value.lines.length === 0}
+        busy={saving}
+      />
+    </span>
+  )
   const footer = (
     <>
       {errorMessage !== null ? <span className="text-danger">{errorMessage}</span> : <span>{current === null ? t('mapping.draft.empty') : t('mapping.draft.hint')}</span>}
-      {current !== null && (
-        <span className="ms-auto d-flex gap-2">
-          <button type="button" className="button-cancel" disabled={saving} onClick={mappingDraft.reset}>
-            {t('mapping.draft.discard')}
-          </button>
-          <button type="submit" form={FORM_ID} className="button-save" disabled={saving || current.value.lines.length === 0}>
-            {current.value.responseMapping.id !== null ? t('mapping.draft.update') : t('mapping.draft.save')}
-          </button>
-        </span>
-      )}
+      {buttons}
     </>
   )
 
   return (
-    <ContentBox title={t('mapping.draft.title')} footer={footer}>
+    <ContentBox title={t('mapping.draft.title')} actions={buttons} footer={footer}>
       {current !== null && (
         <form id={FORM_ID} className="d-flex flex-column gap-3" onSubmit={save}>
           <div className="d-flex align-items-center gap-2 flex-wrap">

@@ -2,7 +2,6 @@ package codergod1337.app1.solr.dms.controller;
 
 import codergod1337.app1.solr.dms.model.DmsAccessForClient;
 import codergod1337.app1.solr.dms.model.DmsDocumentForClient;
-import codergod1337.app1.solr.dms.model.DmsReindexOption;
 import codergod1337.app1.solr.dms.model.DmsResolvedDocumentsPage;
 import codergod1337.app1.solr.dms.model.DmsSearchedDocumentsPage;
 import codergod1337.app1.solr.dms.model.DmsSolrDocumentRevisionForClient;
@@ -10,11 +9,9 @@ import codergod1337.app1.solr.dms.service.SolrDocumentDmsService;
 import codergod1337.app1.solr.dms.service.SolrDocumentDmsUtilsService;
 import codergod1337.app1.system.HelperInputs;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -109,23 +106,6 @@ public class SolrDocumentDmsController {
 		return documentForClient(id);
 	}
 
-	/** Nachziehen aller Dokumente, nur ADMIN: {"options": ["ACLS_FROM_FILE_SUB_CLASS", "SEARCHABLE_WORDS_FROM_BINARY"]}. Antwort: wie viele geändert. */
-	@PostMapping("/reindex")
-	public Map<String, Integer> reindex(@RequestBody Map<String, Object> body) {
-		Set<DmsReindexOption> options = EnumSet.noneOf(DmsReindexOption.class);
-		if (!(body.get("options") instanceof List<?> rawOptions) || rawOptions.isEmpty()) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "options fehlt oder ist leer");
-		}
-		for (Object rawOption : rawOptions) {
-			try {
-				options.add(DmsReindexOption.valueOf(String.valueOf(rawOption)));
-			} catch (IllegalArgumentException e) {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Option " + rawOption + " ist unbekannt");
-			}
-		}
-		return Map.of("changed", solrDocumentDmsService.reindexDmsDocuments(options));
-	}
-
 	/** Das Dokument mit den Rechten des Users und dem Schreibflag, 404 wenn er es nicht sieht */
 	private DmsDocumentForClient documentForClient(String id) {
 		Map<String, Object> document = solrDocumentDmsService.getById(id);
@@ -171,7 +151,8 @@ public class SolrDocumentDmsController {
 	public DmsSearchedDocumentsPage searchDmsDocuments(@RequestBody Map<String, Object> searchRequest) {
 		String searchText = searchRequest.get("searchText") instanceof String text ? text : "";
 		return solrDocumentDmsService.searchDmsDocuments(searchText,
-				readValuesByFieldName(searchRequest, "exactFilterValuesByFieldName"), readSearchPage(searchRequest));
+				readValuesByFieldName(searchRequest, "exactFilterValuesByFieldName"), readSearchPage(searchRequest),
+				Boolean.TRUE.equals(searchRequest.get("allWordsRequired")));
 	}
 
 	/** Die Seite der Suche, ab 0; fehlt sie, die erste (User 2026-10-14: „weitere laden“ in der Maske) */

@@ -1,6 +1,9 @@
 package codergod1337.app1.system.security;
 
 import codergod1337.app1.system.security.login.SessionCookies;
+import codergod1337.app1.system.security.requestmonitor.RequestMonitorFilter;
+import codergod1337.app1.system.security.requestmonitor.service.BlockedClientIpService;
+import codergod1337.app1.system.security.requestmonitor.service.RequestMonitorService;
 import jakarta.servlet.http.Cookie;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
@@ -18,6 +21,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 
 /**
  * Die Filterkette: wer welchen Pfad darf und woher das Token kommt.
@@ -34,6 +38,10 @@ import org.springframework.security.web.SecurityFilterChain;
  *
  * Dazu prüfen die Services selbst mit @PreAuthorize, wer eine Methode aufrufen darf. Die Rollen kommen dabei nur aus
  * dem Token (Claim roles), ohne Zugriff auf die Datenbank. Eine Absage wird zu 403.
+ *
+ * Ganz vorn in der Kette hängt der RequestMonitorFilter (User 2026-10-15): Eine IP aus der Sperrliste bekommt an jedem
+ * Endpunkt sofort 429, noch vor der Token-Prüfung, mit oder ohne Token. Dazu schreibt er jede Anfrage an den
+ * Login-Endpunkt in die Map des Anfragenmonitors, mit IP, Zeitstempel und Endpunkt.
  */
 @Configuration
 @EnableWebSecurity
@@ -41,10 +49,15 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtDecoder jwtDecoder) throws Exception {
+	public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtDecoder jwtDecoder,
+			RequestMonitorService requestMonitorService, BlockedClientIpService blockedClientIpService) throws Exception {
 		http
 				.csrf(AbstractHttpConfigurer::disable)
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+				// per new, kein @Component: Sonst stünde der Filter ein zweites Mal in der Servlet-Kette von Spring Boot.
+				// Vor dem SecurityContextHolderFilter heißt: als Erstes, eine gesperrte IP kostet nichts weiter.
+				.addFilterBefore(new RequestMonitorFilter(requestMonitorService, blockedClientIpService),
+						SecurityContextHolderFilter.class)
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/error").permitAll()
 						.requestMatchers("/api/rest/v1/public/**").permitAll()

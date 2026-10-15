@@ -21,8 +21,6 @@ import { DmsSharePopup } from './DmsSharePopup.tsx'
 interface DmsSolrDocumentDetailsBoxProps {
   loaded: DmsSolrDocumentForClient
   origin?: OriginState
-  /** Knopf „Schließen“ rechts im Kopf; fehlt er, gibt es den Knopf nicht */
-  onClose?: () => void
   /** nach dem weichen Löschen: das Dokument neu laden oder die Seite verlassen */
   onDeleted?: () => void
   /**
@@ -52,9 +50,10 @@ function ignoreChoice() {
  * Kopf mit Dateiart-Symbol, Name, Dateiart, dem Schlüssel mit den Kennungen im Hoverlay und den Aktionen; die Infobox
  * mit dem Feststehenden; Beschreibung; die Dateiart als gesperrte Kachel; Hooks nur lesend; dann, was die Dateiart
  * bewirkt: Vorschaubild, Volltext und Zugriffsrechte als Aufklapper, nur wenn der User die Felder lesen darf. Ein Feld,
- * das fehlt, ist für diesen User nicht sichtbar, kein Fehler.
+ * das fehlt, ist für diesen User nicht sichtbar, kein Fehler. Eine Lese-Seite: kein Schließen, raus geht es über das
+ * „zurück zu …“ im Header (User 2026-10-14).
  */
-export function DmsSolrDocumentDetailsBox({ loaded, origin, onClose, onDeleted, shared }: DmsSolrDocumentDetailsBoxProps) {
+export function DmsSolrDocumentDetailsBox({ loaded, origin, onDeleted, shared }: DmsSolrDocumentDetailsBoxProps) {
   const { t } = useTranslation()
   const { language } = useLanguage()
   const { fileSubClasses, solrHooks, accessRoles, solrFields } = useMasterData()
@@ -114,11 +113,6 @@ export function DmsSolrDocumentDetailsBox({ loaded, origin, onClose, onDeleted, 
           onDelete={() => setDeleting(true)}
           onShare={() => setSharing(true)}
         />
-      )}
-      {onClose !== undefined && (
-        <button type="button" className="button-cancel" onClick={onClose}>
-          {t('common.close')}
-        </button>
       )}
     </span>
   )

@@ -1,16 +1,21 @@
 package codergod1337.app1.solr.nachrichten.service;
 
+import codergod1337.app1.message.messagesubclass.model.MessageSubClass;
+import codergod1337.app1.message.messagesubclass.service.MessageSubClassService;
 import codergod1337.app1.solr.core.model.SolrCore;
 import codergod1337.app1.solr.field.model.SolrField;
 import codergod1337.app1.solr.field.model.SolrFieldType;
 import codergod1337.app1.solr.field.service.SolrFieldService;
 import codergod1337.app1.solr.nachrichten.model.NachrichtenAccessForClient;
+import codergod1337.app1.solr.reindex.model.SolrReindexCheck;
+import codergod1337.app1.solr.reindex.service.SolrReindexAclsFromSubClassCheck;
 import codergod1337.app1.system.security.CurrentUsersProvider;
 import codergod1337.app1.system.user.model.UsersDebuffType;
 import codergod1337.app1.system.user.model.UsersDebuffs;
 import codergod1337.app1.system.user.service.UsersDebuffsService;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -49,12 +54,36 @@ public class SolrDocumentNachrichtenUtilsService {
 	private final CurrentUsersProvider currentUsersProvider;
 	private final SolrFieldService solrFieldService;
 	private final UsersDebuffsService usersDebuffsService;
+	private final MessageSubClassService messageSubClassService;
 
 	public SolrDocumentNachrichtenUtilsService(CurrentUsersProvider currentUsersProvider,
-			SolrFieldService solrFieldService, UsersDebuffsService usersDebuffsService) {
+			SolrFieldService solrFieldService, UsersDebuffsService usersDebuffsService,
+			MessageSubClassService messageSubClassService) {
 		this.currentUsersProvider = currentUsersProvider;
 		this.solrFieldService = solrFieldService;
 		this.usersDebuffsService = usersDebuffsService;
+		this.messageSubClassService = messageSubClassService;
+	}
+
+	// ===== Nachziehen: die Prüfungen je Option =====
+
+	/**
+	 * Die Option ACLS_FROM_MESSAGE_SUB_CLASS: alle Nachrichtenarten einmal aus Postgres, je Nachricht nur der Vergleich
+	 * von readAcl und writeAcl mit ihrer Art, wie beim Archivieren gesetzt (User 2026-10-14)
+	 */
+	public SolrReindexCheck aclsFromMessageSubClassCheck() {
+		Map<String, List<String>> readAccessRoleKeysByKey = new HashMap<>();
+		Map<String, List<String>> writeAccessRoleKeysByKey = new HashMap<>();
+		for (MessageSubClass messageSubClass : messageSubClassService.getAllMessageSubClasses()) {
+			readAccessRoleKeysByKey.put(messageSubClass.getKey(), orEmpty(messageSubClass.getReadAccessRoleKeys()));
+			writeAccessRoleKeysByKey.put(messageSubClass.getKey(), orEmpty(messageSubClass.getWriteAccessRoleKeys()));
+		}
+		return new SolrReindexAclsFromSubClassCheck("messageSubClassKey", readAccessRoleKeysByKey,
+				writeAccessRoleKeysByKey);
+	}
+
+	private static List<String> orEmpty(List<String> values) {
+		return values == null ? List.of() : values;
 	}
 
 	// ===== Rollen =====

@@ -163,7 +163,7 @@ public class SolrMirrorCoreDocumentWriteService {
 		String text = String.valueOf(value).trim();
 		try {
 			return switch (solrField.getType()) {
-			case STRING, EMAIL, TEXT_EDGE, TEXT_SUCHE -> text.isEmpty() ? null : text;
+			case STRING, EMAIL, TEXT_EDGE, TEXT_NGRAM, TEXT_SUCHE -> text.isEmpty() ? null : text;
 			case LONG -> value instanceof Number number ? number.longValue() : Long.valueOf(text);
 			case DOUBLE -> value instanceof Number number ? number.doubleValue() : Double.valueOf(text.replace(',', '.'));
 			case BOOLEAN -> value instanceof Boolean bool ? bool : parseBoolean(text);

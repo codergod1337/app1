@@ -1,4 +1,6 @@
-import { download, request, upload, type DownloadProgress, type UploadProgress } from '../../api/client.ts'
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { download, request, RequestError, upload, type DownloadProgress, type UploadProgress } from '../../api/client.ts'
 import { useUsersSettings } from '../../components/usersSettingsContext.ts'
 import type { SearchRequest, SearchResultPage } from '../search/Search.ts'
 import { clearSearchResultCache } from '../search/searchResultCache.ts'
@@ -295,6 +297,60 @@ export function dmsFileDownloadUrl(id: string): string {
  */
 export function downloadDmsFileBlob(id: string, onProgress?: DownloadProgress) {
   return download(dmsFileDownloadUrl(id), onProgress)
+}
+
+/** Höchstens so oft wird der Fortschritt gezeichnet: Ein Stück je Netzwerkpaket wären tausende Renderläufe bei einer großen Datei */
+const PROGRESS_REDRAW_INTERVAL_MS = 100
+
+/** Was ein Viewer über die Bytes seiner Datei weiß: die Bytes, sobald da, bis dahin der Fortschritt, oder der Fehler */
+export interface DmsFileBlobState {
+  blob: Blob | null
+  receivedBytes: number
+  /** null ohne Content-Length */
+  totalBytes: number | null
+  errorMessage: string | null
+}
+
+/**
+ * Die Bytes einer Datei für einen Viewer (User 2026-10-14: ansehen ohne Herunterladen): über denselben Weg mit derselben
+ * Leseprüfung wie der Download, aber nur in den Speicher des Browsers, nie in den Download-Ordner. Beim Wechsel der id
+ * wird die alte Antwort verworfen. Alle Viewer laden damit, PDF, Text, Word und Excel.
+ */
+export function useDmsFileBlob(id: string): DmsFileBlobState {
+  const { t } = useTranslation()
+  const [state, setState] = useState<DmsFileBlobState>({ blob: null, receivedBytes: 0, totalBytes: null, errorMessage: null })
+  const lastRedrawRef = useRef(0)
+
+  useEffect(() => {
+    let cancelled = false
+    setState({ blob: null, receivedBytes: 0, totalBytes: null, errorMessage: null })
+    lastRedrawRef.current = 0
+    downloadDmsFileBlob(id, (receivedBytes, totalBytes) => {
+      const now = performance.now()
+      if (cancelled || now - lastRedrawRef.current < PROGRESS_REDRAW_INTERVAL_MS) {
+        return
+      }
+      lastRedrawRef.current = now
+      setState((previous) => ({ ...previous, receivedBytes, totalBytes }))
+    })
+      .then(({ data }) => {
+        if (!cancelled) {
+          setState((previous) => ({ ...previous, blob: data }))
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setState((previous) => ({ ...previous, errorMessage: error instanceof RequestError ? error.message : t('common.unknownError') }))
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+    // neu laden, wenn eine andere id kommt
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+
+  return state
 }
 
 // ===== Endpunkte des SolrDocumentDmsController (solr/dms): die Suche im Kern DMS =====

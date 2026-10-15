@@ -166,3 +166,7 @@ Vorschläge für app1, noch nicht entschieden:
 - Tika im Hintergrund statt beim Hochladen.
 - Originaldateinamen behalten.
 - Weil Solr der einzige Speicher ist: Export als Sicherung von Anfang an.
+
+## Projekt-Manager und Todo-Jobs
+
+Vorlage, `…/projectmanager/` und `…/todojob/`, Frontend `frontend/src/projectmanager/` und `frontend/src/todojob/`. Bestandsaufnahme aus dem Code vom 2026-10-15 steht wortgleich in `todojob_zusammenfassung.md` (Datenmodell, Plan-Mechanik, alle Jobzustände und Übergänge, Rückfrage, Claim, Meldung, Lücken). Entschieden 2026-10-15: Todo-Jobs werden zuerst und eigenständig neu entworfen, das Projekt-Modul danach; die Struktur der Vorlage wird nicht übernommen.

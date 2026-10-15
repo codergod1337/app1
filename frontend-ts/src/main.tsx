@@ -48,7 +48,7 @@ import { ARCHIVIEREN_ENTRY_ACCESS_ROLE_KEYS } from './modul/archivieren/Archivie
 import { Archivieren } from './modul/archivieren/Archivieren.tsx'
 import { ArchivierenMailboxTab } from './modul/archivieren/ArchivierenMailboxTab.tsx'
 import { ArchivierenMailPage } from './modul/archivieren/ArchivierenMailPage.tsx'
-import { ARTIKEL_ACCESS_ROLE_KEY } from './modul/artikel/Artikel.ts'
+import { ARTIKEL_ACCESS_ROLE_KEY, ARTIKEL_SEARCH_ACCESS_ROLE_KEY } from './modul/artikel/Artikel.ts'
 import { ArtikelEntryPage } from './modul/artikel/ArtikelEntryPage.tsx'
 import { ArtikelmappePage } from './modul/artikel/ArtikelmappePage.tsx'
 import { BelegnummerPage } from './modul/belegnummer/BelegnummerPage.tsx'
@@ -73,7 +73,7 @@ import { EditAbasInfosysTab } from './modul/infosys/EditAbasInfosysTab.tsx'
 import { InfosysManager } from './modul/infosys/InfosysManager.tsx'
 import { InfosysRunTab } from './modul/infosys/InfosysRunTab.tsx'
 import { NewAbasInfosysTab } from './modul/infosys/NewAbasInfosysTab.tsx'
-import { KONTAKTE_ACCESS_ROLE_KEY } from './modul/kontakte/Kontakte.ts'
+import { KONTAKTE_ACCESS_ROLE_KEY, KONTAKTE_SEARCH_ACCESS_ROLE_KEY } from './modul/kontakte/Kontakte.ts'
 import { KontakteMappePage } from './modul/kontakte/KontakteMappePage.tsx'
 import { ConfirmLoginPage } from './modul/login/ConfirmLoginPage.tsx'
 import { LoginPage } from './modul/login/LoginPage.tsx'
@@ -84,9 +84,10 @@ import { MappingAbasFetchTab } from './modul/mapping/MappingAbasFetchTab.tsx'
 import { MappingExecuteTab } from './modul/mapping/MappingExecuteTab.tsx'
 import { MappingJsonViewTab } from './modul/mapping/MappingJsonViewTab.tsx'
 import { MappingOverviewTab } from './modul/mapping/MappingOverviewTab.tsx'
-import { NACHRICHTEN_ENTRY_ACCESS_ROLE_KEYS } from './modul/nachrichten/Nachrichten.ts'
+import { NACHRICHTEN_ENTRY_ACCESS_ROLE_KEYS, NACHRICHTEN_SEARCH_ACCESS_ROLE_KEY } from './modul/nachrichten/Nachrichten.ts'
 import { NachrichtPage } from './modul/nachrichten/NachrichtPage.tsx'
 import { EditProfileUsers } from './modul/profile/EditProfileUsers.tsx'
+import { RequestMonitor } from './modul/requestmonitor/RequestMonitor.tsx'
 import { EditProfileUsersDetails } from './modul/profile/EditProfileUsersDetails.tsx'
 import { Profile } from './modul/profile/Profile.tsx'
 import { ProfileOverview } from './modul/profile/ProfileOverview.tsx'
@@ -250,6 +251,15 @@ const router = createBrowserRouter([
         ),
       },
       {
+        // Anfragenmonitor: die Map der Anfragen an den Login-Endpunkt, live (User 2026-10-15), nur ADMIN
+        path: 'requestmonitor',
+        element: (
+          <RequireLogin accessRoleKey={ADMIN_ACCESS_ROLE_KEY}>
+            <RequestMonitor />
+          </RequireLogin>
+        ),
+      },
+      {
         path: 'graph',
         element: (
           <RequireLogin accessRoleKey={ADMIN_ACCESS_ROLE_KEY}>
@@ -351,11 +361,18 @@ const router = createBrowserRouter([
         element: <DmsSharedDocumentPage />,
       },
       {
-        // die Suche über alle Kerne. Die Route verlangt die Such-Rolle des ersten Kerns, welche Kerne der User
-        // durchsucht, entscheidet die Maske je Kern aus seinen Rollen
+        // die Suche über alle Kerne. Die Such-Rolle eines Kerns reicht (User 2026-10-14), welche Kerne der User
+        // durchsucht, entscheidet die Maske je Kern aus seinen Rollen, das Backend prüft jeden Kern selbst
         path: 'search',
         element: (
-          <RequireLogin accessRoleKey={DMS_SEARCH_ACCESS_ROLE_KEY}>
+          <RequireLogin
+            accessRoleKeys={[
+              DMS_SEARCH_ACCESS_ROLE_KEY,
+              ARTIKEL_SEARCH_ACCESS_ROLE_KEY,
+              KONTAKTE_SEARCH_ACCESS_ROLE_KEY,
+              NACHRICHTEN_SEARCH_ACCESS_ROLE_KEY,
+            ]}
+          >
             <Search />
           </RequireLogin>
         ),

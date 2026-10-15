@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { RequestError } from '../../api/client.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { Icon } from '../../components/Icon.tsx'
 import { useLanguage } from '../../components/languageContext.ts'
@@ -176,14 +177,12 @@ export function DmsSolrDocumentRevisionsBox({ id, document, onRestored }: DmsSol
   const restoreFooter = (
     <>
       {restoreError !== null && <span className="text-danger">{restoreError}</span>}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={restoreRunning} onClick={closeRestore}>
-          {t('common.cancel')}
-        </button>
-        <button type="button" className="button-save" disabled={restoreRunning} onClick={confirmRestore}>
-          {t('dms.revisions.restore')}
-        </button>
-      </span>
+      <ConfirmCancelButtons
+        onCancel={closeRestore}
+        confirmLabel={t('dms.revisions.restore')}
+        onConfirm={confirmRestore}
+        busy={restoreRunning}
+      />
     </>
   )
 

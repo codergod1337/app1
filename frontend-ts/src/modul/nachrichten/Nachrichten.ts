@@ -9,6 +9,9 @@ import type { SolrHook } from '../solrmanager/SolrHook.ts'
 /** Der Kern der archivierten Mails (SolrDocumentNachrichtenService.CORE_KEY) */
 export const NACHRICHTEN_CORE_KEY = 'NACHRICHTEN'
 
+/** Das Feld mit der Nachrichtenart (MSC) einer Nachricht, gibt es nur in diesem Kern */
+export const MESSAGE_SUB_CLASS_FIELD_NAME = 'messageSubClassKey'
+
 /** Die Tür des Kerns: Nachrichten lesen. Welche, entscheidet readAcl aus der Nachrichtenart. */
 export const NACHRICHTEN_ACCESS_ROLE_KEY = 'NACHRICHTEN'
 

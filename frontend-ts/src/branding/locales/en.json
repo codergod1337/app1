@@ -84,7 +84,9 @@
     "positionArc": "Position (ARC)",
     "rightsAr": "Rights in the token (AR)",
     "tokenNote": "The rights are in the token. If the admin changes them, the new ones apply after the next refresh.",
-    "search": "Search"
+    "search": "Search",
+    "searchPlaceholder": "Search …",
+    "searchShortcut": "Ctrl K"
   },
   "home": {
     "tiles": {
@@ -100,7 +102,8 @@
       "infosys": "Infosystems",
       "belegnummer": "Document number",
       "archivieren": "Archive",
-      "testfakedata": "Test data"
+      "testfakedata": "Test data",
+      "requestmonitor": "Request monitor"
     },
     "entryAccessRoles": {
       "symbolLabel": "Which ARs open this module",
@@ -392,6 +395,9 @@
       "showHooks": "show all hooks of this document",
       "hooksTitle": "Hooks of {{name}}",
       "noViewer": "There is no viewer for this file type, the file can only be downloaded.",
+      "textShortened": "The file is very large, the first {{formatted}} characters are shown.",
+      "renderFailed": "The preview could not be created.",
+      "sheets": "Sheets",
       "showNativeSize": "click: show in full size (1:1)",
       "fitAgain": "click: fit again"
     },
@@ -578,10 +584,159 @@
   },
   "search": {
     "title": "Search",
-    "intro": "One search box for every core you hold the search role for. Searching starts at three characters or with a filter. A leading + makes a word mandatory, a leading - excludes it. With fsc. you pick a file sub class as a filter.",
+    "help": {
+      "title": "How to search",
+      "general": "Type what you are looking for. The search starts at {{min}} letters per word, at most {{max}} words. It searches every area switched on in the bar at the top.",
+      "youType": "You type",
+      "youFind": "You find",
+      "notFound": "Not included",
+      "becomes": "Click the tile",
+      "rules": {
+        "words": {
+          "text": "Just type words the way they appear in the article, document or message. Upper and lower case do not matter. Often part of a word is enough: “plate” also finds “nameplate” and “baseplate”.",
+          "examples": [
+            {
+              "input": "plate",
+              "hits": [
+                "[Nameplate] 100x50 polyester foil laser engraved",
+                "[Baseplate] aluminium 200x100"
+              ]
+            }
+          ]
+        },
+        "switch": {
+          "text": "The switch right of the box. On (“every word must occur”): only what contains all typed words. Off (“one hit is enough”): one word is enough; what contains more words ranks higher.",
+          "examples": [
+            {
+              "label": "Switch on",
+              "input": "plate foil",
+              "hits": [
+                "[Nameplate] 100x50 polyester [foil] laser engraved"
+              ],
+              "dropped": [
+                {
+                  "text": "[Baseplate] aluminium 200x100",
+                  "reason": "“foil” is missing"
+                }
+              ]
+            },
+            {
+              "label": "Switch off",
+              "input": "plate foil",
+              "hits": [
+                "[Nameplate] 100x50 polyester [foil] laser engraved",
+                "[Baseplate] aluminium 200x100",
+                "Protective [foil] clear 50 m"
+              ]
+            }
+          ]
+        },
+        "plus": {
+          "text": "A + right before the word, no space in between: this word must be in it. You only need it with the switch off; with the switch on every word must be in it anyway.",
+          "examples": [
+            {
+              "label": "Switch off",
+              "input": "+hexagon zinc",
+              "hits": [
+                "[Hexagon] bolt M8x40 [zinc] plated",
+                "[Hexagon] nut M10 stainless A2"
+              ],
+              "dropped": [
+                {
+                  "text": "[Zinc] spray bright 400 ml",
+                  "reason": "“hexagon” is missing"
+                }
+              ]
+            }
+          ]
+        },
+        "minus": {
+          "text": "A - right before the word, no space in between: this word must not be in it. Everything with this word disappears from the hits, whatever the switch says.",
+          "examples": [
+            {
+              "input": "hexagon -stainless",
+              "hits": [
+                "[Hexagon] bolt M8x40 zinc plated"
+              ],
+              "dropped": [
+                {
+                  "text": "[Hexagon] nut M10 {stainless} A2",
+                  "reason": "contains “stainless”"
+                }
+              ]
+            }
+          ]
+        },
+        "fsc": {
+          "text": "Type fsc. at the very start of the box: the file sub classes appear as tiles, typing on narrows them down. Click a tile and it becomes a chip in the box. From then on only DMS is searched, and only this file sub class; the other areas are locked. Remove the chip with the x and everything is open again. Works only if you may search DMS.",
+          "examples": [
+            {
+              "input": "fsc.draw",
+              "becomes": "Drawing",
+              "note": "Now only DMS is searched, only drawings."
+            },
+            {
+              "chip": "Drawing",
+              "input": "shaft",
+              "hits": [
+                "[Shaft] Ø30 h6 rev B.pdf"
+              ],
+              "dropped": [
+                {
+                  "text": "Invoice 4711 [shaft] Ø30.pdf",
+                  "reason": "is an invoice, not a drawing"
+                }
+              ]
+            }
+          ]
+        },
+        "msc": {
+          "text": "Type msc. at the very start of the box: the same for messages. The message types appear as tiles, the clicked one becomes a chip, then only messages of this type are searched. Works only if you may search messages.",
+          "examples": [
+            {
+              "input": "msc.inq",
+              "becomes": "Inquiry",
+              "note": "Now only messages are searched, only inquiries."
+            },
+            {
+              "chip": "Inquiry",
+              "input": "round",
+              "hits": [
+                "RE: [Round] bar Ø30 1.4305 price and date"
+              ],
+              "dropped": [
+                {
+                  "text": "Invoice for [round] bar Ø30, delivery week 42",
+                  "reason": "is an invoice, not an inquiry"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "keys": [
+        {
+          "key": "Tab",
+          "text": "takes the first offer above the box as a filter."
+        },
+        {
+          "key": "Enter",
+          "text": "opens the hit directly when you typed exactly one number, such as an article number."
+        },
+        {
+          "key": "Ctrl+K",
+          "text": "jumps into the search from every page."
+        }
+      ]
+    },
+    "allWords": {
+      "on": "every word must occur",
+      "off": "one hit is enough"
+    },
     "placeholder": "search, e.g. 4711 or +drawing -old",
     "words_one": "{{count}} of {{max}} search words",
     "words_other": "{{count}} of {{max}} search words",
+    "wordsLimitHint": "No more words: better set a filter, an offer with Tab, fsc. for a file sub class or msc. for a message type.",
     "cores": {
       "DMS": "DMS",
       "ARTIKEL": "Articles",
@@ -594,6 +749,7 @@
       "open": "Open"
     },
     "missingRole": "You are missing the AccessRole {{role}} for this.",
+    "subClassLock": "Locked while the filter is set: it only applies to {{core}}. Remove the chip to free the cores again.",
     "noCores": "There is no core you may search.",
     "running": "searching",
     "hint": {
@@ -615,6 +771,9 @@
     },
     "fsc": {
       "hint": "Pick a file sub class: click or Enter sets it as a filter, Escape cancels."
+    },
+    "msc": {
+      "hint": "Pick a message type: click or Enter sets it as a filter, Escape cancels."
     },
     "results": {
       "shown": "{{count}} of them loaded",
@@ -678,6 +837,112 @@
     }
   },
   "solrmanager": {
+    "transfer": {
+      "title": "Export/Import",
+      "titleOf": "Export/Import: {{core}}",
+      "essential": "essential",
+      "ignored": "Ignored, because the core does not know them and nothing is mapped from them: {{names}}",
+      "export": {
+        "title": "Export",
+        "intro": "All documents of the core as a compressed file: one line of JSON per document, at the end a closing line with the count. Every stored field, without the suggest twins, which are rebuilt on import. A blank core gets back to this state with it.",
+        "start": "Download export",
+        "failed": "Export not started"
+      },
+      "import": {
+        "title": "Import",
+        "intro": "Check first: the file is uploaded and stays on the server, the check shows per field what the core does with it. If a core field is missing, another field of the file can step in; every essential field needs a source. Every document is written on its own, the import stops at the first error.",
+        "file": "File (.ndjson.gz, .ndjson or .json)",
+        "analyze": "Check",
+        "analyzing": "checking",
+        "uploading": "{{sent}} of {{total}} uploaded",
+        "read": "{{value}} documents read",
+        "analyzeFailed": "Check failed",
+        "start": "Import",
+        "startFailed": "Import not started",
+        "essentialMissing": "Map every essential field first: {{names}}"
+      },
+      "analysis": {
+        "documents": "{{value}} documents",
+        "complete": "File complete, the closing line names the same count.",
+        "incomplete": "No matching closing line: the file may be truncated or not come from an export.",
+        "declared": "The closing line names {{value}} documents.",
+        "unreadable": "{{value}} lines are not a JSON object, the first: {{first}}"
+      },
+      "fileFields": {
+        "title": "Fields of the file",
+        "name": "Field",
+        "count": "Documents",
+        "core": "in the core",
+        "invalid": "wrong type",
+        "sample": "Example",
+        "unknown": "unknown",
+        "mapped": "mapped",
+        "skipped": "skipped, rebuilt",
+        "none": "The file contains no fields."
+      },
+      "missing": {
+        "title": "Fields of the core missing in the file",
+        "none": "None, the file has every field of the core.",
+        "choose": "please map",
+        "leaveEmpty": "leave empty",
+        "from": "Source for {{name}}"
+      },
+      "mode": {
+        "title": "Known ids:",
+        "SKIP_EXISTING": "skip",
+        "REPLACE": "delete and rewrite"
+      },
+      "status": {
+        "title": "Status",
+        "never": "No import has run since the backend started.",
+        "otherCoreRunning": "An import into core {{core}} is running.",
+        "running": "importing",
+        "cancelling": "stops after the current document",
+        "finished": "finished",
+        "stopped": "Stopped at line {{line}}",
+        "failed": "aborted: {{message}}",
+        "progress": "Line {{line}} of {{total}} documents · {{written}} written · {{skipped}} skipped · {{rate}} per s",
+        "resume": "Continue from line {{line}}",
+        "cancel": "Stop import",
+        "cancelFailed": "Stopping failed"
+      }
+    },
+    "reindex": {
+      "title": "Reconcile",
+      "titleOf": "Reconcile: {{core}}",
+      "intro": "Runs over all documents of the core and compares them with the target state. Only deviating documents are written, one after the other; only the fields the chosen checks need are read. You may close the popup, the run continues in the backend.",
+      "options": {
+        "ACLS_FROM_FILE_SUB_CLASS": "Read and write rights (readAcl, writeAcl) from the file sub class",
+        "SEARCHABLE_WORDS_FROM_BINARY": "Full text anew from the file: fetches every file from SFTP and reads it with Tika, always writes",
+        "ACLS_FROM_MESSAGE_SUB_CLASS": "Read and write rights (readAcl, writeAcl) from the message type",
+        "SEARCH_SUGGESTION_REBUILD": "Rebuild search: writes every document once more, Solr re-analyses all text fields and refills all suggest twins by the current rules. Only after changing them, runs alone."
+      },
+      "changedIdsNotRecorded": "The rebuild writes every document, it keeps no list of ids.",
+      "start": "Start",
+      "starting": "starting",
+      "cancel": "Cancel run",
+      "otherCoreRunning": "A reconcile is currently running in core {{core}}.",
+      "progress": "{{done}} of {{total}} checked",
+      "changed_one": "{{value}} changed",
+      "changed_other": "{{value}} changed",
+      "failed": "{{value}} errors",
+      "rate": "{{value}} per s",
+      "lastError": "Last error: {{message}}",
+      "firstChangedIds_one": "The changed id",
+      "firstChangedIds_other": "The first {{count}} changed ids",
+      "download": "Download all changed ids as a text file",
+      "changedNone": "No document had to be changed.",
+      "startFailed": "Reconcile not started",
+      "cancelFailed": "Cancelling failed",
+      "status": {
+        "never": "No reconcile has run here since the backend started.",
+        "running": "running",
+        "cancelling": "stops after the current document",
+        "finished": "finished",
+        "cancelled": "cancelled",
+        "failed": "aborted: {{message}}"
+      }
+    },
     "sync": {
       "title": "Sync with Solr",
       "run": "Sync now",
@@ -822,6 +1087,8 @@
       "status": "Status",
       "newField": "new field",
       "settingFor": "{{setting}} for {{name}}",
+      "essential": "essential",
+      "essentialHint": "Without this field a document of this core makes no sense, such as article number, name and Sternzeit of an article. Importing a core requires every essential field, from the file or through a mapping. Applies per core, also to hooks; id is always essential. Only in our field definition, Solr rejects nothing without it.",
       "typeOf": "type of {{name}}",
       "everyCore": "in every core: the same row in every core tab",
       "fieldAccess": "Read",
@@ -965,6 +1232,7 @@
           "string: the value as it comes, not split, not lower-cased. Only matches exactly. For keys, status, numbers, hashes. The whole value is one term, and a term may have at most 32766 bytes: this applies with indexed and with docValues, umlauts count twice. Stored only (both off), a string may be arbitrarily large, like a preview image.",
           "long: whole number with 64 bits, for ranges and sorting. There is no int, whole numbers are always long for us. double: decimal number with 64 bits. date: point in time per ISO 8601 in UTC, for ranges and sorting. boolean: true or false.",
           "text_edge: split at spaces and punctuation, all lower case, plus every word prefix from 3 characters when indexing: “rech” finds “Rechnung” in the field itself, without a twin. For everything a user types and wants to find again while typing: file name, index, description. text_suche: the full text, every word on its own, stemmed, compounds split, with synonyms: “Rechnungen” finds “Rechnung”, “Boot” finds the Kapitänschifffahrtsmütze. For both the term limit applies per token, the value itself may be arbitrarily large.",
+          "text_ngram: like text_edge, but every piece of 3 or more characters anywhere in the word: “schild” and “folie” find “Typenschild 100x50 Polyesterfolie”, “schluessel” finds “Schlüssel”. Only for the essential fields every user sees, such as article name, file name, description, subject: the index grows with every word length.",
           "Changing a type later means rebuilding the core, Solr does not rewrite old documents."
         ]
       }
@@ -1809,6 +2077,53 @@
       "failed": "Stopped because of an error: {{message}}",
       "startedAt": "Started {{time}}",
       "finishedAt": "finished {{time}}"
+    }
+  },
+  "requestmonitor": {
+    "title": "Request monitor",
+    "intro": "Every request to the login endpoint, as it sits in the backend's map: time, client IP, endpoint. In memory only; every five minutes the cleaner deletes what is older than one hour. The list fetches the state every two seconds.",
+    "filterPlaceholder": "Filter by IP",
+    "box": {
+      "title": "Requests in the map"
+    },
+    "columns": {
+      "receivedAt": "Time",
+      "clientIp": "Client IP",
+      "endpoint": "Endpoint",
+      "blocked": "Blocked"
+    },
+    "blockedBadge": "rejected",
+    "blockThisIp": "Block IP {{clientIp}}",
+    "empty": "No requests in the map.",
+    "footer_one": "{{count}} request in the map, as of {{time}}",
+    "footer_other": "{{count}} requests in the map, as of {{time}}",
+    "blocked": {
+      "title": "Blocked IPs",
+      "intro": "The block list in memory: while a block is active, every request of the IP at every endpoint is ended immediately (429, connection closed), with or without a token. Your own address cannot be blocked. Expired blocks are removed by the cleaner.",
+      "columns": {
+        "clientIp": "Client IP",
+        "blockedAt": "blocked since",
+        "expiresAt": "free from",
+        "reason": "Reason",
+        "rejectedRequests": "rejected",
+        "rejectedRequestsHint": "How many requests the filter has rejected since the block, across all endpoints. One number per block, no row per request."
+      },
+      "expired": "expired",
+      "empty": "No IP blocked.",
+      "footer_one": "{{count}} blocked IP",
+      "footer_other": "{{count}} blocked IPs",
+      "newTitle": "Block IP",
+      "form": {
+        "clientIp": "Client IP",
+        "durationMinutes": "Duration in minutes",
+        "expiresHint": "free from {{time}}",
+        "reason": "Reason (optional)"
+      },
+      "block": "Block",
+      "blocking": "Blocking …",
+      "liftLabel": "Lift the block of {{clientIp}}",
+      "liftTitle": "Lift block",
+      "liftQuestion": "Really lift the block of {{clientIp}}?"
     }
   },
   "nachricht": {

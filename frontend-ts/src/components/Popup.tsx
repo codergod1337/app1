@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import { CancelButton } from './CancelButton.tsx'
 import { ContentBox } from './ContentBox.tsx'
 
 interface PopupProps {
@@ -36,11 +37,7 @@ export function Popup({ open, title, footer, narrow = false, onClose, children }
     }
   }, [open])
 
-  const closeButton = (
-    <button type="button" className="button-cancel" onClick={onClose}>
-      {t('common.close')}
-    </button>
-  )
+  const closeButton = <CancelButton label={t('common.close')} onClick={onClose} />
 
   return createPortal(
     <dialog

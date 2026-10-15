@@ -1,9 +1,11 @@
 import { useCallback, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import { useLoad } from '../../api/useLoad.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
 import { useLanguage } from '../../components/languageContext.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { MultilingualInput } from '../../components/MultilingualInput.tsx'
 import { useOrigin } from '../../components/Origin.ts'
@@ -106,6 +108,7 @@ function ProfileUsersDetailsForm({ usersDetails, language, disabled, onSubmit }:
  * Kunden- und Lieferantennummer setzt nur der Admin. Abbrechen und Speichern springen zum origin.
  */
 export function EditProfileUsersDetails() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const originPath = useOrigin()?.path ?? FALLBACK_PATH
   const usersGuid = useSession().sessionInfo?.usersGuid ?? ''
@@ -127,25 +130,28 @@ export function EditProfileUsersDetails() {
   }
 
   const errorMessage = loadErrorMessage ?? saveErrorMessage
+  // dasselbe Paar im Kopf und im Footer
+  const buttons = (
+    <ConfirmCancelButtons
+      onCancel={() => navigate(originPath)}
+      confirmLabel={t('common.save')}
+      confirmForm={FORM_ID}
+      disabled={usersDetails === null}
+      busy={saving}
+    />
+  )
   const footer = (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
       {usersDetails === null && errorMessage === null && (
         <span className="spinner-border spinner-border-sm" role="status" aria-label="lädt" />
       )}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={() => navigate(originPath)}>
-          Abbrechen
-        </button>
-        <button type="submit" form={FORM_ID} className="button-save" disabled={saving || usersDetails === null}>
-          Speichern
-        </button>
-      </span>
+      {buttons}
     </>
   )
 
   return (
-    <ContentBox title="Über mich und Kontakt bearbeiten" footer={footer} language={{ value: language, onChange: setLanguage }}>
+    <ContentBox title="Über mich und Kontakt bearbeiten" actions={buttons} footer={footer} language={{ value: language, onChange: setLanguage }}>
       {/* Erst mit den geladenen Daten anzeigen, damit das Formular mit ihnen startet */}
       {usersDetails !== null && (
         <ProfileUsersDetailsForm

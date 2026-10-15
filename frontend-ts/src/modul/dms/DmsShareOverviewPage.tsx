@@ -200,7 +200,7 @@ export function DmsShareOverviewPage() {
               actions={(row) => (
                 <span className="d-inline-flex align-items-center gap-2">
                   {row.status === 'ACTIVE' && (
-                    <button type="button" className="button-cancel" disabled={revoking} onClick={() => revokeUserGrant(row)}>
+                    <button type="button" className="button-other" disabled={revoking} onClick={() => revokeUserGrant(row)}>
                       {t('dms.share.user.revoke')}
                     </button>
                   )}
@@ -252,7 +252,7 @@ export function DmsShareOverviewPage() {
                   {row.status === 'ACTIVE' && (
                     <button
                       type="button"
-                      className="button-cancel"
+                      className="button-other"
                       disabled={expiringId !== null}
                       onClick={() => expire(row)}
                     >

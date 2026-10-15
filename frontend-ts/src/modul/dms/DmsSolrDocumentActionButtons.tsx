@@ -1,10 +1,13 @@
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { DeleteButton } from '../../components/DeleteButton.tsx'
+import { DetailsButton } from '../../components/DetailsButton.tsx'
+import { DownloadButton } from '../../components/DownloadButton.tsx'
 import { EditButton } from '../../components/EditButton.tsx'
-import { Hoverlay } from '../../components/Hoverlay.tsx'
-import { Icon } from '../../components/Icon.tsx'
+import { NewVersionButton } from '../../components/NewVersionButton.tsx'
 import type { OriginState } from '../../components/Origin.ts'
+import { ShareButton } from '../../components/ShareButton.tsx'
+import { ViewButton } from '../../components/ViewButton.tsx'
 import { ADMIN_ACCESS_ROLE_KEY } from '../accessrole/AccessRole.ts'
 import { useSession } from '../login/sessionContext.ts'
 import {
@@ -93,35 +96,19 @@ export function DmsSolrDocumentActionButtons({
   return (
     <span className="d-inline-flex align-items-center gap-2">
       {!onViewerPage && hasDmsViewer(document) && (
-        <Hoverlay text={t('dms.document.view', { name: fileName })}>
-          <button
-            type="button"
-            className="button-other"
-            aria-label={t('dms.document.view', { name: fileName })}
-            onClick={() => navigate(dmsSolrDocumentViewerPath(id), { state: origin })}
-          >
-            <Icon name="view" />
-          </button>
-        </Hoverlay>
+        <ViewButton
+          label={t('dms.document.view', { name: fileName })}
+          onClick={() => navigate(dmsSolrDocumentViewerPath(id), { state: origin })}
+        />
       )}
       {!onDetailsPage && (
-        <Hoverlay text={t('dms.document.details', { name: fileName })}>
-          <button
-            type="button"
-            className="button-other"
-            aria-label={t('dms.document.details', { name: fileName })}
-            onClick={() => navigate(dmsSolrDocumentPath(id), { state: origin })}
-          >
-            <Icon name="details" />
-          </button>
-        </Hoverlay>
+        <DetailsButton
+          label={t('dms.document.details', { name: fileName })}
+          onClick={() => navigate(dmsSolrDocumentPath(id), { state: origin })}
+        />
       )}
       {effectiveDownloadUrl !== null && (
-        <Hoverlay text={t('dms.document.download', { name: fileName })}>
-          <a className="button-other" href={effectiveDownloadUrl} download aria-label={t('dms.document.download', { name: fileName })}>
-            <Icon name="download" />
-          </a>
-        </Hoverlay>
+        <DownloadButton label={t('dms.document.download', { name: fileName })} href={effectiveDownloadUrl} />
       )}
       {canEdit && (
         <EditButton
@@ -130,29 +117,12 @@ export function DmsSolrDocumentActionButtons({
         />
       )}
       {canNewVersion && (
-        <Hoverlay text={t('dms.document.newVersion', { name: fileName })}>
-          <button
-            type="button"
-            className="button-other"
-            aria-label={t('dms.document.newVersion', { name: fileName })}
-            onClick={() => openNewVersionUpload(versionChain, id)}
-          >
-            <Icon name="newVersion" />
-          </button>
-        </Hoverlay>
+        <NewVersionButton
+          label={t('dms.document.newVersion', { name: fileName })}
+          onClick={() => openNewVersionUpload(versionChain, id)}
+        />
       )}
-      {canShare && (
-        <Hoverlay text={t('dms.document.share', { name: fileName })}>
-          <button
-            type="button"
-            className="button-other"
-            aria-label={t('dms.document.share', { name: fileName })}
-            onClick={onShare}
-          >
-            <Icon name="share" />
-          </button>
-        </Hoverlay>
-      )}
+      {canShare && <ShareButton label={t('dms.document.share', { name: fileName })} onClick={onShare} />}
       {canDelete && <DeleteButton label={t('dms.document.delete', { name: fileName })} onClick={onDelete} />}
     </span>
   )

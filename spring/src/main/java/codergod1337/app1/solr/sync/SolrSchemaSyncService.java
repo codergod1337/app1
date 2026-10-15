@@ -27,8 +27,11 @@ import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
 import org.apache.solr.client.solrj.request.GenericSolrRequest;
+import org.apache.solr.client.solrj.request.schema.AnalyzerDefinition;
+import org.apache.solr.client.solrj.request.schema.FieldTypeDefinition;
 import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.CoreAdminResponse;
+import org.apache.solr.client.solrj.response.schema.FieldTypeRepresentation;
 import org.apache.solr.client.solrj.response.schema.SchemaResponse;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
@@ -76,6 +79,9 @@ public class SolrSchemaSyncService {
 	/** So oft versucht der Abgleich es, wenn der Kern noch lädt, und so lange wartet er dazwischen */
 	private static final int CORE_LOADING_ATTEMPTS = 10;
 	private static final long CORE_LOADING_WAIT_MS = 3_000;
+
+	/** Der Feldtyp, den der Abgleich in älteren Kernen nachlegt (ensureTextNgramFieldType) */
+	private static final String TEXT_NGRAM_FIELD_TYPE_NAME = SolrFieldType.TEXT_NGRAM.getSolrFieldType();
 
 	/** Felder des Basis-Configsets, die der Abgleich nie anfasst und nicht als fremd meldet */
 	private static final Set<String> SYSTEM_FIELD_NAMES = Set.of("_version_", "_root_");
@@ -222,6 +228,10 @@ public class SolrSchemaSyncService {
 		}
 
 		SolrClient client = solrClientRegistry.clientFor(coreKey);
+		// zuerst der Feldtyp, sonst scheiterte ein add-field mit text_ngram in einem älteren Kern
+		if (ensureTextNgramFieldType(client)) {
+			log.info("Solr-Abgleich {}: Feldtyp {} angelegt", coreKey, TEXT_NGRAM_FIELD_TYPE_NAME);
+		}
 		Map<String, Map<String, Object>> fieldsInSolr = readFields(client);
 		Set<String> copyFieldsInSolr = readCopyFields(client);
 
@@ -273,6 +283,42 @@ public class SolrSchemaSyncService {
 				+ added.size();
 		return new SolrCoreSyncReport(coreKey, true, true, fieldsCount, added, replaced, copyFieldsAdded, onlyInSolr,
 				typeConflicts, maxBooleanClauses, maxBooleanClausesChanged, null, Instant.now(), millisSince(start));
+	}
+
+	/**
+	 * Legt den Feldtyp text_ngram an, wenn der Kern ihn nicht kennt (User 2026-10-14), mit genau der Definition aus
+	 * dem Configset (managed-schema.xml): Solr kopiert das Configset nur beim Anlegen eines Kerns, ein neuer Typ käme in
+	 * die bestehenden sonst nie. true, wenn er angelegt wurde. Ein vorhandener Typ wird nie verändert.
+	 */
+	private static boolean ensureTextNgramFieldType(SolrClient client) throws SolrServerException, IOException {
+		for (FieldTypeRepresentation fieldType : new SchemaRequest.FieldTypes().process(client).getFieldTypes()) {
+			if (TEXT_NGRAM_FIELD_TYPE_NAME.equals(fieldType.getAttributes().get("name"))) {
+				return false;
+			}
+		}
+		AnalyzerDefinition indexAnalyzer = new AnalyzerDefinition();
+		indexAnalyzer.setTokenizer(Map.of("class", "solr.StandardTokenizerFactory"));
+		indexAnalyzer.setFilters(List.of(
+				Map.of("class", "solr.LowerCaseFilterFactory"),
+				Map.of("class", "solr.GermanNormalizationFilterFactory"),
+				Map.of("class", "solr.NGramFilterFactory", "minGramSize", "3", "maxGramSize", "50",
+						"preserveOriginal", "true")));
+		AnalyzerDefinition queryAnalyzer = new AnalyzerDefinition();
+		queryAnalyzer.setTokenizer(Map.of("class", "solr.StandardTokenizerFactory"));
+		queryAnalyzer.setFilters(List.of(
+				Map.of("class", "solr.LowerCaseFilterFactory"),
+				Map.of("class", "solr.GermanNormalizationFilterFactory")));
+		FieldTypeDefinition definition = new FieldTypeDefinition();
+		definition.setAttributes(Map.of("name", TEXT_NGRAM_FIELD_TYPE_NAME, "class", "solr.TextField",
+				"positionIncrementGap", "100"));
+		definition.setIndexAnalyzer(indexAnalyzer);
+		definition.setQueryAnalyzer(queryAnalyzer);
+		SchemaResponse.UpdateResponse response = new SchemaRequest.AddFieldType(definition).process(client);
+		Object errors = response.getResponse().get("errors");
+		if (errors != null) {
+			throw new IllegalStateException("Schema-API lehnt " + TEXT_NGRAM_FIELD_TYPE_NAME + " ab: " + errors);
+		}
+		return true;
 	}
 
 	/** Die wirksame Klauselgrenze des Kerns aus der Config-API: solrconfig.xml samt configoverlay.json */

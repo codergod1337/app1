@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RequestError } from '../api/client.ts'
+import { CancelButton } from './CancelButton.tsx'
 import { DeleteButton } from './DeleteButton.tsx'
 import { Popup } from './Popup.tsx'
 
@@ -45,9 +46,7 @@ export function DeletePopup({ open, title, children, onConfirm, onDeleted, onClo
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
       <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={deleting} onClick={close}>
-          {t('common.cancel')}
-        </button>
+        <CancelButton disabled={deleting} onClick={close} />
         <DeleteButton label={title} disabled={deleting} onClick={confirmDelete}>
           {t('common.delete')}
         </DeleteButton>

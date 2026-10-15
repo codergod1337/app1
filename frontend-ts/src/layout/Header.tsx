@@ -46,6 +46,29 @@ export function Header() {
     return () => clearInterval(interval)
   }, [nextRefreshAt])
 
+  // Strg+K (am Mac Cmd+K) öffnet die Suche von überall, wie das Kürzel in der Such-Pille sagt (User 2026-10-14). Auf
+  // der Suchseite selbst setzt es nur den Cursor ins Feld, sonst wäre die laufende Suche weg.
+  useEffect(() => {
+    if (!canSearch) {
+      return
+    }
+    function openSearch(event: globalThis.KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'k') {
+        return
+      }
+      event.preventDefault()
+      const input = document.querySelector<HTMLInputElement>('.search-input')
+      if (location.pathname === SEARCH_PATH && input !== null) {
+        input.focus()
+        input.select()
+      } else {
+        navigate(SEARCH_PATH)
+      }
+    }
+    window.addEventListener('keydown', openSearch)
+    return () => window.removeEventListener('keydown', openSearch)
+  }, [canSearch, location.pathname, navigate])
+
   function login() {
     const loginState: LoginState = { from: location.pathname }
     navigate('/login', { state: loginState })
@@ -65,8 +88,13 @@ export function Header() {
       )}
       <div className="header-session">
         {canSearch && (
-          <Link className="button-other" to={SEARCH_PATH} aria-label={t('layout.search')}>
+          <Link className="header-search" to={SEARCH_PATH} aria-label={t('layout.search')} aria-keyshortcuts="Control+K">
             <Icon name="search" />
+            {/* klappt beim Darüberfahren auf, wie beim NewEntityButton */}
+            <span className="header-search-extra" aria-hidden="true">
+              <span className="header-search-text">{t('layout.searchPlaceholder')}</span>
+              <kbd className="header-search-key">{t('layout.searchShortcut')}</kbd>
+            </span>
           </Link>
         )}
         <LanguageMenu />

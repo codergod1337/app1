@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { Popup } from '../../components/Popup.tsx'
 import type { Users } from './Users.ts'
 import { setUsersCredentialsPassword } from './UsersCredentials.ts'
@@ -51,14 +52,13 @@ export function SetUsersPasswordPopup({ users, onClose }: SetUsersPasswordPopupP
   ) : (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={close}>
-          Abbrechen
-        </button>
-        <button type="submit" form={FORM_ID} className="button-save" disabled={saving || !passwordsMatch}>
-          Passwort setzen
-        </button>
-      </span>
+      <ConfirmCancelButtons
+        onCancel={close}
+        confirmLabel="Passwort setzen"
+        confirmForm={FORM_ID}
+        disabled={!passwordsMatch}
+        busy={saving}
+      />
     </>
   )
 

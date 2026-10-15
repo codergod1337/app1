@@ -68,6 +68,7 @@ function emptySolrFieldData(coreKey: string): SolrFieldData {
     docValues: false,
     required: false,
     suggest: false,
+    essential: false,
     readAccessRoleKeys: [],
     clientWriteRule: 'BACKEND_ONLY',
     searchWeight: -1,
@@ -449,6 +450,33 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
     }
   }
 
+  /**
+   * Essenziell (User 2026-10-14): ohne das Feld ergibt ein Dokument des Kerns keinen Sinn, der Import verlangt es.
+   * Auch bei Hook-Zeilen änderbar, denn es gilt je Kern; id ist immer essenziell, angehakt und gesperrt.
+   */
+  const essentialColumn: TableColumn<SheetRow> = {
+    header: t('solrmanager.sheet.essential'),
+    headerHint: t('solrmanager.sheet.essentialHint'),
+    unimportant: true,
+    width: '3rem',
+    verticalHeader: true,
+    cell: (row) => {
+      const data = dataOf(row)
+      const alwaysEssential = data.coreKey === null && data.name === 'id'
+      return (
+        <input
+          id={`${idOf(row)}-essential`}
+          className="form-check-input"
+          type="checkbox"
+          aria-label={t('solrmanager.sheet.settingFor', { setting: t('solrmanager.sheet.essential'), name: nameOf(row) })}
+          disabled={creating || alwaysEssential}
+          checked={alwaysEssential || data.essential}
+          onChange={(event) => change(row, { essential: event.target.checked })}
+        />
+      )
+    },
+  }
+
   /** Die Leseliste einer Zeile als kompakte Badges, ohne AR „niemand“ */
   function accessCell(row: SheetRow) {
     const data = dataOf(row)
@@ -571,6 +599,7 @@ export function SolrFieldSheet({ coreKey, solrFields, language, onSaved, newRowO
       },
     },
     ...SOLR_FIELD_SETTINGS.map(({ setting, label }) => settingColumn(setting, label)),
+    essentialColumn,
     {
       header: t('solrmanager.sheet.searchWeight'),
       headerHint: solrFieldSearchWeightHint(t),

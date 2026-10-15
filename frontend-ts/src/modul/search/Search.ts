@@ -7,6 +7,12 @@ export const SEARCH_PATH = '/search'
 /** Die UsersSetting mit den angewählten Kernen des Users, Komma-Liste ihrer Keys */
 export const SEARCH_ACTIVE_CORES_SETTING_KEY = 'SEARCH_ACTIVE_CORES'
 
+/**
+ * Die UsersSetting des Schalters über dem Suchfeld (User 2026-10-14): "true" jedes Wort muss vorhanden sein, "false"
+ * Hauptsache ein Treffer. Ohne Eintrag an.
+ */
+export const SEARCH_ALL_WORDS_SETTING_KEY = 'SEARCH_ALL_WORDS_REQUIRED'
+
 /** Mehr Wörter nimmt die Maske nicht an, eine Regel der Maske (User 2026-10-09: 5), das Backend zählt nicht */
 export const SEARCH_MAX_WORDS = 5
 
@@ -16,9 +22,6 @@ export const SEARCH_MARK_CLOSE = String.fromCharCode(3)
 
 /** Ab so vielen Zeichen zählt ein Wort als Suchwort, damit nicht nach jedem ersten Buchstaben gesucht wird */
 export const SEARCH_MIN_CHARACTERS = 3
-
-/** Beginnt die Eingabe damit, ist sie keine Suche, sondern die Wahl einer Dateiart als Filter (nach der Vorlage) */
-export const FILE_SUB_CLASS_MODE_PREFIX = 'fsc.'
 
 /** Eine Pause beim Tippen, dann die Abfrage: eine je Tipp-Pause, nicht je Taste */
 export const SEARCH_DEBOUNCE_MS = 250
@@ -43,6 +46,8 @@ export interface SearchRequest {
   exactFilterValuesByFieldName: Record<string, string[]>
   /** die Seite ab 0; „weitere laden“ fragt die nächste (User 2026-10-14) */
   page: number
+  /** jedes Wort muss im Dokument vorkommen, ein - schließt aus; false: ein Wort reicht (User 2026-10-14) */
+  allWordsRequired: boolean
 }
 
 /**
@@ -242,7 +247,12 @@ export function hasSearchWord(searchText: string): boolean {
 }
 
 /** Die Abfrage an einen Kern: Chips je Feld gebündelt (gleiches Feld ODER), ohne Seite die erste */
-export function searchRequestOf(searchText: string, filters: readonly SearchFilter[], page = 0): SearchRequest {
+export function searchRequestOf(
+  searchText: string,
+  filters: readonly SearchFilter[],
+  allWordsRequired: boolean,
+  page = 0,
+): SearchRequest {
   const exactFilterValuesByFieldName: Record<string, string[]> = {}
   for (const filter of filters) {
     const values = (exactFilterValuesByFieldName[filter.fieldName] ??= [])
@@ -250,7 +260,7 @@ export function searchRequestOf(searchText: string, filters: readonly SearchFilt
       values.push(filter.value)
     }
   }
-  return { searchText, exactFilterValuesByFieldName, page }
+  return { searchText, exactFilterValuesByFieldName, page, allWordsRequired }
 }
 
 /** Zwei Chips sind derselbe Filter, wenn Feld und Wert gleich sind */

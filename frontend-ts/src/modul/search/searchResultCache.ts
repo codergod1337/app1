@@ -14,7 +14,7 @@ const MAX_ENTRIES = 50
 const results = new Map<string, SearchResultPage>()
 
 function keyOf(usersGuid: string | null, coreKey: string, request: SearchRequest): string {
-  return JSON.stringify([usersGuid, coreKey, request.searchText, request.exactFilterValuesByFieldName])
+  return JSON.stringify([usersGuid, coreKey, request.searchText, request.exactFilterValuesByFieldName, request.allWordsRequired])
 }
 
 export function cachedSearchResult(usersGuid: string | null, coreKey: string, request: SearchRequest): SearchResultPage | undefined {

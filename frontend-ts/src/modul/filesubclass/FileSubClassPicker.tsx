@@ -8,7 +8,7 @@ import type { FileSubClass } from './FileSubClass.ts'
 import { FileSubClassSymbol } from './FileSubClassSymbol.tsx'
 
 /** Was eine Kachel braucht: Dateiart und Nachrichtenart haben beide diese Felder (User 2026-10-14: MSC wie FSC wählen) */
-type PickableSubClass = Pick<FileSubClass, 'key' | 'displayName' | 'listingPosition' | 'symbol' | 'color'>
+export type PickableSubClass =Pick<FileSubClass, 'key' | 'displayName' | 'listingPosition' | 'symbol' | 'color'>
 
 interface FileSubClassPickerProps {
   /** die angebotenen Dateiarten oder Nachrichtenarten. Wer filtert, entscheidet der Aufrufer */

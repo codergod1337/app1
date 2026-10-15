@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { RequestError } from '../../api/client.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { Popup } from '../../components/Popup.tsx'
 import { showToast } from '../../components/toastStore.ts'
 import { ignoreAbasSternzeit } from './AbasSternzeit.ts'
@@ -53,14 +54,12 @@ export function AbasIgnoreSternzeitPopup({ sternzeit, onClose, onIgnored }: Abas
   }
 
   const footer = (
-    <span className="d-inline-flex align-items-center gap-2">
-      <button type="button" className="button-cancel" disabled={saving} onClick={close}>
-        {t('common.cancel')}
-      </button>
-      <button type="submit" form="abas-ignore-sternzeit-form" className="button-save" disabled={saving}>
-        {t('abasmanager.overview.ignore')}
-      </button>
-    </span>
+    <ConfirmCancelButtons
+      onCancel={close}
+      confirmLabel={t('abasmanager.overview.ignore')}
+      confirmForm="abas-ignore-sternzeit-form"
+      busy={saving}
+    />
   )
 
   return (

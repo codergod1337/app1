@@ -241,7 +241,7 @@ export function DmsSharePopup({ open, id, fileName, onClose }: DmsSharePopupProp
               row.status === 'ACTIVE' ? (
                 <button
                   type="button"
-                  className="button-cancel"
+                  className="button-other"
                   disabled={granting}
                   aria-label={t('dms.share.user.revokeOf', { guid: row.granteeUsersGuid })}
                   onClick={() => revoke(row.granteeUsersGuid)}

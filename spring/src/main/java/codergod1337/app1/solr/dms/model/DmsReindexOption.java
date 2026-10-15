@@ -1,8 +1,9 @@
 package codergod1337.app1.solr.dms.model;
 
 /**
- * Was ein Lauf über alle Dokumente des Kerns DMS nachzieht (User 2026-10-10). Jede Option ist ein Block in
- * SolrDocumentDmsService.reindexDmsDocuments; eine neue Option ist ein neuer Wert hier und ein neuer Block dort.
+ * Was ein Lauf über alle Dokumente des Kerns DMS nachzieht (User 2026-10-10). Jede Option ist eine Prüfung
+ * (SolrReindexCheck), die SolrDocumentDmsService.reindexDmsDocuments baut (User 2026-10-14); eine neue Option ist ein
+ * neuer Wert hier und eine neue Prüfung dort.
  */
 public enum DmsReindexOption {
 

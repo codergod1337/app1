@@ -3,12 +3,13 @@ package codergod1337.app1.solr.dms.service;
 import codergod1337.app1.file.filesubclass.model.FileSubClass;
 import codergod1337.app1.file.filesubclass.service.FileSubClassService;
 import codergod1337.app1.solr.dms.model.DmsAccessForClient;
-import codergod1337.app1.solr.dms.model.DmsReindexOption;
 import codergod1337.app1.solr.dms.model.DmsSolrDocumentRevision;
 import codergod1337.app1.solr.dms.model.DmsSolrDocumentRevisionForClient;
 import codergod1337.app1.solr.dms.repository.DmsSolrDocumentRevisionRepository;
 import codergod1337.app1.solr.field.model.SolrField;
 import codergod1337.app1.solr.field.service.SolrFieldService;
+import codergod1337.app1.solr.reindex.model.SolrReindexCheck;
+import codergod1337.app1.solr.reindex.service.SolrReindexAclsFromSubClassCheck;
 import codergod1337.app1.system.security.CurrentUsersProvider;
 import codergod1337.app1.system.sftp.service.SftpPathService;
 import codergod1337.app1.system.sftp.service.SftpService;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -310,7 +312,7 @@ public class SolrDocumentDmsUtilsService {
 		String text = value.toString().trim();
 		try {
 			switch (solrField.getType()) {
-				case STRING, EMAIL, TEXT_EDGE, TEXT_SUCHE -> {
+				case STRING, EMAIL, TEXT_EDGE, TEXT_NGRAM, TEXT_SUCHE -> {
 					return text;
 				}
 				case LONG -> {
@@ -510,32 +512,50 @@ public class SolrDocumentDmsUtilsService {
 		return value;
 	}
 
-	// ===== Nachziehen: die Änderungen eines Dokuments je Option =====
+	// ===== Nachziehen: die Prüfungen je Option =====
 
-	public void addReindexChanges(SolrInputDocument update, Map<String, Object> document, Set<DmsReindexOption> options) {
-		// Der Nachzieh-Lauf ruft das je Dokument: je Option ein Block, der seine Felder als set ins Update legt
-		String id = String.valueOf(document.get("id"));
-		if (options.contains(DmsReindexOption.ACLS_FROM_FILE_SUB_CLASS) && document.get("fileSubClassKey") != null) {
-			try {
-				addAccessControlListsFromFileSubClass(update, document.get("fileSubClassKey"));
-			} catch (ResponseStatusException e) {
-				// eine Dateiart, die es nicht mehr gibt: das Dokument behält seine ACLs, steht im Log
-				log.warn("Nachziehen {}: Dateiart {} unbekannt, ACLs bleiben", id, document.get("fileSubClassKey"));
-			}
+	public SolrReindexCheck aclsFromFileSubClassCheck() {
+		// Die Option ACLS_FROM_FILE_SUB_CLASS: alle Dateiarten einmal aus Postgres, je Dokument nur der Vergleich von
+		// readAcl und writeAcl mit seiner Dateiart (User 2026-10-14)
+		Map<String, List<String>> readAccessRoleKeysByKey = new HashMap<>();
+		Map<String, List<String>> writeAccessRoleKeysByKey = new HashMap<>();
+		for (FileSubClass fileSubClass : fileSubClassService.getAllFileSubClasses()) {
+			readAccessRoleKeysByKey.put(fileSubClass.getKey(), orEmpty(fileSubClass.getReadAccessRoleKeys()));
+			writeAccessRoleKeysByKey.put(fileSubClass.getKey(), orEmpty(fileSubClass.getWriteAccessRoleKeys()));
 		}
-		if (options.contains(DmsReindexOption.SEARCHABLE_WORDS_FROM_BINARY) && document.get("sftpPath") != null) {
-			try {
-				// die Datei vom SFTP in den Speicher, dann Tika: der Text ist der neue Volltext
+		return new SolrReindexAclsFromSubClassCheck("fileSubClassKey", readAccessRoleKeysByKey,
+				writeAccessRoleKeysByKey);
+	}
+
+	public SolrReindexCheck searchableWordsFromBinaryCheck() {
+		// Die Option SEARCHABLE_WORDS_FROM_BINARY: je Dokument mit Datei die Bytes vom SFTP in den Speicher, dann Tika, der
+		// Text ist der neue Volltext. Kein Vergleich, der alte Volltext wird gar nicht erst geladen: schreibt immer. Fehlt
+		// die Datei oder liest Tika sie nicht, zählt das als Fehler an diesem Dokument.
+		return new SolrReindexCheck() {
+
+			@Override
+			public Set<String> loadedFieldNames() {
+				return Set.of("sftpPath", "fileName", "mimeType");
+			}
+
+			@Override
+			public boolean addChanges(Map<String, Object> document, SolrInputDocument update) {
+				if (document.get("sftpPath") == null) {
+					return false;
+				}
 				ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 				sftpService.readFileData(String.valueOf(document.get("sftpPath")), bytes);
 				TikaService.TikaResult tika = tikaService.read(new ByteArrayInputStream(bytes.toByteArray()),
 						String.valueOf(document.get("fileName")), String.valueOf(document.get("mimeType")));
 				update.addField("searchableWords", Collections.singletonMap("set", tika.text().isBlank() ? null : tika.text()));
-			} catch (RuntimeException e) {
-				// Datei fehlt auf dem SFTP oder Tika liest sie nicht: Volltext bleibt, steht im Log
-				log.warn("Nachziehen {}: Volltext nicht erneuert: {}", id, e.getMessage());
+				return true;
 			}
-		}
+
+		};
+	}
+
+	private static List<String> orEmpty(List<String> values) {
+		return values == null ? List.of() : values;
 	}
 
 }

@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { useOrigin, type OriginState } from '../../components/Origin.ts'
 import { getResponseMapping, MAPPING_PATH, type ResponseMappingWithLines, updateResponseMapping } from './ResponseMapping.ts'
@@ -70,26 +71,30 @@ export function EditResponseMappingTab() {
 
   const errorMessage = missingIdErrorMessage ?? loadErrorMessage ?? saveErrorMessage
 
+  // dasselbe Paar im Kopf und im Footer
+  const buttons = (
+    <ConfirmCancelButtons
+      onCancel={() => navigate(originPath)}
+      confirmLabel={t('common.save')}
+      confirmForm={FORM_ID}
+      disabled={responseMapping === null}
+      busy={saving}
+    />
+  )
   const footer = (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
       {responseMapping === null && errorMessage === null && (
         <span className="spinner-border spinner-border-sm" role="status" aria-label={t('common.loading')} />
       )}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={() => navigate(originPath)}>
-          {t('common.cancel')}
-        </button>
-        <button type="submit" form={FORM_ID} className="button-save" disabled={saving || responseMapping === null}>
-          {t('common.save')}
-        </button>
-      </span>
+      {buttons}
     </>
   )
 
   return (
     <ContentBox
       title={responseMapping ? t('mapping.overview.editTitle', { key: responseMapping.responseMapping.key }) : t('mapping.overview.editTitleNone')}
+      actions={buttons}
       footer={footer}
     >
       {responseMapping !== null && (

@@ -16,7 +16,7 @@ import { DmsSolrDocumentEditBox } from './DmsSolrDocumentEditBox.tsx'
 import { DmsSolrDocumentRevisionsBox } from './DmsSolrDocumentRevisionsBox.tsx'
 import { DmsVersionChainBox } from './DmsVersionChainBox.tsx'
 
-/** Wohin Schließen führt, wenn niemand eine Herkunft mitgab */
+/** Wohin es nach dem Löschen geht, wenn niemand eine Herkunft mitgab */
 const FALLBACK_PATH = '/dms/resolve'
 
 interface DmsSolrDocumentPageProps {
@@ -28,8 +28,8 @@ interface DmsSolrDocumentPageProps {
  * lädt das Dokument mit der Leseprüfung des Users und zeigt die Detailbox oder die Bearbeiten-Box, unter den Details
  * den Fahrplan der Versionskette und die Revisionen, wenn es welche gibt. Über die Kette landet man bei der geltenden
  * Fassung (ACTIVE, sonst die höchste): der feste Verweis auf eine Datei, der jede neue Fassung überlebt. Die Boxen
- * selbst kennen keinen Rahmen, damit sie später genauso im Dokumente-Tab der Artikelmappe stehen. Schließen führt zur
- * Herkunft, sonst zum Auflösen.
+ * selbst kennen keinen Rahmen, damit sie später genauso im Dokumente-Tab der Artikelmappe stehen. Ein Schließen gibt es
+ * nicht, raus geht es über das „zurück zu …“ im Header; nach dem Löschen zur Herkunft, sonst zum Auflösen.
  */
 export function DmsSolrDocumentPage({ mode }: DmsSolrDocumentPageProps) {
   const { t } = useTranslation()
@@ -128,7 +128,6 @@ export function DmsSolrDocumentPage({ mode }: DmsSolrDocumentPageProps) {
       <DmsSolrDocumentDetailsBox
         loaded={loaded}
         origin={originState}
-        onClose={() => navigate(closePath)}
         // nach dem weichen Löschen gibt es das Dokument für den User nicht mehr: zurück zur Herkunft
         onDeleted={() => navigate(closePath)}
       />

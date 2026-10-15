@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RequestError } from '../../api/client.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { useLanguage } from '../../components/languageContext.ts'
 import { useMasterData } from '../../components/masterDataContext.ts'
@@ -140,23 +141,26 @@ export function DmsSolrDocumentEditBox({ loaded, onSaved, onCancel }: DmsSolrDoc
     </span>
   )
 
+  // dasselbe Paar im Kopf und im Footer: bei vielen Hooks ist die Maske lang
+  const buttons = (
+    <ConfirmCancelButtons
+      onCancel={onCancel}
+      confirmLabel={t('common.save')}
+      confirmForm="dms-solr-document-edit"
+      disabled={!loaded.writeAclMatchForCurrentUser}
+      busy={saving}
+    />
+  )
   const footer = (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
       {!loaded.writeAclMatchForCurrentUser && <span className="text-warning">{t('dms.document.noWriteAcl')}</span>}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={onCancel}>
-          {t('common.cancel')}
-        </button>
-        <button type="submit" form="dms-solr-document-edit" className="button-save" disabled={saving || !loaded.writeAclMatchForCurrentUser}>
-          {t('common.save')}
-        </button>
-      </span>
+      {buttons}
     </>
   )
 
   return (
-    <ContentBox title={title} footer={footer} language={{ value: language, onChange: setLanguage }}>
+    <ContentBox title={title} actions={buttons} footer={footer} language={{ value: language, onChange: setLanguage }}>
       <div className="d-flex flex-column gap-3">
         <DmsSolrDocumentInfobox document={document} />
 

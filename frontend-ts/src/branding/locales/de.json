@@ -84,7 +84,9 @@
     "positionArc": "Position (ARC)",
     "rightsAr": "Rechte im Token (AR)",
     "tokenNote": "Die Rechte stehen im Token. Ändert der Admin sie, gelten die neuen nach dem nächsten Refresh.",
-    "search": "Suche"
+    "search": "Suche",
+    "searchPlaceholder": "Suchen …",
+    "searchShortcut": "Strg K"
   },
   "home": {
     "tiles": {
@@ -100,7 +102,8 @@
       "infosys": "Infosysteme",
       "belegnummer": "Belegnummer",
       "archivieren": "Archivieren",
-      "testfakedata": "Testdaten"
+      "testfakedata": "Testdaten",
+      "requestmonitor": "Anfragenmonitor"
     },
     "entryAccessRoles": {
       "symbolLabel": "Welche AR dieses Modul öffnen",
@@ -392,6 +395,9 @@
       "showHooks": "alle Hooks dieses Dokuments zeigen",
       "hooksTitle": "Hooks von {{name}}",
       "noViewer": "Für diesen Dateityp gibt es keinen Viewer, die Datei lässt sich nur herunterladen.",
+      "textShortened": "Die Datei ist sehr groß, gezeigt werden die ersten {{formatted}} Zeichen.",
+      "renderFailed": "Die Vorschau ließ sich nicht erzeugen.",
+      "sheets": "Blätter",
       "showNativeSize": "Klick: in voller Größe zeigen (1:1)",
       "fitAgain": "Klick: wieder einpassen"
     },
@@ -578,10 +584,159 @@
   },
   "search": {
     "title": "Suche",
-    "intro": "Ein Suchfeld für alle Kerne, zu denen du die Such-Rolle hast. Gesucht wird ab drei Zeichen oder mit einem Filter. Ein führendes + macht ein Wort zur Pflicht, ein führendes - schließt es aus. Mit fsc. wählst du eine Dateiart als Filter.",
+    "help": {
+      "title": "So suchst du",
+      "general": "Tippe ins Feld, was du suchst. Ab {{min}} Buchstaben je Wort geht die Suche los, höchstens {{max}} Wörter. Gesucht wird in allen Bereichen, die oben in der Leiste eingeschaltet sind.",
+      "youType": "Du tippst",
+      "youFind": "Du findest",
+      "notFound": "Nicht dabei",
+      "becomes": "Kachel anklicken",
+      "rules": {
+        "words": {
+          "text": "Einfach Wörter tippen, so wie sie im Artikel, im Dokument oder in der Nachricht stehen. Groß- und Kleinschreibung ist egal. Oft reicht ein Teil vom Wort: „schild“ findet auch „Typenschild“ und „Warnschild“.",
+          "examples": [
+            {
+              "input": "schild",
+              "hits": [
+                "[Typenschild] 100x50 Polyesterfolie lasergraviert",
+                "[Warnschild] Aluminium 200x100"
+              ]
+            }
+          ]
+        },
+        "switch": {
+          "text": "Der Schalter rechts neben dem Feld. Steht er auf an („jedes Wort muss vorhanden sein“), kommt nur, was alle getippten Wörter enthält. Steht er auf aus („Hauptsache ein Treffer“), reicht ein Wort; was mehr Wörter enthält, steht weiter oben.",
+          "examples": [
+            {
+              "label": "Schalter an",
+              "input": "schild folie",
+              "hits": [
+                "[Typenschild] 100x50 [Polyesterfolie] lasergraviert"
+              ],
+              "dropped": [
+                {
+                  "text": "[Warnschild] Aluminium 200x100",
+                  "reason": "„folie“ fehlt"
+                }
+              ]
+            },
+            {
+              "label": "Schalter aus",
+              "input": "schild folie",
+              "hits": [
+                "[Typenschild] 100x50 [Polyesterfolie] lasergraviert",
+                "[Warnschild] Aluminium 200x100",
+                "[Schutzfolie] transparent 50 m"
+              ]
+            }
+          ]
+        },
+        "plus": {
+          "text": "Ein + direkt vor dem Wort, ohne Leerzeichen dazwischen: Dieses Wort muss drin sein. Das brauchst du nur, wenn der Schalter auf aus steht. Steht er auf an, muss sowieso jedes Wort drin sein.",
+          "examples": [
+            {
+              "label": "Schalter aus",
+              "input": "+sechskant zink",
+              "hits": [
+                "[Sechskantschraube] M8x40 [verzinkt]",
+                "[Sechskantmutter] M10 Edelstahl A2"
+              ],
+              "dropped": [
+                {
+                  "text": "[Zinkspray] hell 400 ml",
+                  "reason": "„sechskant“ fehlt"
+                }
+              ]
+            }
+          ]
+        },
+        "minus": {
+          "text": "Ein - direkt vor dem Wort, ohne Leerzeichen dazwischen: Dieses Wort darf nicht drin sein. Alles mit diesem Wort verschwindet aus den Treffern, egal wie der Schalter steht.",
+          "examples": [
+            {
+              "input": "sechskant -edelstahl",
+              "hits": [
+                "[Sechskantschraube] M8x40 verzinkt"
+              ],
+              "dropped": [
+                {
+                  "text": "[Sechskantmutter] M10 {Edelstahl} A2",
+                  "reason": "enthält „edelstahl“"
+                }
+              ]
+            }
+          ]
+        },
+        "fsc": {
+          "text": "fsc. ganz vorne ins Feld tippen: Die Dateiarten erscheinen als Kacheln, weiter tippen grenzt sie ein. Klickst du eine Kachel an, wird sie zum Chip im Feld. Ab dann sucht nur noch das DMS und nur in dieser Dateiart, die anderen Bereiche sind gesperrt. Chip mit dem x entfernen, dann ist alles wieder frei. Geht nur, wenn du im DMS suchen darfst.",
+          "examples": [
+            {
+              "input": "fsc.zeich",
+              "becomes": "Zeichnung",
+              "note": "Jetzt wird nur noch im DMS gesucht, nur in Zeichnungen."
+            },
+            {
+              "chip": "Zeichnung",
+              "input": "welle",
+              "hits": [
+                "[Welle] Ø30 h6 Rev. B.pdf"
+              ],
+              "dropped": [
+                {
+                  "text": "Rechnung 4711 [Welle] Ø30.pdf",
+                  "reason": "ist eine Rechnung, keine Zeichnung"
+                }
+              ]
+            }
+          ]
+        },
+        "msc": {
+          "text": "msc. ganz vorne ins Feld tippen: genauso, nur für Nachrichten. Die Nachrichtenarten erscheinen als Kacheln, die angeklickte wird zum Chip, dann suchen nur noch die Nachrichten und nur in dieser Art. Geht nur, wenn du in den Nachrichten suchen darfst.",
+          "examples": [
+            {
+              "input": "msc.anfr",
+              "becomes": "Anfrage",
+              "note": "Jetzt wird nur noch in den Nachrichten gesucht, nur in Anfragen."
+            },
+            {
+              "chip": "Anfrage",
+              "input": "rundstahl",
+              "hits": [
+                "AW: [Rundstahl] Ø30 1.4305 Preis und Termin"
+              ],
+              "dropped": [
+                {
+                  "text": "Rechnung zu [Rundstahl] Ø30, Lieferung KW 42",
+                  "reason": "ist eine Rechnung, keine Anfrage"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "keys": [
+        {
+          "key": "Tab",
+          "text": "übernimmt das erste Angebot über dem Feld als Filter."
+        },
+        {
+          "key": "Enter",
+          "text": "öffnet den Treffer direkt, wenn du genau eine Nummer getippt hast, etwa eine Artikelnummer."
+        },
+        {
+          "key": "Strg+K",
+          "text": "springt von jeder Seite direkt in die Suche."
+        }
+      ]
+    },
+    "allWords": {
+      "on": "jedes Wort muss vorhanden sein",
+      "off": "Hauptsache ein Treffer"
+    },
     "placeholder": "suchen, z. B. 4711 oder +zeichnung -alt",
     "words_one": "{{count}} von {{max}} Suchwörtern",
     "words_other": "{{count}} von {{max}} Suchwörtern",
+    "wordsLimitHint": "Mehr Wörter gehen nicht: Setze lieber einen Filter, ein Angebot mit Tab, fsc. für eine Dateiart oder msc. für eine Nachrichtenart.",
     "cores": {
       "DMS": "DMS",
       "ARTIKEL": "Artikel",
@@ -594,6 +749,7 @@
       "open": "Öffnen"
     },
     "missingRole": "Dafür fehlt dir die AccessRole {{role}}.",
+    "subClassLock": "Gesperrt, solange der Filter gesetzt ist: Er gilt nur für {{core}}. Entferne den Chip, dann sind die Kerne wieder frei.",
     "noCores": "Für dich gibt es keinen Kern mit Suchrecht.",
     "running": "sucht",
     "hint": {
@@ -615,6 +771,9 @@
     },
     "fsc": {
       "hint": "Dateiart wählen: Klick oder Enter setzt sie als Filter, Escape bricht ab."
+    },
+    "msc": {
+      "hint": "Nachrichtenart wählen: Klick oder Enter setzt sie als Filter, Escape bricht ab."
     },
     "results": {
       "shown": "{{count}} davon geladen",
@@ -678,6 +837,112 @@
     }
   },
   "solrmanager": {
+    "transfer": {
+      "title": "Export/Import",
+      "titleOf": "Export/Import: {{core}}",
+      "essential": "essenziell",
+      "ignored": "Werden ignoriert, weil der Kern sie nicht kennt und sie keinem Feld zugeordnet sind: {{names}}",
+      "export": {
+        "title": "Export",
+        "intro": "Alle Dokumente des Kerns als gepackte Datei: eine Zeile JSON je Dokument, am Ende eine Schlusszeile mit der Anzahl. Jedes gespeicherte Feld, ohne die Suggest-Zwillinge, die entstehen beim Import neu. Damit kommt ein leerer Kern wieder auf diesen Stand.",
+        "start": "Export herunterladen",
+        "failed": "Export nicht gestartet"
+      },
+      "import": {
+        "title": "Import",
+        "intro": "Erst prüfen: Die Datei wird hochgeladen und bleibt auf dem Server, die Prüfung zeigt je Feld, was der Kern damit macht. Fehlt ein Feld des Kerns, kann ein anderes Feld der Datei einspringen; jedes essenzielle Feld braucht eine Quelle. Geschrieben wird jedes Dokument einzeln, beim ersten Fehler hält der Import an.",
+        "file": "Datei (.ndjson.gz, .ndjson oder .json)",
+        "analyze": "Prüfen",
+        "analyzing": "prüft",
+        "uploading": "{{sent}} von {{total}} hochgeladen",
+        "read": "{{value}} Dokumente gelesen",
+        "analyzeFailed": "Prüfung fehlgeschlagen",
+        "start": "Importieren",
+        "startFailed": "Import nicht gestartet",
+        "essentialMissing": "Erst jedes essenzielle Feld zuordnen: {{names}}"
+      },
+      "analysis": {
+        "documents": "{{value}} Dokumente",
+        "complete": "Datei vollständig, die Schlusszeile nennt dieselbe Anzahl.",
+        "incomplete": "Keine passende Schlusszeile: Die Datei ist vielleicht abgebrochen oder stammt nicht aus einem Export.",
+        "declared": "Die Schlusszeile nennt {{value}} Dokumente.",
+        "unreadable": "{{value}} Zeilen sind kein JSON-Objekt, die erste: {{first}}"
+      },
+      "fileFields": {
+        "title": "Felder der Datei",
+        "name": "Feld",
+        "count": "Dokumente",
+        "core": "im Kern",
+        "invalid": "falscher Typ",
+        "sample": "Beispiel",
+        "unknown": "unbekannt",
+        "mapped": "zugeordnet",
+        "skipped": "übergangen, entsteht neu",
+        "none": "Die Datei enthält keine Felder."
+      },
+      "missing": {
+        "title": "Felder des Kerns, die in der Datei fehlen",
+        "none": "Keine, die Datei hat jedes Feld des Kerns.",
+        "choose": "bitte zuordnen",
+        "leaveEmpty": "leer lassen",
+        "from": "Quelle für {{name}}"
+      },
+      "mode": {
+        "title": "Bekannte ids:",
+        "SKIP_EXISTING": "überspringen",
+        "REPLACE": "löschen und neu schreiben"
+      },
+      "status": {
+        "title": "Stand",
+        "never": "Seit dem Start des Backends lief noch kein Import.",
+        "otherCoreRunning": "Gerade läuft ein Import in den Kern {{core}}.",
+        "running": "importiert",
+        "cancelling": "hält nach dem aktuellen Dokument an",
+        "finished": "fertig",
+        "stopped": "Angehalten in Zeile {{line}}",
+        "failed": "abgebrochen: {{message}}",
+        "progress": "Zeile {{line}} von {{total}} Dokumenten · {{written}} geschrieben · {{skipped}} übersprungen · {{rate}} je s",
+        "resume": "Ab Zeile {{line}} fortsetzen",
+        "cancel": "Import anhalten",
+        "cancelFailed": "Anhalten hat nicht geklappt"
+      }
+    },
+    "reindex": {
+      "title": "Nachziehen",
+      "titleOf": "Nachziehen: {{core}}",
+      "intro": "Läuft über alle Dokumente des Kerns und vergleicht sie mit dem Sollstand. Geschrieben werden nur abweichende Dokumente, eines nach dem anderen; gelesen nur die Felder, die die gewählten Prüfungen brauchen. Das Popup darf zu, der Lauf geht im Backend weiter.",
+      "options": {
+        "ACLS_FROM_FILE_SUB_CLASS": "Lese- und Schreibrechte (readAcl, writeAcl) aus der Dateiart",
+        "SEARCHABLE_WORDS_FROM_BINARY": "Volltext neu aus der Datei: holt jede Datei vom SFTP und liest sie mit Tika, schreibt immer",
+        "ACLS_FROM_MESSAGE_SUB_CLASS": "Lese- und Schreibrechte (readAcl, writeAcl) aus der Nachrichtenart",
+        "SEARCH_SUGGESTION_REBUILD": "Suche neu aufbauen: schreibt jedes Dokument einmal neu, Solr zerlegt dabei alle Textfelder und füllt alle Suggest-Zwillinge nach dem aktuellen Regelwerk. Nur nach einer Änderung daran, läuft allein."
+      },
+      "changedIdsNotRecorded": "Der Neuaufbau schreibt jedes Dokument, eine Liste der ids führt er nicht.",
+      "start": "Starten",
+      "starting": "startet",
+      "cancel": "Lauf abbrechen",
+      "otherCoreRunning": "Gerade läuft das Nachziehen im Kern {{core}}.",
+      "progress": "{{done}} von {{total}} geprüft",
+      "changed_one": "{{value}} geändert",
+      "changed_other": "{{value}} geändert",
+      "failed": "{{value}} Fehler",
+      "rate": "{{value}} je s",
+      "lastError": "Letzter Fehler: {{message}}",
+      "firstChangedIds_one": "Die geänderte id",
+      "firstChangedIds_other": "Die ersten {{count}} geänderten ids",
+      "download": "Alle geänderten ids als Textdatei herunterladen",
+      "changedNone": "Kein Dokument musste geändert werden.",
+      "startFailed": "Nachziehen nicht gestartet",
+      "cancelFailed": "Abbrechen hat nicht geklappt",
+      "status": {
+        "never": "Seit dem Start des Backends lief hier noch kein Nachziehen.",
+        "running": "läuft",
+        "cancelling": "bricht nach dem aktuellen Dokument ab",
+        "finished": "fertig",
+        "cancelled": "abgebrochen",
+        "failed": "abgebrochen: {{message}}"
+      }
+    },
     "sync": {
       "title": "Abgleich mit Solr",
       "run": "Jetzt abgleichen",
@@ -822,6 +1087,8 @@
       "status": "Status",
       "newField": "neues Feld",
       "settingFor": "{{setting}} für {{name}}",
+      "essential": "essenziell",
+      "essentialHint": "Ohne dieses Feld ergibt ein Dokument dieses Kerns keinen Sinn, etwa Artikelnummer, Name und Sternzeit eines Artikels. Der Import eines Kerns verlangt jedes essenzielle Feld, aus der Datei oder über eine Zuordnung. Gilt je Kern, auch für Hooks; id ist immer essenziell. Nur in unserer Felddefinition, Solr lehnt ohne das Feld nichts ab.",
       "typeOf": "Typ von {{name}}",
       "everyCore": "in jedem Kern: dieselbe Zeile in jedem Kern-Tab",
       "fieldAccess": "Lesen",
@@ -965,6 +1232,7 @@
           "string: der Wert so, wie er kommt, nicht zerlegt, nicht klein geschrieben. Trifft nur exakt. Für Keys, Status, Nummern, Hashes. Der ganze Wert ist ein Term, und ein Term darf höchstens 32766 Bytes haben: Das gilt mit indexed und mit docValues, Umlaute zählen doppelt. Nur gespeichert (beides aus) darf ein string beliebig groß sein, so wie ein Vorschaubild.",
           "long: ganze Zahl mit 64 Bit, für Bereiche und Sortierung. Es gibt kein int, ganze Zahlen sind bei uns immer long. double: Kommazahl mit 64 Bit. date: Zeitpunkt nach ISO 8601 in UTC, für Bereiche und Sortierung. boolean: wahr oder falsch.",
           "text_edge: zerlegt an Leerzeichen und Satzzeichen, alles klein, beim Indexieren dazu jeder Wortanfang ab 3 Zeichen: „rech“ findet „Rechnung“ im Feld selbst, ohne Zwilling. Für alles, was ein User tippt und beim Tippen wiederfinden will: Dateiname, Index, Beschreibung. text_suche: der Volltext, jedes Wort einzeln, Stammform, Komposita zerlegt, mit Synonymen: „Rechnungen“ findet „Rechnung“, „Boot“ findet die Kapitänschifffahrtsmütze. Bei beiden gilt das Term-Limit je Token, der Wert selbst darf beliebig groß sein.",
+          "text_ngram: wie text_edge, aber jedes Stück ab 3 Zeichen an jeder Stelle des Worts: „schild“ und „folie“ finden „Typenschild 100x50 Polyesterfolie“, „schluessel“ findet „Schlüssel“. Nur für die essenziellen Felder, die jeder User sieht, etwa Artikelname, Dateiname, Beschreibung, Betreff: Der Index wächst mit jeder Wortlänge.",
           "Einen Typ nachträglich zu ändern heißt den Kern neu aufbauen, Solr schreibt alte Dokumente nicht um."
         ]
       }
@@ -1809,6 +2077,53 @@
       "failed": "Abgebrochen wegen Fehler: {{message}}",
       "startedAt": "Gestartet {{time}}",
       "finishedAt": "beendet {{time}}"
+    }
+  },
+  "requestmonitor": {
+    "title": "Anfragenmonitor",
+    "intro": "Jede Anfrage an den Login-Endpunkt, so wie sie im Backend in der Map liegt: Zeitpunkt, Client-IP, Endpunkt. Nur im Speicher, alle fünf Minuten löscht der Aufräumer, was älter als eine Stunde ist. Die Liste holt alle zwei Sekunden den Stand.",
+    "filterPlaceholder": "Nach IP filtern",
+    "box": {
+      "title": "Anfragen in der Map"
+    },
+    "columns": {
+      "receivedAt": "Zeitpunkt",
+      "clientIp": "Client-IP",
+      "endpoint": "Endpunkt",
+      "blocked": "Gesperrt"
+    },
+    "blockedBadge": "abgewiesen",
+    "blockThisIp": "IP {{clientIp}} sperren",
+    "empty": "Keine Anfragen in der Map.",
+    "footer_one": "{{count}} Anfrage in der Map, Stand {{time}}",
+    "footer_other": "{{count}} Anfragen in der Map, Stand {{time}}",
+    "blocked": {
+      "title": "Gesperrte IPs",
+      "intro": "Die Sperrliste im Speicher: Solange eine Sperre läuft, wird jede Anfrage der IP an jedem Endpunkt sofort beendet (429, Verbindung zu), mit oder ohne Token. Die eigene Adresse lässt sich nicht sperren. Abgelaufene Sperren räumt der Aufräumer weg.",
+      "columns": {
+        "clientIp": "Client-IP",
+        "blockedAt": "gesperrt seit",
+        "expiresAt": "frei ab",
+        "reason": "Grund",
+        "rejectedRequests": "abgewiesen",
+        "rejectedRequestsHint": "So viele Anfragen hat der Filter seit der Sperre abgewiesen, an allen Endpunkten zusammen. Eine Zahl je Sperre, keine Zeile je Anfrage."
+      },
+      "expired": "abgelaufen",
+      "empty": "Keine IP gesperrt.",
+      "footer_one": "{{count}} gesperrte IP",
+      "footer_other": "{{count}} gesperrte IPs",
+      "newTitle": "IP sperren",
+      "form": {
+        "clientIp": "Client-IP",
+        "durationMinutes": "Dauer in Minuten",
+        "expiresHint": "frei ab {{time}}",
+        "reason": "Grund (optional)"
+      },
+      "block": "Sperren",
+      "blocking": "Sperrt …",
+      "liftLabel": "Sperre von {{clientIp}} aufheben",
+      "liftTitle": "Sperre aufheben",
+      "liftQuestion": "Soll die Sperre von {{clientIp}} wirklich aufgehoben werden?"
     }
   },
   "nachricht": {

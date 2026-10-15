@@ -89,6 +89,7 @@ export function NachrichtenSearchResultList({ hits, origin, onFilter }: SearchRe
                       origin={origin}
                       onSearchFilter={onFilter}
                       badgeClassName="search-hit-hook-value"
+                      valuesInHoverlay
                     />
                   ))}
                 </div>

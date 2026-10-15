@@ -40,8 +40,9 @@
 
 /*
  * ===== Knöpfe nach Art =====
- * button-save: speichern, anlegen, hochladen, bestätigen
- * button-cancel: abbrechen, zurück
+ * button-save: speichern, anlegen, hochladen, bestätigen (ConfirmButton)
+ * button-cancel: abbrechen, zurück, im Popup schließen (CancelButton, „zurück zu …“ im Header); anthrazit, damit man
+ *   den Ausweg überall sofort erkennt (User 2026-10-14)
  * button-other: alles andere
  */
 .button-save,
@@ -89,14 +90,19 @@
 }
 
 .button-cancel {
-  border-color: #cbd5e1;
-  background: #f1f5f9;
-  color: #334155;
+  border-color: #27272a;
+  background: #3f3f46;
+  color: #f4f4f5;
 }
 
 .button-cancel:hover:not(:disabled) {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: #27272a;
+  color: #ffffff;
+}
+
+/* „zurück zu …“ im Header, der Panikknopf: Rand in der Schriftfarbe, damit er heraussticht (User 2026-10-14) */
+.button-cancel.header-back {
+  border-color: currentColor;
 }
 
 .button-other {
@@ -127,6 +133,34 @@
   outline: none;
   border-color: #ffffff;
   background: rgb(255 255 255 / 0.14);
+}
+
+/*
+ * Die Lupe: in Ruhe wie die anderen Knöpfe im header, nur Symbol mit hellem Rand. Beim Darüberfahren klappt sie auf
+ * und leuchtet kräftig türkis (User 2026-10-14).
+ */
+.header-search {
+  border-color: rgb(255 255 255 / 0.45);
+  background: transparent;
+  color: #ffffff;
+}
+
+.header-search:hover,
+.header-search:focus-visible {
+  outline: none;
+  border-color: #2dd4bf;
+  background: rgb(20 184 166 / 0.22);
+  color: #ffffff;
+  box-shadow:
+    0 0 0 1px rgb(45 212 191 / 0.9),
+    0 0 12px 2px rgb(20 184 166 / 0.85),
+    0 0 26px 6px rgb(20 184 166 / 0.45);
+}
+
+.header-search-key {
+  border: 1px solid rgb(153 246 228 / 0.55);
+  background: rgb(20 184 166 / 0.3);
+  color: inherit;
 }
 
 .user-menu-panel {
@@ -249,6 +283,18 @@
   box-shadow: 0 4px 12px rgb(15 23 42 / 0.35);
 }
 
+/* Gedämpfter Text und Code im Hoverlay: hell, Bootstraps Grau und Pink sind für hellen Grund gemacht. Das !important
+   schlägt Bootstraps eigenes !important an text-muted. */
+.hoverlay .text-muted,
+.hoverlay-box .text-muted {
+  color: #c7d2fe !important;
+}
+
+.hoverlay code,
+.hoverlay-box code {
+  color: #fde68a;
+}
+
 /* Längere Erklärungen im Hoverlay, z. B. zu den Solr-Einstellungen: Titel fett, darunter die Absätze mit Luft */
 .hoverlay-explanation {
   display: flex;
@@ -279,6 +325,138 @@
 
 .hoverlay-explanation .data-table > :not(caption) > * > * + * {
   border-left-color: rgb(255 255 255 / 0.12);
+}
+
+/*
+ * Die Hilfe der Suche (SearchHelp): jedes Zeichen in seiner eigenen kräftigen Farbe, + grün, - rot, fsc. bernstein,
+ * msc. himmelblau, damit man es im Feld wiedererkennt. Die Beispiele auf einer etwas helleren Fläche, die Eingabe hell
+ * wie das echte Suchfeld.
+ */
+.search-help-rule,
+.search-help-keys {
+  border-top-color: rgb(255 255 255 / 0.18);
+}
+
+.search-help-operator-words,
+.search-help-operator-switch {
+  border-color: #cbd5e1;
+  background: rgb(203 213 225 / 0.12);
+  color: #f1f5f9;
+}
+
+.search-help-operator-plus {
+  border-color: #4ade80;
+  background: rgb(74 222 128 / 0.16);
+  color: #4ade80;
+}
+
+.search-help-operator-minus {
+  border-color: #f87171;
+  background: rgb(248 113 113 / 0.16);
+  color: #f87171;
+}
+
+.search-help-operator-fsc {
+  border-color: #fbbf24;
+  background: rgb(251 191 36 / 0.16);
+  color: #fbbf24;
+}
+
+.search-help-operator-msc {
+  border-color: #38bdf8;
+  background: rgb(56 189 248 / 0.16);
+  color: #38bdf8;
+}
+
+.search-help-switch {
+  background: #22c55e;
+}
+
+.search-help-switch::after {
+  background: #ffffff;
+}
+
+.search-help-example {
+  background: rgb(255 255 255 / 0.07);
+}
+
+.search-help-example-label {
+  color: #fde68a;
+}
+
+.search-help-example-caption,
+.search-help-note {
+  color: #c7d2fe;
+}
+
+.search-help-input {
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #94a3b8;
+  color: #0f172a;
+}
+
+/* in der hellen Eingabe dunklere Töne derselben Farben, sonst wären sie auf Weiß kaum zu lesen */
+.search-help-input-operator-plus {
+  color: #15803d;
+}
+
+.search-help-input-operator-minus {
+  color: #dc2626;
+}
+
+.search-help-input-operator-fsc {
+  color: #b45309;
+}
+
+.search-help-input-operator-msc {
+  color: #0369a1;
+}
+
+.search-help-chip-fsc {
+  border-color: #d97706;
+  background: #fef3c7;
+  color: #0f172a;
+}
+
+.search-help-chip-fsc .search-help-chip-symbol {
+  background: #d97706;
+}
+
+.search-help-chip-msc {
+  border-color: #0284c7;
+  background: #e0f2fe;
+  color: #0f172a;
+}
+
+.search-help-chip-msc .search-help-chip-symbol {
+  background: #0284c7;
+}
+
+.search-help-hit mark {
+  background: rgb(253 230 138 / 0.4);
+}
+
+.search-help-hit mark.search-help-mark-reason {
+  background: rgb(248 113 113 / 0.55);
+}
+
+.search-help-hit .search-help-hit-sign {
+  color: #4ade80;
+}
+
+.search-help-hit-dropped {
+  color: #94a3b8;
+}
+
+.search-help-hit-dropped .search-help-hit-sign,
+.search-help-hit-reason {
+  color: #fca5a5;
+}
+
+.search-help-key kbd {
+  border: 1px solid #94a3b8;
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 /* Eine Box im Aussehen des Hoverlays, fest in der Seite, z. B. der Hook-Katalog im Kern-Tab */
@@ -626,13 +804,20 @@ button.solr-hook-catalog-entry:focus-visible {
 }
 
 /*
- * ===== PasswordButton, EditButton und DeleteButton =====
- * Bearbeiten immer in Gelb- und Brauntönen, Löschen immer in Rottönen. Wie genau, entscheidet das Theme.
- * Der Schlüssel zum Passwortsetzen ist hier petrol.
+ * ===== PasswordButton, EditButton, DeleteButton, ViewButton, DetailsButton, DownloadButton, NewVersionButton und
+ * ShareButton =====
+ * Bearbeiten immer in Gelb- und Brauntönen, Löschen immer in Rottönen, Ansehen in Blau, Details in Grün, Herunterladen
+ * in Türkis, neue Fassung in Grau, Freigeben in Violett (User 2026-10-14). Wie genau, entscheidet das Theme. Der
+ * Schlüssel zum Passwortsetzen ist hier petrol.
  */
 .password-button,
 .edit-button,
-.delete-button {
+.delete-button,
+.view-button,
+.details-button,
+.download-button,
+.new-version-button,
+.share-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -688,16 +873,87 @@ button.solr-hook-catalog-entry:focus-visible {
   box-shadow: 0 1px 3px rgb(185 28 28 / 0.4);
 }
 
+.view-button {
+  border-color: #2563eb;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.view-button:hover:not(:disabled) {
+  background: #bfdbfe;
+  color: #1e40af;
+  box-shadow: 0 1px 3px rgb(29 78 216 / 0.35);
+}
+
+.details-button {
+  border-color: #16a34a;
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.details-button:hover:not(:disabled) {
+  background: #bbf7d0;
+  color: #166534;
+  box-shadow: 0 1px 3px rgb(21 128 61 / 0.35);
+}
+
+/* Ein Link, kein Knopf: ohne Unterstrich */
+.download-button {
+  border-color: #0d9488;
+  background: #ccfbf1;
+  color: #0f766e;
+  text-decoration: none;
+}
+
+.download-button:hover {
+  background: #99f6e4;
+  color: #115e59;
+  box-shadow: 0 1px 3px rgb(15 118 110 / 0.35);
+}
+
+.new-version-button {
+  border-color: #64748b;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.new-version-button:hover:not(:disabled) {
+  background: #cbd5e1;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgb(51 65 85 / 0.35);
+}
+
+.share-button {
+  border-color: #7c3aed;
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.share-button:hover:not(:disabled) {
+  background: #ddd6fe;
+  color: #5b21b6;
+  box-shadow: 0 1px 3px rgb(109 40 217 / 0.35);
+}
+
 .password-button:focus-visible,
 .edit-button:focus-visible,
-.delete-button:focus-visible {
+.delete-button:focus-visible,
+.view-button:focus-visible,
+.details-button:focus-visible,
+.download-button:focus-visible,
+.new-version-button:focus-visible,
+.share-button:focus-visible {
   outline: 2px solid #6366f1;
   outline-offset: 2px;
 }
 
 .password-button:disabled,
 .edit-button:disabled,
-.delete-button:disabled {
+.delete-button:disabled,
+.view-button:disabled,
+.details-button:disabled,
+.new-version-button:disabled,
+.share-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

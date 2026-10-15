@@ -182,7 +182,7 @@ export function DmsUploadProbeResult({ probe, language }: DmsUploadProbeResultPr
             title={t('dms.result.text')}
             actions={
               text.length > TEXT_PREVIEW_CHARS ? (
-                <button type="button" className="button-cancel" onClick={() => setShowAllText((current) => !current)}>
+                <button type="button" className="button-other" onClick={() => setShowAllText((current) => !current)}>
                   {showAllText ? t('dms.result.showLess') : t('dms.result.showAll')}
                 </button>
               ) : undefined

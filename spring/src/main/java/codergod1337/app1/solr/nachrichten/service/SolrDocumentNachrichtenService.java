@@ -6,11 +6,15 @@ import codergod1337.app1.solr.field.model.SolrField;
 import codergod1337.app1.solr.field.model.SolrFieldType;
 import codergod1337.app1.solr.field.service.SolrFieldService;
 import codergod1337.app1.solr.nachrichten.model.CounterNachrichtenId;
+import codergod1337.app1.solr.nachrichten.model.NachrichtenReindexOption;
 import codergod1337.app1.solr.nachrichten.model.NachrichtenResolvedDocumentsPage;
 import codergod1337.app1.solr.nachrichten.model.NachrichtenSearchHit;
 import codergod1337.app1.solr.nachrichten.model.NachrichtenSearchHitReason;
 import codergod1337.app1.solr.nachrichten.model.NachrichtenSearchedDocumentsPage;
 import codergod1337.app1.solr.nachrichten.repository.CounterNachrichtenIdRepository;
+import codergod1337.app1.solr.reindex.model.SolrReindexCheck;
+import codergod1337.app1.solr.reindex.model.SolrReindexProgress;
+import codergod1337.app1.solr.reindex.service.SolrReindexIterator;
 import codergod1337.app1.system.security.CurrentUsersProvider;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,6 +32,8 @@ import org.apache.solr.client.solrj.request.SolrQuery;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -72,6 +78,7 @@ public class SolrDocumentNachrichtenService {
 	private final SolrClientRegistry solrClientRegistry;
 	private final SolrDocumentNachrichtenUtilsService utils;
 	private final CurrentUsersProvider currentUsersProvider;
+	private final SolrReindexIterator solrReindexIterator;
 
 	/** Treffer je Seite beim Auflösen, app1.solr.resolve.page-size */
 	private final int resolvePageSize;
@@ -85,6 +92,7 @@ public class SolrDocumentNachrichtenService {
 	public SolrDocumentNachrichtenService(SolrDocumentService solrDocumentService, SolrFieldService solrFieldService,
 			CounterNachrichtenIdRepository counterNachrichtenIdRepository, SolrClientRegistry solrClientRegistry,
 			SolrDocumentNachrichtenUtilsService utils, CurrentUsersProvider currentUsersProvider,
+			SolrReindexIterator solrReindexIterator,
 			@Value("${app1.solr.resolve.page-size}") int resolvePageSize,
 			@Value("${app1.solr.resolve.max-results}") int resolveMaxResults,
 			@Value("${app1.solr.search.hits}") int searchHits) {
@@ -94,6 +102,7 @@ public class SolrDocumentNachrichtenService {
 		this.solrClientRegistry = solrClientRegistry;
 		this.utils = utils;
 		this.currentUsersProvider = currentUsersProvider;
+		this.solrReindexIterator = solrReindexIterator;
 		this.resolvePageSize = resolvePageSize;
 		this.resolveMaxResults = resolveMaxResults;
 		this.searchHits = searchHits;
@@ -246,7 +255,8 @@ public class SolrDocumentNachrichtenService {
 	 * Typ EMAIL (Absender, Gesendet von, An, Cc, Bcc), ohne Rücksicht auf Groß- und Kleinschreibung.
 	 */
 	public NachrichtenSearchedDocumentsPage searchNachrichtenDocuments(String searchText,
-			Map<String, List<String>> exactFilterValuesByFieldName, int page) {
+			Map<String, List<String>> exactFilterValuesByFieldName, int page,
+			boolean allWordsRequired) {
 		String text = searchText == null ? "" : searchText.trim();
 		if (text.isEmpty() && exactFilterValuesByFieldName.isEmpty()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "weder Suchtext noch Filter");
@@ -300,14 +310,19 @@ public class SolrDocumentNachrichtenService {
 			params.set("defType", "edismax");
 			params.set("q", text);
 			params.set("qf", String.join(" ", qf));
-			params.set("q.op", "OR");
-			params.set("mm", "1");
+			// alle Wörter (Schalter über dem Suchfeld, User 2026-10-14): jedes Wort muss in irgendeinem Feld stehen, ein - schließt
+			// weiter aus; sonst reicht eines, mehr Treffer heben den Treffer nach oben
+			params.set("q.op", allWordsRequired ? "AND" : "OR");
+			params.set("mm", allWordsRequired ? "100%" : "1");
 			// sow: erst an Leerzeichen zerlegen, dann jedes Wort einzeln durch jeden Feld-Analyzer (User 2026-10-09)
 			params.set("sow", "true");
 			if (!highlightedFieldNames.isEmpty()) {
 				params.set("hl", true);
 				params.set("hl.fl", String.join(",", highlightedFieldNames));
 				params.set("hl.method", "unified");
+				// jedes Suchwort in jedem Feld markieren, in dem es steht (User 2026-10-14); sonst markiert Solr ein
+				// Feld nur, wenn alle +Wörter in genau diesem Feld stehen
+				params.set("hl.weightMatches", false);
 				params.set("hl.tag.pre", "\u0002");
 				params.set("hl.tag.post", "\u0003");
 			}
@@ -500,6 +515,40 @@ public class SolrDocumentNachrichtenService {
 	private static String firstValueOf(Object fieldValue) {
 		List<String> values = valuesOf(fieldValue);
 		return values.isEmpty() ? null : values.get(0);
+	}
+
+	// ===== Nachziehen =====
+
+	/**
+	 * Der SolrManager startet das über den SolrReindexService im Hintergrund, um alle Nachrichten auf den Sollstand zu
+	 * bringen (User 2026-10-14), z. B. die ACLs nach einer geänderten Nachrichtenart. Je Option eine Prüfung, die ihren
+	 * Sollstand einmal beim Bauen liest; die Schleife liest blockweise nur die Felder der Prüfungen und schreibt jede
+	 * geänderte Nachricht einzeln über send. Nur ADMIN.
+	 */
+	public void reindexNachrichtenDocuments(Set<NachrichtenReindexOption> options, SolrReindexProgress progress) {
+		if (!currentUsersProvider.getCurrentUsersAccessRoleKeys().contains("ADMIN")) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Nachziehen nur als ADMIN");
+		}
+		List<SolrReindexCheck> checks = new ArrayList<>();
+		if (options.contains(NachrichtenReindexOption.ACLS_FROM_MESSAGE_SUB_CLASS)) {
+			checks.add(utils.aclsFromMessageSubClassCheck());
+		}
+		solrReindexIterator.iterate(CORE_KEY, checks, this::send, progress);
+	}
+
+	/**
+	 * Ein Atomic Update an …/solr/NACHRICHTEN/update, kein Commit: Suchbar wird es mit dem autoSoftCommit alle 10 s. Lehnt
+	 * Solr ab, bleibt dessen 400 eine 400, alles andere ist 503.
+	 */
+	private void send(SolrInputDocument update) {
+		try {
+			client().add(update);
+		} catch (SolrException e) {
+			throw new ResponseStatusException(e.code() == 400 ? HttpStatus.BAD_REQUEST : HttpStatus.SERVICE_UNAVAILABLE,
+					"Solr lehnt das Schreiben ab (Kern " + CORE_KEY + "): " + e.getMessage(), e);
+		} catch (SolrServerException | IOException e) {
+			throw unavailable(e);
+		}
 	}
 
 	private SolrClient client() {

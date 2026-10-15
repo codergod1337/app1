@@ -120,6 +120,16 @@ public class SolrField {
 	@ColumnDefault("false")
 	private boolean suggest;
 
+	/**
+	 * Essenziell (User 2026-10-14): Ohne dieses Feld ergibt ein Dokument des Kerns keinen Sinn, z. B. Artikelnummer, Name
+	 * und Sternzeit eines Artikels oder die Dateiart eines DMS-Dokuments. Der Import eines Kerns verlangt jedes
+	 * essenzielle Feld, aus der Datei oder über eine Zuordnung. Je Zeile, also je Kern, auch bei einer Hook-Zeile; id ist
+	 * immer essenziell. Nur in dieser Tabelle, nie in Solr: anders als required lehnt Solr ohne das Feld nichts ab.
+	 */
+	@Column(nullable = false)
+	@ColumnDefault("false")
+	private boolean essential;
+
 	// ===== wer liest, wer schreibt, wie schwer in der Suche =====
 
 	/**
@@ -294,6 +304,14 @@ public class SolrField {
 
 	public void setSuggest(boolean suggest) {
 		this.suggest = suggest;
+	}
+
+	public boolean isEssential() {
+		return essential;
+	}
+
+	public void setEssential(boolean essential) {
+		this.essential = essential;
 	}
 
 	/** Nie null: Eine alte Zeile ohne Wert oder ein Import ohne das Feld gilt als leer, also niemand. */

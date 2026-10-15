@@ -81,7 +81,8 @@ public class SolrDocumentKontakteController {
 	public KontakteSearchedDocumentsPage searchKontakteDocuments(@RequestBody Map<String, Object> searchRequest) {
 		String searchText = searchRequest.get("searchText") instanceof String text ? text : "";
 		return solrDocumentKontakteService.searchKontakteDocuments(searchText,
-				readValuesByFieldName(searchRequest, "exactFilterValuesByFieldName"), readSearchPage(searchRequest));
+				readValuesByFieldName(searchRequest, "exactFilterValuesByFieldName"), readSearchPage(searchRequest),
+				Boolean.TRUE.equals(searchRequest.get("allWordsRequired")));
 	}
 
 	/** Die Seite der Suche, ab 0; fehlt sie, die erste (User 2026-10-14: „weitere laden“ in der Maske) */

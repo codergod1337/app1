@@ -94,7 +94,8 @@ export function Hoverlay({ text, alignRight = false, interactive = false, childr
           <span
             className={interactive ? 'hoverlay hoverlay-interactive' : 'hoverlay'}
             role="tooltip"
-            style={position}
+            // ein interaktives endet am unteren Fensterrand und rollt, sonst wäre langer Inhalt unten abgeschnitten
+            style={interactive ? { ...position, maxHeight: `calc(100vh - ${position.top + GAP}px)` } : position}
             onMouseEnter={interactive ? cancelClose : undefined}
             onMouseLeave={interactive ? hide : undefined}
           >

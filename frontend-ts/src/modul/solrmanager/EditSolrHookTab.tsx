@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import type { LanguageCode } from '../../branding/languages.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { useLanguage } from '../../components/languageContext.ts'
 import { useMasterData } from '../../components/masterDataContext.ts'
@@ -52,20 +53,23 @@ export function EditSolrHookTab() {
     errorMessage = t('solrmanager.hooks.notFound')
   }
 
+  // dasselbe Paar im Kopf und im Footer
+  const buttons = (
+    <ConfirmCancelButtons
+      onCancel={() => navigate(originPath)}
+      confirmLabel={t('common.save')}
+      confirmForm={FORM_ID}
+      disabled={solrHook === null}
+      busy={saving}
+    />
+  )
   const footer = (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
       {solrHooks === null && errorMessage === null && (
         <span className="spinner-border spinner-border-sm" role="status" aria-label={t('common.loading')} />
       )}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={() => navigate(originPath)}>
-          {t('common.cancel')}
-        </button>
-        <button type="submit" form={FORM_ID} className="button-save" disabled={saving || solrHook === null}>
-          {t('common.save')}
-        </button>
-      </span>
+      {buttons}
     </>
   )
 
@@ -74,6 +78,7 @@ export function EditSolrHookTab() {
       title={
         solrHook ? t('solrmanager.hooks.editTitle', { key: solrHook.key }) : t('solrmanager.hooks.editTitleNone')
       }
+      actions={buttons}
       footer={footer}
       language={{ value: language, onChange: setLanguage }}
     >

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { RequestError } from '../../api/client.ts'
 import { useLoad } from '../../api/useLoad.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { ContentBox } from '../../components/ContentBox.tsx'
 import { DeleteButton } from '../../components/DeleteButton.tsx'
 import { EditButton } from '../../components/EditButton.tsx'
@@ -116,25 +117,28 @@ export function EditUsersTab() {
     usersDebuffsErrorMessage ??
     debuffErrorMessage ??
     saveErrorMessage
+  // dasselbe Paar im Kopf und im Footer
+  const buttons = (
+    <ConfirmCancelButtons
+      onCancel={() => navigate(originPath)}
+      confirmLabel={t('common.save')}
+      confirmForm={FORM_ID}
+      disabled={users === null}
+      busy={saving}
+    />
+  )
   const footer = (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
       {users === null && errorMessage === null && (
         <span className="spinner-border spinner-border-sm" role="status" aria-label="lädt" />
       )}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={() => navigate(originPath)}>
-          Abbrechen
-        </button>
-        <button type="submit" form={FORM_ID} className="button-save" disabled={saving || users === null}>
-          Speichern
-        </button>
-      </span>
+      {buttons}
     </>
   )
 
   return (
-    <ContentBox title={users ? `User bearbeiten: ${users.email}` : 'User bearbeiten'} footer={footer}>
+    <ContentBox title={users ? `User bearbeiten: ${users.email}` : 'User bearbeiten'} actions={buttons} footer={footer}>
       {/* Erst mit den geladenen Daten anzeigen, damit das Formular mit ihnen startet */}
       {users !== null && (
         <>

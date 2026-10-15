@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { RequestError } from '../../api/client.ts'
+import { ConfirmCancelButtons } from '../../components/ConfirmCancelButtons.tsx'
 import { GuidInput } from '../../components/GuidInput.tsx'
 import { Popup } from '../../components/Popup.tsx'
 import { changeUsersGuid, type Users } from './Users.ts'
@@ -43,14 +44,7 @@ export function ChangeUsersGuidPopup({ open, users, onChanged, onClose }: Change
   const footer = (
     <>
       {errorMessage !== null && <span className="text-danger">{errorMessage}</span>}
-      <span className="ms-auto d-flex gap-2">
-        <button type="button" className="button-cancel" disabled={saving} onClick={close}>
-          Abbrechen
-        </button>
-        <button type="submit" form={FORM_ID} className="button-save" disabled={saving}>
-          guid ändern
-        </button>
-      </span>
+      <ConfirmCancelButtons onCancel={close} confirmLabel="guid ändern" confirmForm={FORM_ID} busy={saving} />
     </>
   )
 

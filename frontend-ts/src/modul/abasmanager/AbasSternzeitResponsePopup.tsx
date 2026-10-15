@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RequestError } from '../../api/client.ts'
+import { CancelButton } from '../../components/CancelButton.tsx'
 import { JsonTree } from '../../components/JsonTree.tsx'
 import { Popup } from '../../components/Popup.tsx'
 import { fetchAbasSternzeitRaw } from './AbasSternzeit.ts'
@@ -62,9 +63,7 @@ export function AbasSternzeitResponsePopup({ sternzeit, onClose }: AbasSternzeit
   const footer = (
     <span className="d-inline-flex align-items-center gap-2 flex-wrap">
       {selectedPath !== null && <code className="text-break">{selectedPath}</code>}
-      <button type="button" className="button-cancel" onClick={onClose}>
-        {t('common.close')}
-      </button>
+      <CancelButton label={t('common.close')} onClick={onClose} />
     </span>
   )
 

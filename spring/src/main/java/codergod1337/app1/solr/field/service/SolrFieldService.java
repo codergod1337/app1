@@ -109,7 +109,7 @@ public class SolrFieldService {
 	public SolrField createSolrField(String coreKey, String name, SolrFieldType type, boolean indexed, boolean stored,
 			boolean multiValued, boolean docValues, boolean required, boolean suggest, List<String> readAccessRoleKeys,
 			SolrFieldClientWriteRule clientWriteRule, int searchWeight, String displayName, String description,
-			int listingPosition, String command) {
+			int listingPosition, String command, boolean essential) {
 		String checkedCoreKey = checkedCoreKey(coreKey);
 		requireNewName(checkedCoreKey, name);
 		requireType(type);
@@ -120,6 +120,7 @@ public class SolrFieldService {
 				required, suggest, checkedAccessRoleKeys(readAccessRoleKeys), clientWriteRule, searchWeight, displayName,
 				description, listingPosition);
 		newSolrField.setCommand(checkedCommand(command));
+		newSolrField.setEssential(essential);
 		SolrField solrField = solrFieldRepository.save(newSolrField);
 		reloadSolrFieldsAfterCommit();
 		return solrField;
@@ -127,19 +128,21 @@ public class SolrFieldService {
 
 	/**
 	 * Die id bestimmt, welches Feld geändert wird. Kern und Name ändern sich nie. Bei einer Hook-Zeile ändern sich nur
-	 * Leseliste, Suchgewicht und Position, die Technik steht fest. Sonst wird alles andere ersetzt. 400 bei unbekannter
-	 * AR, suggest bei einem Typ ohne Zwilling, required an einem Feld, das der Client nicht setzt, oder Suchgewicht an
-	 * einem Feld ohne Wortanfang.
+	 * Leseliste, Suchgewicht, Position und essenziell, die Technik steht fest. Sonst wird alles andere ersetzt. 400 bei
+	 * unbekannter AR, suggest bei einem Typ ohne Zwilling, required an einem Feld, das der Client nicht setzt, oder
+	 * Suchgewicht an einem Feld ohne Wortanfang.
 	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public SolrField updateSolrField(Long id, SolrFieldType type, boolean indexed, boolean stored, boolean multiValued,
 			boolean docValues, boolean required, boolean suggest, List<String> readAccessRoleKeys,
 			SolrFieldClientWriteRule clientWriteRule, int searchWeight, String displayName, String description,
-			int listingPosition, String command) {
+			int listingPosition, String command, boolean essential) {
 		SolrField solrField = findSolrFieldForWrite(id);
 		// das Mapping darf auch einen Hook füllen, z. B. artikelNummer aus ARTIKEL_NUMMER
 		solrField.setCommand(checkedCommand(command));
+		// essenziell ist je Kern, auch bei einer Hook-Zeile: artikelNummer ist es in ARTIKEL, im DMS nicht
+		solrField.setEssential(essential);
 		if (solrField.isHookField()) {
 			requireSearchWeightAllowed(solrField.isIndexed(), searchWeight);
 			solrField.setReadAccessRoleKeys(checkedAccessRoleKeys(readAccessRoleKeys));
@@ -245,18 +248,19 @@ public class SolrFieldService {
 	}
 
 	/**
-	 * Der Import: Leseliste und Suchgewicht einer Hook-Zeile, die der Hook-Import gerade angelegt hat. Gibt es die Zeile
-	 * nicht, ist der Hook oder der Kern nicht da, dann 404.
+	 * Der Import: Leseliste, Suchgewicht und essenziell einer Hook-Zeile, die der Hook-Import gerade angelegt hat. Gibt es
+	 * die Zeile nicht, ist der Hook oder der Kern nicht da, dann 404.
 	 */
 	@Transactional
 	public SolrField changeHookFieldFromImport(String coreKey, String hookKey, List<String> readAccessRoleKeys,
-			int searchWeight) {
+			int searchWeight, boolean essential) {
 		SolrField solrField = solrFieldRepository.findByCoreKeyAndName(coreKey, hookKey)
 				.filter(SolrField::isHookField)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
 						"keine Zeile für den Hook " + hookKey + " im Kern " + coreKey));
 		solrField.setReadAccessRoleKeys(checkedAccessRoleKeys(readAccessRoleKeys));
 		solrField.setSearchWeight(Math.max(-1, searchWeight));
+		solrField.setEssential(essential);
 		SolrField saved = solrFieldRepository.save(solrField);
 		reloadSolrFieldsAfterCommit();
 		return saved;

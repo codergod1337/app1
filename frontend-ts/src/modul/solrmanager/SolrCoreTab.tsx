@@ -10,7 +10,9 @@ import { translate } from '../../components/multilingual.ts'
 import { NewEntityButton } from '../../components/NewEntityButton.tsx'
 import { Popup } from '../../components/Popup.tsx'
 import { isSolrFieldOfCore, isSolrHookField } from './SolrField.ts'
+import { SolrCoreTransferBox } from './SolrCoreTransferBox.tsx'
 import { SolrFieldSheet } from './SolrFieldSheet.tsx'
+import { SolrReindexBox } from './SolrReindexBox.tsx'
 import { SolrSyncStatus } from './SolrSyncStatus.tsx'
 
 /**
@@ -20,7 +22,7 @@ import { SolrSyncStatus } from './SolrSyncStatus.tsx'
  * (SolrFieldSheet): erst seine Felder, unter einer Trennlinie seine Hooks, die in jedem Kern liegen und je Kern
  * Lesen, Suche und Reihenfolge bekommen. Die Seite scrollt wie jede andere, die Kopfzeile der Tabelle bleibt unter
  * dem Subheader stehen. Der Abgleich mit Solr steht in einem Popup, der Knopf dafür sitzt in der Leiste hinter den
- * Flaggen (User 2026-10-09).
+ * Flaggen (User 2026-10-09); daneben das Nachziehen und Export/Import des Kerns, ebenfalls im Popup (User 2026-10-14).
  *
  * Felder, die in jedem Kern liegen (coreKey null, etwa id, cursorDate und userGrantedAccess), erscheinen in jedem
  * Kern-Tab, id auf Platz 1.
@@ -34,6 +36,11 @@ export function SolrCoreTab() {
   const [newFieldRowOpen, setNewFieldRowOpen] = useState(false)
   // Das Popup mit dem Abgleich mit Solr
   const [syncOpen, setSyncOpen] = useState(false)
+  // Das Popup mit dem Nachziehen: in jedem Kern der Neuaufbau der Suche, bei DMS und NACHRICHTEN dazu ihre
+  // Prüfungen (User 2026-10-14)
+  const [reindexOpen, setReindexOpen] = useState(false)
+  // Das Popup mit Export und Import des Kerns als Sicherung (User 2026-10-14)
+  const [transferOpen, setTransferOpen] = useState(false)
   const solrCore = solrCores?.find((candidate) => candidate.key === coreKey) ?? null
   const coreFields = solrFields?.filter((solrField) => isSolrFieldOfCore(solrField, coreKey)) ?? null
 
@@ -69,6 +76,12 @@ export function SolrCoreTab() {
           <button type="button" className="button-other" disabled={solrCore === null} onClick={() => setSyncOpen(true)}>
             <Icon name="refresh" /> {t('solrmanager.sync.title')}
           </button>
+          <button type="button" className="button-other" disabled={solrCore === null} onClick={() => setReindexOpen(true)}>
+            <Icon name="refresh" /> {t('solrmanager.reindex.title')}
+          </button>
+          <button type="button" className="button-other" disabled={solrCore === null} onClick={() => setTransferOpen(true)}>
+            <Icon name="download" /> {t('solrmanager.transfer.title')}
+          </button>
           <span className="ms-auto">{status}</span>
         </div>
         {solrCore !== null && coreFields !== null && (
@@ -87,6 +100,13 @@ export function SolrCoreTab() {
       <Popup open={syncOpen} title={t('solrmanager.sync.title')} onClose={() => setSyncOpen(false)}>
         {/* key: beim Wechsel des Kerns den Bericht des neuen holen */}
         <SolrSyncStatus key={coreKey} coreKey={coreKey} />
+      </Popup>
+      <Popup open={reindexOpen} title={t('solrmanager.reindex.titleOf', { core: coreKey })} onClose={() => setReindexOpen(false)}>
+        {/* nur solange offen: so fragt die Box den Stand nur ab, wenn jemand hinsieht */}
+        {reindexOpen && <SolrReindexBox key={coreKey} coreKey={coreKey} />}
+      </Popup>
+      <Popup open={transferOpen} title={t('solrmanager.transfer.titleOf', { core: coreKey })} onClose={() => setTransferOpen(false)}>
+        {transferOpen && <SolrCoreTransferBox key={coreKey} coreKey={coreKey} />}
       </Popup>
     </>
   )
